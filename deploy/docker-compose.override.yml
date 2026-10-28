@@ -1,0 +1,20 @@
+# PaoTeacherAgent overlay, applied after upstream docker-compose.yml + docker-compose.onyx-lite.yml.
+# Paths resolve relative to deployment/docker_compose/ (the first compose file's directory).
+# Run through deploy/compose.sh rather than by hand.
+
+x-pao-env: &pao-env
+  env_file:
+    - path: .env
+      required: false
+    - path: ../../deploy/.env
+      required: true
+
+services:
+  api_server: *pao-env
+  web_server: *pao-env
+  mcp_server: *pao-env
+  relational_db: *pao-env
+  nginx: *pao-env
+  # Neither agent runs code; skip the sandbox (it mounts the host Docker socket).
+  code-interpreter:
+    profiles: ["code-interpreter"]
