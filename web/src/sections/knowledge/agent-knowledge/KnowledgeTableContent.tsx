@@ -178,6 +178,7 @@ export function RecentFilesTableContent({
         <Content
           icon={SvgFiles}
           title={file.name}
+          titleMaxLines={1}
           sizePreset="main-ui"
           variant="section"
         />

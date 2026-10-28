@@ -63,7 +63,7 @@ export const KnowledgeAddView = memo(function KnowledgeAddView({
             aria-label="knowledge-add-document-sets"
             rightChildren={
               selectedDocumentSetIds.length > 0 ? (
-                <Text mainUiAction className="text-action-selection-05">
+                <Text mainUiAction className="self-center text-action-selection-05">
                   {selectedDocumentSetIds.length}
                 </Text>
               ) : undefined
@@ -84,7 +84,7 @@ export const KnowledgeAddView = memo(function KnowledgeAddView({
           aria-label="knowledge-add-files"
           rightChildren={
             selectedFileIds.length > 0 ? (
-              <Text mainUiAction className="text-action-selection-05">
+              <Text mainUiAction className="self-center text-action-selection-05">
                 {selectedFileIds.length}
               </Text>
             ) : undefined
@@ -118,7 +118,7 @@ export const KnowledgeAddView = memo(function KnowledgeAddView({
                 aria-label={`knowledge-add-source-${connectedSource.source}`}
                 rightChildren={
                   selectionCount > 0 ? (
-                    <Text mainUiAction className="text-action-selection-05">
+                    <Text mainUiAction className="self-center text-action-selection-05">
                       {selectionCount}
                     </Text>
                   ) : undefined

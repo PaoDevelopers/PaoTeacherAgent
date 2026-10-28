@@ -24,6 +24,8 @@ Our own files (no merge conflicts possible): `deploy/`, `eval/`, `CUSTOMIZATIONS
 | `web/src/sections/sidebar/AccountPopover.tsx` | Removed "Help & FAQ" (docs.onyx.app); version row shows "PaoTeacherAgent vX" with no Onyx link | Branding; Onyx admin docs are not teacher help |
 | `web/lib/opal/src/components/buttons/attachment-item-button/styles.css` | Title text takes the remaining row width; center slot never shrinks below its content | Bug fix: long file names ran under the "1 hour ago" timestamp in Recent Files. Worth upstreaming. |
 | `web/src/refresh-components/popovers/FilePickerPopover.tsx` | `titleMaxLines={1}` on file rows | Bug fix: long file names wrapped over several lines and ran into the PDF/PPTX label |
+| `web/src/sections/knowledge/agent-knowledge/KnowledgeAddView.tsx` | `self-center` on the 3 count badges | Bug fix: counts sat at the top of two-line rows instead of centred |
+| `web/src/sections/knowledge/agent-knowledge/KnowledgeTableContent.tsx` | `titleMaxLines={1}` on file names | Bug fix: long names wrapped and left the file icon floating above the checkbox line; full name shows on hover |
 | `web/src/i18n/messages/*.json` (all 9 locales) | `auth.login.welcomeSubtitle.text` "Your open source AI platform for work" → "AI assistant for YK Pao School teachers" (translated) | Login page tagline |
 
 Admin-only translation strings that mention "Onyx" (connectors, licensing, Onyx Lite notices)
