@@ -13,6 +13,10 @@ services:
   api_server: *pao-env
   web_server: *pao-env
   mcp_server: *pao-env
+  # Lite moves Redis to a profile, but credential_audit.py still calls Redis on every
+  # LLM key read; without it each chat stalls ~60s on connection retries. Run it.
+  cache:
+    profiles: !reset []
   relational_db: *pao-env
   nginx: *pao-env
   # Neither agent runs code; skip the sandbox (it mounts the host Docker socket).
