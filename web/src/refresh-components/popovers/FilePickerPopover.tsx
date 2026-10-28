@@ -108,6 +108,7 @@ function FileLineItem({
           </div>
         }
         title={projectFile.name}
+        titleMaxLines={1}
         {...rowProps}
       />
     </Hoverable.Root>

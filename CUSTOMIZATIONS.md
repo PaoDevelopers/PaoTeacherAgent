@@ -22,6 +22,8 @@ Our own files (no merge conflicts possible): `deploy/`, `eval/`, `CUSTOMIZATIONS
 | `web/src/app/globals.css` | One `@import "./css/paoteacheragent.css"` line | Brand colour override for `--theme-primary-04/05/06` |
 | `web/src/lib/app/hooks.ts` | Chat footer "Onyx vX – Open Source AI Platform" → app name | Branding |
 | `web/src/sections/sidebar/AccountPopover.tsx` | Removed "Help & FAQ" (docs.onyx.app); version row shows "PaoTeacherAgent vX" with no Onyx link | Branding; Onyx admin docs are not teacher help |
+| `web/lib/opal/src/components/buttons/attachment-item-button/styles.css` | Title text takes the remaining row width; center slot never shrinks below its content | Bug fix: long file names ran under the "1 hour ago" timestamp in Recent Files. Worth upstreaming. |
+| `web/src/refresh-components/popovers/FilePickerPopover.tsx` | `titleMaxLines={1}` on file rows | Bug fix: long file names wrapped over several lines and ran into the PDF/PPTX label |
 | `web/src/i18n/messages/*.json` (all 9 locales) | `auth.login.welcomeSubtitle.text` "Your open source AI platform for work" → "AI assistant for YK Pao School teachers" (translated) | Login page tagline |
 
 Admin-only translation strings that mention "Onyx" (connectors, licensing, Onyx Lite notices)

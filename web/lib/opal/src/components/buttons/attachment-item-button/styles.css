@@ -21,6 +21,12 @@
   @apply flex min-w-0 flex-row items-center gap-2;
 }
 
+/* PaoTeacherAgent: the Content is width:100% of a box that also holds the tile,
+   so it overflowed by the tile's width; take the remaining space instead. */
+.opal-attachment-item-button-title > :last-child {
+  @apply min-w-0 flex-1;
+}
+
 /* The signature square: its rounding (radius-08) complements the row's own
    container rounding (radius-12) at the shared inset. Sized by the same
    token as the action slot so the row's two fixed-width regions agree. */
@@ -41,8 +47,10 @@
   @apply h-full w-full object-cover;
 }
 
+/* PaoTeacherAgent: never shrink below its content, or right-aligned text
+   (e.g. "1 hour ago") spills over a long title; the title truncates instead. */
 .opal-attachment-item-button-center {
-  @apply min-w-0 flex-1;
+  @apply grow shrink-0;
 }
 
 /* Reserved even when empty: rows with and without actions align, and
