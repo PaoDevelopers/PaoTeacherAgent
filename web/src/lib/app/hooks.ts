@@ -2,7 +2,6 @@
 
 import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useAppPosition } from "@/lib/position/hooks";
 import { useSettings } from "@/lib/settings/hooks";
 import useChatSessions from "@/hooks/useChatSessions";
@@ -12,10 +11,8 @@ import { SEARCH_TOOL_ID, WEB_SEARCH_TOOL_ID } from "@/lib/tools/constants";
 
 export function useCustomFooterContent(): string {
   const settings = useSettings();
-  const t = useTranslations("common.appFooter");
   return (
-    settings.enterprise?.custom_lower_disclaimer_content ||
-    `[Onyx ${settings.version ?? "dev"}](https://www.onyx.app/) - ${t("slogan")}`
+    settings.enterprise?.custom_lower_disclaimer_content || settings.appName
   );
 }
 

@@ -1,0 +1,12 @@
+/* PaoTeacherAgent brand colour rgb(92, 181, 49) on primary surfaces (see CUSTOMIZATIONS.md).
+   Light mode uses darker shades so white button text keeps >= 4.5:1 contrast. */
+:root {
+  --theme-primary-04: rgb(66, 130, 35);
+  --theme-primary-05: rgb(62, 122, 33);
+  --theme-primary-06: rgb(52, 103, 28);
+}
+.dark {
+  --theme-primary-04: rgb(112, 196, 72);
+  --theme-primary-05: rgb(92, 181, 49);
+  --theme-primary-06: rgb(78, 158, 40);
+}

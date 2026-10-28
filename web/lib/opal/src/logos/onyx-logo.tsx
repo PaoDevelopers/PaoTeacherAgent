@@ -1,4 +1,5 @@
 import type { IconProps } from "@opal/types";
+// PaoTeacherAgent: placeholder mark until the school logo arrives (see CUSTOMIZATIONS.md).
 const SvgOnyxLogo = ({ size, ...props }: IconProps) => (
   <svg
     height={size}
@@ -7,21 +8,10 @@ const SvgOnyxLogo = ({ size, ...props }: IconProps) => (
     xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
+    <rect width="64" height="64" rx="14" fill="rgb(92, 181, 49)" />
     <path
-      d="M10.4014 13.25L18.875 32L10.3852 50.75L2 32L10.4014 13.25Z"
-      fill="var(--theme-primary-05)"
-    />
-    <path
-      d="M53.5264 13.25L62 32L53.5102 50.75L45.125 32L53.5264 13.25Z"
-      fill="var(--theme-primary-05)"
-    />
-    <path
-      d="M32 45.125L50.75 53.5625L32 62L13.25 53.5625L32 45.125Z"
-      fill="var(--theme-primary-05)"
-    />
-    <path
-      d="M32 2L50.75 10.4375L32 18.875L13.25 10.4375L32 2Z"
-      fill="var(--theme-primary-05)"
+      d="M22 48V16H34.5C41.4 16 46 20.1 46 26.5C46 32.9 41.4 37 34.5 37H29V48H22ZM29 30.8H33.9C37 30.8 38.9 29.2 38.9 26.5C38.9 23.8 37 22.2 33.9 22.2H29V30.8Z"
+      fill="#ffffff"
     />
   </svg>
 );

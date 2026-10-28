@@ -25,7 +25,6 @@ import NotificationsPopover from "@/sections/sidebar/NotificationsPopover";
 import {
   SvgBell,
   SvgExternalLink,
-  SvgHelpCircle,
   SvgLogOut,
   SvgSliders,
   SvgUser,
@@ -40,7 +39,6 @@ import UserAvatar from "@/refresh-components/avatars/UserAvatar";
 import SidebarTabSkeleton from "@/refresh-components/skeletons/SidebarTabSkeleton";
 import { useNotificationSummary } from "@/hooks/useNotifications";
 import { SvgOnyxLogo } from "@opal/logos";
-import { markdown } from "@opal/utils";
 import { useTranslations } from "next-intl";
 
 interface SettingsItemsProps {
@@ -142,14 +140,6 @@ function useSettingsItems({
             />
           ),
         },
-        {
-          kind: "action",
-          id: "help-faq",
-          icon: SvgHelpCircle,
-          title: t("helpFaq.label"),
-          href: "https://docs.onyx.app",
-          target: "_blank",
-        },
         ...(enterpriseSettings?.custom_help_link_url
           ? [
               {
@@ -204,11 +194,7 @@ function useSettingsItems({
                 color="muted"
                 orientation="reverse"
                 icon={SvgOnyxLogo}
-                title={markdown(
-                  `[Onyx ${
-                    settings.version ?? "dev"
-                  }](https://docs.onyx.app/changelog)`
-                )}
+                title={`${settings.appName} ${settings.version ?? "dev"}`}
               />
             </div>
           ),
