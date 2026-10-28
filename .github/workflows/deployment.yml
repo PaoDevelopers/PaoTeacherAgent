@@ -46,7 +46,7 @@ jobs:
           fetch-tags: true
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # ratchet:astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # ratchet:astral-sh/setup-uv@v10.3.1
         with:
           version: "0.11.25"
           enable-cache: false
@@ -89,7 +89,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # ratchet:astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # ratchet:astral-sh/setup-uv@v10.3.1
         with:
           version: "0.11.25"
           enable-cache: false
@@ -262,7 +262,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # ratchet:astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # ratchet:astral-sh/setup-uv@v10.3.1
         with:
           version: "0.11.25"
           # NOTE: This isn't caching much and zizmor suggests this could be poisoned, so disable.

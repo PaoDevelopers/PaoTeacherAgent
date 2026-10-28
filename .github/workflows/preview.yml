@@ -124,7 +124,7 @@ jobs:
             ${{ runner.os }}-nextjs-
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # ratchet:astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # ratchet:astral-sh/setup-uv@v10.3.1
 
       - name: Install the preview CLI
         run: uv tool install local-preview==0.9.0
