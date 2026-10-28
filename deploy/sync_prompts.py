@@ -15,7 +15,7 @@ from pathlib import Path
 HERE = Path(__file__).parent
 PROMPTS = {
     "Policy Assistant": HERE / "agent_policy_prompt.md",
-    "Teaching Assistant": HERE / "agent_teaching_prompt.md",
+    "Behaviour Assistant": HERE / "agent_behaviour_prompt.md",
 }
 
 
