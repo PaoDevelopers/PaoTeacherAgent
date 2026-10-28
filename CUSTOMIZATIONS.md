@@ -13,6 +13,7 @@ Our own files (no merge conflicts possible): `deploy/`, `eval/`, `CUSTOMIZATIONS
 
 | File | Change | Reason |
 |------|--------|--------|
+| `README.md` | Replaced with the PaoTeacherAgent README | Our documentation. On merge conflicts, keep ours. |
 | `web/lib/opal/src/logos/onyx-logo.tsx` | Onyx mark replaced by PaoTeacherAgent mark (placeholder "P" until the school logo arrives) | Branding; whitelabeling is Business-tier in Onyx. Every app surface renders this component. |
 | `web/lib/opal/src/logos/onyx-typed.tsx` | "Onyx" wordmark replaced by "PaoTeacherAgent" | Branding (sidebar, login page) |
 | `web/src/lib/settings/hooks.ts` | Default app name `"Onyx"` → `"PaoTeacherAgent"` | Branding (client-side name) |

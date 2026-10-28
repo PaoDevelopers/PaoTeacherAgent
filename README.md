@@ -1,151 +1,218 @@
-<a name="readme-top"></a>
+# PaoTeacherAgent
 
-<h2 align="center">
-    <a href="https://www.onyx.app/?utm_source=onyx_repo&utm_medium=github&utm_campaign=readme"> <img width="50%" src="https://github.com/onyx-dot-app/onyx/blob/logo/OnyxLogoCropped.jpg?raw=true" /></a>
-</h2>
+AI assistant for YK Pao School teachers, built on [Onyx](https://github.com/onyx-dot-app/onyx) Community Edition (MIT). Teachers sign in with their school Microsoft account and pick one of two agents:
 
-<p align="center">
-    <a href="https://discord.gg/TDJ59cGV2X" target="_blank">
-        <img src="https://img.shields.io/badge/discord-join-blue.svg?logo=discord&logoColor=white" alt="Discord" />
-    </a>
-    <a href="https://docs.onyx.app/?utm_source=onyx_repo&utm_medium=github&utm_campaign=readme" target="_blank">
-        <img src="https://img.shields.io/badge/docs-view-blue" alt="Documentation" />
-    </a>
-    <a href="https://www.onyx.app/?utm_source=onyx_repo&utm_medium=github&utm_campaign=readme" target="_blank">
-        <img src="https://img.shields.io/website?url=https://www.onyx.app&up_message=visit&up_color=blue" alt="Website" />
-    </a>
-    <a href="https://github.com/onyx-dot-app/onyx/blob/main/LICENSE" target="_blank">
-        <img src="https://img.shields.io/static/v1?label=license&message=MIT&color=blue" alt="License" />
-    </a>
-</p>
+| Agent | Answers from | For |
+|---|---|---|
+| **Policy Assistant** (default) | YK Pao School policies only | Rules, behaviour, consequences, what to record and who to tell |
+| **Behaviour Assistant** | Behaviour best-practice guidance chosen by the school (DfE, Ofsted, EEF) | Classroom management, routines, engagement, students with additional needs |
 
-<p align="center">
-  <a href="https://trendshift.io/repositories/12516" target="_blank">
-    <img src="https://trendshift.io/api/badge/repositories/12516" alt="onyx-dot-app/onyx | Trendshift" style="width: 250px; height: 55px;" />
-  </a>
-</p>
+The assistants inform teachers; they never make disciplinary decisions. Both put safeguarding first and never repeat student names.
 
-# Onyx - The context layer powered by all your apps
+- [How it works](#how-it-works)
+- [Run locally](#run-locally)
+- [Environment variables](#environment-variables)
+- [LLM provider (DeepSeek)](#llm-provider-deepseek)
+- [Microsoft Entra sign-in](#microsoft-entra-sign-in)
+- [Documents](#documents)
+- [Editing the agent prompts](#editing-the-agent-prompts)
+- [Admins](#admins)
+- [Chat retention and privacy](#chat-retention-and-privacy)
+- [Backups](#backups)
+- [Upgrading Onyx](#upgrading-onyx)
+- [Not done yet](#not-done-yet)
 
-> "LLMs know about everything public, but what if it could also know what's going on in our team? I want an AI coworker, not an AI new hire."
+## How it works
 
-**[Onyx](https://www.onyx.app/?utm_source=onyx_repo&utm_medium=github&utm_campaign=readme)** is the knowledge/context layer for your team and AI agents.
+- **Onyx Lite mode**: Postgres, Redis, the API server, the web server and nginx. No vector database and no embedding model, so it runs on modest hardware without AVX.
+- **No RAG.** Each agent's documents are attached to the agent as files. On every question the model gets the full text of all its documents (both sets fit well within DeepSeek Flash's 1M-token context). If a set ever grows too large, Onyx switches to letting the model open files itself with its `read_file` tool.
+- **Citations** are clickable and point to the source file; the model adds the page or section after each one.
+- **Our changes to Onyx** are small and listed in [CUSTOMIZATIONS.md](CUSTOMIZATIONS.md). Everything of ours lives in `deploy/`.
 
-Onyx connects to your application to index and surface knowledge from 50+ applications while protecting your data sovereignty through flexible self-hosted deployments.
+| Path | What it is |
+|---|---|
+| `deploy/compose.sh` | Runs upstream compose + Lite overlay + our overlay. Use it instead of `docker compose`. |
+| `deploy/docker-compose.override.yml` | Our overlay: loads `deploy/.env`, runs Redis, turns off the code sandbox |
+| `deploy/.env.example` | Template for `deploy/.env` (never commit `deploy/.env`) |
+| `deploy/agent_policy_prompt.md`, `deploy/agent_behaviour_prompt.md` | The agent system prompts |
+| `deploy/sync_prompts.py` | Pushes the prompt files into the running agents |
 
-Beyond search, Onyx enables LLMs with advanced features like web search, sandboxes, skills, and more.
+## Run locally
 
+Needs Docker with Compose v2.
 
-> [!TIP]
-> Deploy with a single command:
-> ```
-> curl -fsSL https://onyx.app/install_onyx.sh | bash
-> ```
+```bash
+cp deploy/.env.example deploy/.env
+# Fill in USER_AUTH_SECRET, ENCRYPTION_KEY_SECRET and POSTGRES_PASSWORD, each from:
+openssl rand -hex 32
 
-![Onyx chat answering a question about use cases](docs/assets/onyx-chat-use-cases.png)
+deploy/compose.sh build web_server   # our branded web image, ~5 min
+deploy/compose.sh up -d --wait
+deploy/compose.sh ps                 # all services healthy
+```
 
----
+Open http://localhost. On an empty database, the first account to sign up becomes admin.
 
-## How does Onyx work
+Docker Hub pulls can fail with `EOF` on some networks; just rerun the command, or `docker pull` the failing image until it succeeds.
 
-Onyx creates a representation of knowledge across all connected sources. It pulls data along with metadata, permissions, etc. and ingests it so that the information is easily accessible for downstream use cases.
+## Environment variables
 
-Compared to MCP based searches and index-free approaches, Onyx provides a more reliable, low latency, and low cost context for any given query whether it's a simple keyword query or a complex research task.
+All live in `deploy/.env`. Any variable from `deployment/docker_compose/env.template` can also go there.
 
-Instead of an agent coordinating and iteratively searching dozens of MCP and burning many thousands of tokens, Onyx fetches the context across its internal representation instantly and filters down to only the most relevant ground truth documents.
+| Variable | Purpose |
+|---|---|
+| `IMAGE_TAG` | Upstream Onyx release the backend images come from. Must match the release this fork is based on. |
+| `ONYX_WEB_SERVER_IMAGE` | Our web image, built from this repo |
+| `USER_AUTH_SECRET`, `ENCRYPTION_KEY_SECRET`, `POSTGRES_PASSWORD` | Secrets. `ENCRYPTION_KEY_SECRET` encrypts the stored LLM key and SSO secret: lose it and you must re-enter them. |
+| `WEB_DOMAIN` | `http://localhost` locally, `https://<domain>` in production. Must match the Entra redirect URI. |
+| `VALID_EMAIL_DOMAINS` | Email domains allowed to sign in, e.g. your school domain |
+| `OIDC_PKCE_ENABLED` | Forces PKCE on for SSO sign-in |
+| `DISABLE_TELEMETRY` | `true`: no usage telemetry to Onyx |
+| `MCP_SERVER_ENABLED` | `false`: no access for outside AI clients |
+| `ONYX_URL`, `ONYX_PAT` | For `deploy/sync_prompts.py`: the site URL and an admin's access token |
 
-## ⭐ Features
+## LLM provider (DeepSeek)
 
-- **🔍 Agentic RAG:** Get best in class search and answer quality based on hybrid index + a custom agent harness tuned for information retrieval.
-- **🔬 Deep Research:** Get in depth reports with a multi-step research flow.
-- **🤖 Custom Agents:** Build AI Agents with unique subsets of knowledge, custom instructions, and the ability to take actions.
-- **🌍 Web Search:** Augment internal knowledge with live web search.
-  - Supports Serper, Google PSE, Brave, SearXNG, and others.
-  - Comes with an in house web crawler and support for Firecrawl/Exa.
-- **▶️ External Actions & MCP:** Let Onyx agents take actions in external applications to complete tasks end to end.
-- **💻 Secure Sandbox:** Execute code and work with intermediate artifacts in a sandbox for complex workflows.
-- **📄 Artifacts:** Generate documents, graphics, and other downloadable artifacts.
-- **🎙️ Voice Mode:** Interact with Onyx via text-to-speech and speech-to-text.
+Onyx connects to DeepSeek directly through its built-in OpenAI-compatible provider. The API key is stored encrypted in the Onyx database, not in env.
 
-Onyx supports all major LLM providers, both self-hosted (like Ollama, LiteLLM, vLLM, etc.) and proprietary (like Anthropic, OpenAI, Gemini, etc.).
+1. **Admin Panel → Language Models → add an OpenAI-Compatible provider.**
+2. API base `https://api.deepseek.com`, your API key, model `deepseek-flash` (1M context, reads images).
+3. Set it as the **default** model and the **default vision** model.
+4. Test it with a chat.
 
-To learn more - check out our [docs](https://docs.onyx.app/welcome?utm_source=onyx_repo&utm_medium=github&utm_campaign=readme)!
+Answer time: about 5–10 s for the Policy Assistant and 15–30 s for the Behaviour Assistant, which reads a much larger set. The first question after an agent's files change can take a minute or two while DeepSeek processes the new text.
 
----
+## Microsoft Entra sign-in
 
-## Security and Data Processing
+SSO is set up in the admin panel (Onyx v5 no longer uses `AUTH_TYPE` env variables). It is free in Community Edition.
 
-![Onyx architecture: everything runs inside your environment](docs/assets/architecture.png)
+### 1. Register the app in Entra
 
-When connecting up your organization's knowledge, it's critical that this sensitive IP is not leaked to the wrong parties both external and internal.
+At **entra.microsoft.com → Applications → App registrations → New registration**:
 
-Onyx provides an air-gappable, self-hosted deployment where the document index, database, and processing all happen within a self-contained set of services.
+1. **Name** `PaoTeacherAgent`. **Supported account types:** *Accounts in this organizational directory only (Single tenant)*.
+2. **Redirect URI:** platform **Web**, `http://localhost/api/auth/oidc/entra/callback`. Under **Authentication → Add URI**, also add `https://<domain>/api/auth/oidc/entra/callback`. The path ends in the provider *Name* from step 2 (`entra`).
+3. **Certificates & secrets → New client secret.** Copy the *Value* immediately.
+4. **API permissions → Microsoft Graph → Delegated:** `openid`, `profile`, `email` (and the default `User.Read`), then **Grant admin consent**.
+5. **Token configuration → Add optional claim → ID → `email`.**
+6. From **Overview**, copy the *Application (client) ID* and the *Directory (tenant) ID*.
 
-You can also choose a trusted embedding model and LLM provider (both of which can also run locally).
+### 2. Add the provider in Onyx
 
----
+**Admin Panel → SSO Providers → Add Provider:**
 
-## Access Onyx from anywhere
+| Field | Value |
+|---|---|
+| Provider Type | OIDC |
+| Name | `entra` (can't be changed later) |
+| Display Name | `Microsoft` |
+| Client ID / Client Secret | from step 1 |
+| OpenID Configuration URL | `https://login.microsoftonline.com/<TENANT_ID>/v2.0/.well-known/openid-configuration` |
+| Require Verified Email Claim | **Off** (Entra doesn't send it) |
+| Enable PKCE | On |
+| Scopes | empty |
+| Allowed Email Domains | your school email domain(s) |
 
-The same security and fine grained permissions apply no matter where the question comes from.
+The single-tenant app plus your tenant ID in the URL means only your school's accounts can sign in.
 
-- **Web and desktop app** - Ask questions, interface with Onyx AI agents, and everything else in the feature list above.
-- **Slack and Discord bot** - Get answers directly in Slack or Discord from a bot connected to your org's knowledge.
-- **MCP server** - Point Claude Code, Open Code, Codex, or any MCP client at Onyx. Your AI agents get company context with the same access controls as the person running them.
-- **Chrome extension** - Query Onyx from any tab with context from the page, directly in Chrome.
-- **Embeddable Widget** - Easily add Onyx functionality to your app or website.
+### 3. Lock it down, in this order
 
----
+1. Sign in with Microsoft to check it works.
+2. Make your Microsoft account an admin (see [Admins](#admins)) and sign in again to confirm you can open the Admin Panel.
+3. **Admin Panel → Security & Hardening → turn off password login.**
 
-## 🚀 Deployment Modes
+Do step 3 last. Turning off password login before a Microsoft account is admin locks everyone out of the admin panel.
 
-> Onyx supports deployments in Docker, Kubernetes, Helm/Terraform and provides guides for major cloud providers.
-> Detailed deployment guides found [here](https://docs.onyx.app/deployment/overview).
+## Documents
 
-Onyx supports two separate deployment options: standard and lite.
+| Agent | Source folder | Contents |
+|---|---|---|
+| Policy Assistant | *YK Pao Behaviour Policies* | Behaviour Policy, Dress Code, Technology Use Policy |
+| Behaviour Assistant | *Best Practice Documents for Behaviour Leadership* | DfE, Ofsted, EEF and similar guidance |
 
-#### Standard Onyx
+Documents are files attached to each agent; there is no folder sync.
 
-The complete feature set of Onyx which is recommended for serious users and larger teams. Additional components not included in Lite mode:
-- Vector + Keyword index for RAG.
-- Background containers to run job queues and workers for syncing knowledge from connectors.
-- AI model inference servers to run deep learning models used during indexing and inference.
-- Performance optimizations for large scale use via in memory cache (Redis) and blob store (MinIO).
+**Add or remove documents:** in the sidebar, open the agent's **⋯ → Edit** (or go to `/app/agents/edit/1` for Policy, `/app/agents/edit/2` for Behaviour) → **Knowledge → Your Files**. Use **Add File** to upload; tick or untick files to attach or detach them; then **Save**. A new file takes a few seconds to process.
 
-#### Onyx Lite
+**Replace an outdated policy** so old consequences are never cited:
 
-The Lite mode can be thought of as a lightweight AI Chat UI. It requires less resources (under 1GB memory) and runs a less complex stack but is not capable of indexing documents.
-It is great for users who want to test out the Onyx UI quickly or for teams who are only interested in the Chat UI and Agents functionalities.
+1. Open the Policy Assistant's editor → Knowledge → Your Files.
+2. Untick the old version, **Add File** with the new one, make sure it is ticked, and **Save**.
+3. Delete the old file from the list so nobody re-attaches it.
+4. Ask a question the change affects and check the answer cites the new file.
 
-> [!TIP]  
-> **To try Onyx for free without deploying, visit [Onyx Cloud](https://cloud.onyx.app/signup?utm_source=onyx_repo&utm_medium=github&utm_campaign=readme)**.
+**File rules:**
 
----
+- Upload PDF, DOCX or PPTX. Convert old `.doc` files to `.docx` first.
+- Don't upload standalone images (PNG/JPG). The model sees them as if the teacher had just sent them. Upload the document that contains the image instead.
+- Scanned PDFs have no text; upload a text version.
+- Keep one admin in charge of documents: the list is that admin's own files, and a different admin may not see them.
 
-## 🏢 Onyx for Enterprise
+## Editing the agent prompts
 
-Onyx is built for teams of all sizes, from individual users to the largest global enterprises:
-- 👥 Collaboration: Share chats and agents with other members of your organization.
-- 🔐 Single Sign On: SSO via Google OAuth, OIDC, or SAML. Group syncing and user provisioning via SCIM.
-- 🛡️ Role Based Access Control: RBAC for sensitive resources like access to agents, actions, etc.
-- 📊 Analytics: Usage graphs broken down by teams, LLMs, or agents.
-- 🕵️ Query History: Audit usage to ensure safe adoption of AI in your organization.
-- 💻 Custom code: Run custom code to remove PII, reject sensitive queries, or to run custom analysis.
-- 🎨 Whitelabeling: Customize the look and feel of Onyx with custom naming, icons, banners, and more.
+The source of truth is `deploy/agent_policy_prompt.md` and `deploy/agent_behaviour_prompt.md`. Edit them, then push them into the running agents:
 
-## 📚 Licensing
+```bash
+set -a; . deploy/.env; set +a
+python3 deploy/sync_prompts.py
+```
 
-There are two editions of Onyx:
+It changes only the prompts and keeps every other agent setting. `ONYX_PAT` is an admin's access token: **avatar menu → Settings → Access Tokens → New Access Token**.
 
-- Onyx Community Edition (CE) is available freely under the MIT license and covers all of the core features for RAG, AI Chat, Agents, and Actions.
-- Onyx Enterprise Edition (EE) includes extra features that are primarily useful for larger organizations.
+Avoid editing the prompts in the agent editor: the next sync overwrites them. Start a new chat to see a prompt change.
 
-For feature details, check out [our website](https://www.onyx.app/pricing?utm_source=onyx_repo&utm_medium=github&utm_campaign=readme).
+## Admins
 
-## 👪 Community
+**Admin Panel → Users →** change the person's role to **Admin**. They must have signed in once first. On a new, empty database, the first person to sign in becomes admin automatically.
 
-Join our open source community on **[Discord](https://discord.gg/TDJ59cGV2X)**!
+## Chat retention and privacy
 
-## 💡 Contributing
+- **Where chats are stored:** the Postgres database on our server (Docker volume `onyx_db_volume`), together with users, agents and uploaded files.
+- **Who can read them:** each teacher sees only their own chats in the app. Community Edition has no admin screen for browsing other people's chats (query history is a paid Onyx feature), but anyone with server or database access can read everything.
+- **Retention:** kept forever. Automatic deletion after N days is a paid (Enterprise) Onyx feature. Teachers can delete their own chats.
+- **Memory:** Onyx can remember facts about a teacher (role, year groups) across chats. The prompts tell it never to store anything about students. Teachers can view, delete or turn off memory under **Settings → Personalization**.
+- **What leaves the server:** chat content goes only to DeepSeek. Telemetry is off (`DISABLE_TELEMETRY=true`). Onyx also fetches public model lists from GitHub, which contain no chat content. The code sandbox and the MCP server are turned off.
+- **Student data:** the agents never ask for student names and don't repeat them, but whatever a teacher types is stored with the chat and sent to DeepSeek.
 
-Looking to contribute? Please check out the [Contribution Guide](CONTRIBUTING.md) for more details.
+## Backups
+
+In Lite mode everything lives in Postgres: chats, users, agents, settings and the uploaded documents. One dump covers it all.
+
+```bash
+# Backup (also keep a copy of deploy/.env: without ENCRYPTION_KEY_SECRET the stored
+# DeepSeek key and SSO secret can't be decrypted)
+docker exec onyx-relational_db-1 pg_dump -U postgres -Fc postgres > paoteacheragent-$(date +%F).dump
+
+# Restore into a fresh deployment with the same deploy/.env
+deploy/compose.sh up -d relational_db
+docker exec -i onyx-relational_db-1 pg_restore -U postgres -d postgres --clean --if-exists < paoteacheragent-YYYY-MM-DD.dump
+deploy/compose.sh up -d --wait
+```
+
+Run the backup on a schedule (e.g. a nightly cron job) and store copies off the server.
+
+## Upgrading Onyx
+
+This repo is a fork of Onyx pinned to a release tag (see `IMAGE_TAG`). To move to a new release:
+
+```bash
+# 0. Back up first (see Backups)
+git fetch upstream tag vX.Y.Z --no-tags
+git merge vX.Y.Z
+#    Conflicts can only be in the files listed in CUSTOMIZATIONS.md;
+#    re-apply each change there. For README.md, keep ours.
+# 1. Set IMAGE_TAG=vX.Y.Z and ONYX_WEB_SERVER_IMAGE=paoteacheragent-web:vX.Y.Z in deploy/.env
+#    (and deploy/.env.example)
+deploy/compose.sh build web_server
+deploy/compose.sh up -d --wait   # database migrations run automatically on start
+```
+
+Check the upstream release notes first, and test the upgrade locally before production. Rolling back after a migration needs the database backup.
+
+## Not done yet
+
+- **Evaluation:** `eval/questions.yaml` and the runner script.
+- **Production deployment:** HTTPS for the school domain.
+- **School logo:** a placeholder "P" mark is used until the logo is provided.
+- **Safeguarding policy:** not yet uploaded, so the agents can only point to the designated safeguarding lead, not cite the procedure.
+- **Hiding agent creation from teachers:** not done; any teacher can create their own agents.
