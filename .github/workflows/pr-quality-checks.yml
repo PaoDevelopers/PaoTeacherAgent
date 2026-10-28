@@ -42,7 +42,7 @@ jobs:
       # would install it.
       - name: Install root workspace dependencies
         run: bun install --frozen-lockfile
-      - uses: j178/prek-action@4e14d07f9231acabce116ccfca13b13dd9755ece
+      - uses: j178/prek-action@44924fe9ef4a6f88253c4b6b1bf11c689d3ce53d
         env:
           SKIP: ty,desktop-rust-fmt,desktop-rust-clippy
           # All-files checks need the push range for translation comparisons.
