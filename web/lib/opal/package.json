@@ -87,7 +87,7 @@
   "dependencies": {
     "clsx": "^2.0.0",
     "copy-to-clipboard": "^3.3.3",
-    "tailwind-merge": "^2.0.0"
+    "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
     "@onyx-ai/shared": "file:../shared",
