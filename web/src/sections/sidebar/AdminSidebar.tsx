@@ -16,17 +16,14 @@ import { useCustomAnalyticsEnabled } from "@/lib/hooks/useCustomAnalyticsEnabled
 import { useUser } from "@/providers/UserProvider";
 import { InputTypeIn, SidebarTab } from "@opal/components";
 import { SvgSearch, SvgX } from "@opal/icons";
-import { Disabled } from "@opal/core";
 import {
   useBillingInformation,
   useLicense,
   hasActiveSubscription,
 } from "@/lib/billing";
 import { NEXT_PUBLIC_CLOUD_ENABLED } from "@/lib/constants";
-import { Tier } from "@/lib/tiers/types";
 import useFilter from "@/hooks/useFilter";
 import AccountPopover from "@/sections/sidebar/AccountPopover";
-import { markdown } from "@opal/utils";
 import {
   buildItems,
   groupBySection,
@@ -108,10 +105,9 @@ export default function AdminSidebar() {
 
   const { query, setQuery, filtered } = useFilter(allItems, itemExtractor);
 
+  // Entries above the workspace tier are dropped, not shown as an upsell.
   const enabled = filtered.filter((item) => !item.disabled);
-  const disabled = filtered.filter((item) => item.disabled);
   const enabledGroups = groupBySection(enabled);
-  const disabledGroups = groupBySection(disabled);
 
   return (
     <SidebarLayouts.Root>
@@ -163,35 +159,6 @@ export default function AdminSidebar() {
             </SidebarLayouts.Section>
           </React.Fragment>
         ))}
-
-        {disabledGroups.length > 0 && <SidebarLayouts.Divider />}
-        {disabledGroups.length > 0 && (
-          <Disabled
-            disabled
-            // One tooltip over a tall block: it stays level with the pointer.
-            tooltipAlign="follow"
-            tooltip={markdown(
-              disabled.every((item) => item.requiredTier === Tier.ENTERPRISE)
-                ? t("adminSidebar.enterpriseOnly.tooltip")
-                : t("adminSidebar.businessOrEnterpriseOnly.tooltip")
-            )}
-          >
-            {disabledGroups.map((group, groupIndex) => (
-              <SidebarLayouts.Section
-                key={`disabled-${groupIndex}`}
-                title={
-                  group.sectionId ? sectionLabels[group.sectionId] : undefined
-                }
-              >
-                {group.items.map(({ link, icon, nameId }) => (
-                  <SidebarTab key={link} icon={icon}>
-                    {navLabels[nameId]}
-                  </SidebarTab>
-                ))}
-              </SidebarLayouts.Section>
-            ))}
-          </Disabled>
-        )}
       </SidebarLayouts.Body>
 
       <SidebarLayouts.Footer>

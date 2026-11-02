@@ -2,14 +2,10 @@ import { test } from "@playwright/test";
 import { loginAsRandomUser } from "@tests/e2e/utils/auth";
 import { SettingsGeneralPage } from "@tests/e2e/pages/SettingsGeneralPage";
 
-// One Latin-script locale and one CJK locale cover the two rendering paths
-// (the CJK case also exercises the ja catalog and the <html lang> switch the
-// :lang() line-breaking CSS keys off). marker is the locale's translation of
+// The CJK locale exercises the zh catalog and the <html lang> switch the
+// :lang() line-breaking CSS keys off. marker is the locale's translation of
 // settings.appearance.title, visible on the settings page.
-const LOCALES = [
-  { endonym: "Español", lang: "es", marker: "Apariencia" },
-  { endonym: "日本語", lang: "ja", marker: "外観" },
-] as const;
+const LOCALES = [{ endonym: "简体中文", lang: "zh", marker: "外观" }] as const;
 
 // A fresh user has no stored language, so the picker shows the workspace
 // default option (settings.language.workspaceDefault with the English endonym).

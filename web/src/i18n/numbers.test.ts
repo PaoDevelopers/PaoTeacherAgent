@@ -1,4 +1,3 @@
-import { runtimeLocale } from "@/i18n/config";
 import { createLocaleIntegerParser } from "@/i18n/numbers";
 
 function parserFor(locale: string) {
@@ -8,8 +7,8 @@ function parserFor(locale: string) {
 }
 
 describe("createLocaleIntegerParser", () => {
-  it("reads Eastern Arabic-Indic and ASCII digits in the Arabic UI", () => {
-    const parse = parserFor(runtimeLocale("ar"));
+  it("reads Eastern Arabic-Indic and ASCII digits under that numbering system", () => {
+    const parse = parserFor("ar-u-nu-arab");
     expect(parse("١٢")).toBe(12);
     expect(parse("12")).toBe(12);
     expect(parse("٠٣")).toBe(3);

@@ -5,6 +5,8 @@ import { InputVertical, Section } from "@opal/layouts";
 import InputTypeInField from "@/refresh-components/form/InputTypeInField";
 import DocumentAccessField from "@/views/admin/connectors/AddConnectorPage/components/DocumentAccessField";
 import ManageAccessField from "@/views/admin/connectors/AddConnectorPage/components/ManageAccessField";
+import { useTierAtLeast } from "@/lib/tiers/hooks";
+import { Tier } from "@/lib/tiers/types";
 import type { ConfigurableSources } from "@/lib/connectors/types/source";
 import type { CredentialValues } from "@/lib/credentials/types";
 
@@ -28,6 +30,7 @@ export default function ConnectorSettingsSection({
   editing = false,
 }: ConnectorSettingsSectionProps) {
   const t = useTranslations("admin.connectorsList.settings");
+  const businessTier = useTierAtLeast(Tier.BUSINESS);
 
   return (
     <Collapsible
@@ -50,18 +53,21 @@ export default function ConnectorSettingsSection({
                 variant={disabled ? "disabled" : "primary"}
               />
             </InputVertical>
-            <DocumentAccessField
-              connector={connector}
-              currentCredential={currentCredential}
-              disabled={disabled}
-              keepInitialAccess={editing}
-            />
+            {/* Access control is a Business feature; the form keeps its
+                "public" default below that tier. */}
+            {businessTier && (
+              <DocumentAccessField
+                connector={connector}
+                currentCredential={currentCredential}
+                disabled={disabled}
+                keepInitialAccess={editing}
+              />
+            )}
           </Section>
         </Card>
 
-        {/* Shown on every tier; below Business its groups are locked. Edit
-            mode leaves the manage groups alone. */}
-        {!editing && (
+        {/* Business only. Edit mode leaves the manage groups alone. */}
+        {!editing && businessTier && (
           <Card border="solid" rounding={4} padding={4} disabled={disabled}>
             <ManageAccessField disabled={disabled} />
           </Card>

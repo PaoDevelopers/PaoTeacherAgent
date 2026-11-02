@@ -12,7 +12,7 @@ import {
   WebVitals,
 } from "@/lib/analytics/shared";
 import Script from "next/script";
-import { DM_Mono, Hanken_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import StatsOverlayLoader from "@/components/dev/StatsOverlayLoader";
@@ -29,19 +29,45 @@ import { DirectionProvider } from "@radix-ui/react-direction";
 import { cookies } from "next/headers";
 import { htmlDirForLocale, messageLocale, type HtmlDir } from "@/i18n/config";
 
+// Fonts are vendored in ./fonts (SIL OFL texts beside them), so builds and
+// browsers never contact Google. Each family is split in two files by
+// unicode-range, as Google serves it. next/font needs literal option values,
+// so the ranges and fallbacks are written out in each call.
+//
 // No generic at the end of either fallback list: the generic comes last in
 // the composed --font-* variables on <html> below, after the per-locale CJK
 // tail (--font-cjk-sans, defined in globals.css). A generic here would sit
 // before the CJK fonts and swallow every CJK codepoint.
-const hankenGrotesk = Hanken_Grotesk({
-  subsets: ["latin"],
+const googleSansLatin = localFont({
+  src: "./fonts/GoogleSans-latin.woff2",
+  weight: "400 700",
   display: "swap",
-  fallback: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto"],
+  fallback: ["Arial", "Liberation Sans", "Helvetica"],
+  declarations: [
+    {
+      prop: "unicode-range",
+      value:
+        "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+    },
+  ],
 });
 
-const dmMono = DM_Mono({
+const googleSansLatinExt = localFont({
+  src: "./fonts/GoogleSans-latin-ext.woff2",
+  weight: "400 700",
+  display: "swap",
+  declarations: [
+    {
+      prop: "unicode-range",
+      value:
+        "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+    },
+  ],
+});
+
+const dmMonoLatin = localFont({
+  src: "./fonts/DMMono-latin.woff2",
   weight: "400",
-  subsets: ["latin"],
   display: "swap",
   fallback: [
     "SF Mono",
@@ -50,6 +76,26 @@ const dmMono = DM_Mono({
     "Roboto Mono",
     "Consolas",
     "Courier New",
+  ],
+  declarations: [
+    {
+      prop: "unicode-range",
+      value:
+        "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+    },
+  ],
+});
+
+const dmMonoLatinExt = localFont({
+  src: "./fonts/DMMono-latin-ext.woff2",
+  weight: "400",
+  display: "swap",
+  declarations: [
+    {
+      prop: "unicode-range",
+      value:
+        "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+    },
   ],
 });
 
@@ -99,8 +145,12 @@ export default async function Layout({ children }: LayoutProps) {
       // through these.
       style={
         {
-          "--font-hanken-grotesk": `${hankenGrotesk.style.fontFamily}, var(--font-cjk-sans), sans-serif`,
-          "--font-dm-mono": `${dmMono.style.fontFamily}, var(--font-cjk-sans), monospace`,
+          // PaoTeacherAgent: SF Pro through the system font keywords (the web cannot
+          // load it by name), then Google Sans (OFL, self-hosted by next/font) where
+          // they are absent. The variable keeps its upstream name so every consumer
+          // resolves it. CJK text falls to the tail.
+          "--font-hanken-grotesk": `-apple-system, BlinkMacSystemFont, ${googleSansLatin.style.fontFamily}, ${googleSansLatinExt.style.fontFamily}, var(--font-cjk-sans), sans-serif`,
+          "--font-dm-mono": `${dmMonoLatin.style.fontFamily}, ${dmMonoLatinExt.style.fontFamily}, var(--font-cjk-sans), monospace`,
         } as React.CSSProperties
       }
       suppressHydrationWarning

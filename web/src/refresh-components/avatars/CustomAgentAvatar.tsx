@@ -68,6 +68,8 @@ export const agentAvatarIconMap: Record<string, IconConfig> = {
   Music: { Icon: SvgMusicSmall, className: "stroke-theme-amber-04" },
 };
 
+const EMOJI_PATTERN = /\p{Extended_Pictographic}/u;
+
 interface SvgOctagonWrapperProps {
   size: number;
   children: React.ReactNode;
@@ -128,6 +130,25 @@ export default function CustomAgentAvatar({
           style={{ width: size * multiplier, height: size * multiplier }}
         />
       </SvgOctagonWrapper>
+    );
+  }
+
+  // PaoTeacherAgent: an emoji icon name is drawn as text, without the octagon.
+  if (iconName && EMOJI_PATTERN.test(iconName)) {
+    return (
+      <span
+        role="img"
+        aria-label={name}
+        className="block shrink-0 text-center"
+        style={{
+          width: size,
+          height: size,
+          fontSize: size * 0.85,
+          lineHeight: `${size}px`,
+        }}
+      >
+        {iconName}
+      </span>
     );
   }
 

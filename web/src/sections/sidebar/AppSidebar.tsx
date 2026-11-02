@@ -40,11 +40,6 @@ import {
 import useChatSessions from "@/hooks/useChatSessions";
 import { useProjects } from "@/lib/projects/hooks";
 import { useAgents, useActiveAgent, usePinnedAgents } from "@/lib/agents/hooks";
-import {
-  FoldedProjectsPopover,
-  ProjectFolderButton,
-} from "@/lib/projects/components";
-import { CreateProjectModal } from "@/lib/projects/components";
 import { MoveCustomAgentChatModal } from "@/lib/agents/components";
 import { useProjectsContext } from "@/lib/projects/providers";
 import { removeChatSessionFromProject } from "@/lib/projects/svc";
@@ -52,9 +47,7 @@ import type { Project } from "@/lib/projects/types";
 import { SidebarLayouts, useSidebarState } from "@opal/layouts";
 import { renderSidebarLogo } from "@/lib/sidebar/utils";
 import { useShowLogoWhenFolded } from "@/lib/sidebar/hooks";
-import { Button as OpalButton } from "@opal/components";
-import { cn, markdown } from "@opal/utils";
-import { Disabled } from "@opal/core";
+import { cn } from "@opal/utils";
 import { useTierAtLeast } from "@/lib/tiers/hooks";
 import { Tier } from "@/lib/tiers/types";
 import { DRAG_TYPES, LOCAL_STORAGE_KEYS } from "@/lib/sidebar/constants";
@@ -64,18 +57,16 @@ import {
   showErrorNotification,
 } from "@/lib/sidebar/utils";
 import { handleMoveOperation } from "@/lib/sidebar/svc";
-import { SidebarTab, Tag } from "@opal/components";
+import { SidebarTab } from "@opal/components";
 import { ChatSession } from "@/app/app/interfaces";
 import { useUser } from "@/providers/UserProvider";
 import { getFirstPermittedAdminRoute } from "@/lib/permissions/utils";
 import { useAppPosition } from "@/lib/position/hooks";
-import { useCreateModal } from "@opal/components";
 import { useModalContext } from "@/components/context/ModalContext";
 import {
   SvgDevKit,
   SvgPlug,
   SvgEditBig,
-  SvgFolderPlus,
   SvgMoreHorizontal,
   SvgOnyxOctagon,
   SvgSearchMenu,
@@ -217,7 +208,6 @@ function RecentsSection({
 
 export default function AppSidebar() {
   const t = useTranslations("sidebar");
-  const tCraftUpgrade = useTranslations("craft.upgrade");
   const moveChatErrorMessage = t("appSidebar.moveChatError.message");
   const { folded } = useSidebarState();
   const router = useRouter();
@@ -234,11 +224,7 @@ export default function AppSidebar() {
     isLoadingMore,
     loadMore,
   } = useChatSessions();
-  const {
-    projects,
-    refreshProjects,
-    isLoading: isLoadingProjects,
-  } = useProjects();
+  const { refreshProjects, isLoading: isLoadingProjects } = useProjects();
   const { isLoading: isLoadingAgents } = useAgents();
   const activeAgent = useActiveAgent();
   const {
@@ -270,10 +256,7 @@ export default function AppSidebar() {
   // Check if Onyx Craft is enabled via settings (backed by PostHog feature flag)
   // Only explicit true enables the feature; false or undefined = disabled
   const isOnyxCraftEnabled = combinedSettingsData?.onyx_craft_enabled === true;
-  const isOnyxCraftUpsell =
-    !isOnyxCraftEnabled &&
-    combinedSettingsData?.onyx_craft_requires_upgrade === true;
-  // Gated like a Business admin page: below that tier the tab is disabled.
+  // Craft is a Business-plan feature: below that tier the tab is hidden.
   const hasCraftTier = useTierAtLeast(Tier.BUSINESS);
 
   // Fetch notifications for build mode intro
@@ -503,9 +486,8 @@ export default function AppSidebar() {
     ]
   );
 
-  const { hasAdminAccess, adminCapabilities, user, isAdmin } = useUser();
+  const { hasAdminAccess, adminCapabilities, user } = useUser();
   const activeSidebarTab = useAppPosition();
-  const createProjectModal = useCreateModal();
   const showLogoWhenFolded = useShowLogoWhenFolded();
   const defaultAppMode =
     (user?.preferences?.default_app_mode?.toLowerCase() as "chat" | "search") ??
@@ -530,29 +512,12 @@ export default function AppSidebar() {
     </div>
   );
 
-  // Only the unfolded empty state uses this — folded, the sidebar shows
-  // `FoldedProjectsPopover` instead.
-  const newProjectButton = (
-    <SidebarTab
-      icon={SvgFolderPlus}
-      onClick={() => createProjectModal.toggle(true)}
-      selected={createProjectModal.isOpen}
-      variant="sidebar-light"
-    >
-      {t("appSidebar.newProject.label")}
-    </SidebarTab>
-  );
-
   const handleShowBuildIntro = useCallback(() => {
     setShowIntroAnimation(true);
   }, []);
 
   return (
     <>
-      <createProjectModal.Provider>
-        <CreateProjectModal />
-      </createProjectModal.Provider>
-
       {showMoveCustomAgentModal && (
         <MoveCustomAgentChatModal
           onCancel={() => {
@@ -635,50 +600,27 @@ export default function AppSidebar() {
               </SidebarTab>
             )}
           />
-          {(isOnyxCraftEnabled || isOnyxCraftUpsell) && (
+          {isOnyxCraftEnabled && hasCraftTier && (
             <div data-testid="AppSidebar/build">
-              <Disabled
-                disabled={!hasCraftTier}
-                // Only admins can open billing, so others are told to ask one.
-                tooltip={
-                  isAdmin
-                    ? markdown(
-                        t("adminSidebar.businessOrEnterpriseOnly.tooltip")
-                      )
-                    : tCraftUpgrade("userDescription")
-                }
+              <SidebarTab
+                icon={SvgDevKit}
+                href={CRAFT_PATH}
+                onClick={() => track(AnalyticsEvent.CLICKED_CRAFT_IN_SIDEBAR)}
               >
-                <SidebarTab
-                  icon={SvgDevKit}
-                  href={hasCraftTier ? CRAFT_PATH : undefined}
-                  onClick={
-                    hasCraftTier
-                      ? () => track(AnalyticsEvent.CLICKED_CRAFT_IN_SIDEBAR)
-                      : undefined
-                  }
-                  rightChildren={
-                    isOnyxCraftUpsell ? (
-                      <Tag
-                        title={t("appSidebar.craft.businessTag")}
-                        color="blue"
-                      />
-                    ) : undefined
-                  }
-                >
-                  {t("appSidebar.craft.label")}
-                </SidebarTab>
-              </Disabled>
+                {t("appSidebar.craft.label")}
+              </SidebarTab>
             </div>
           )}
           {folded && moreAgentsButton}
-          <SidebarTab
-            icon={SvgPlug}
-            href="/app/plugins"
-            selected={activeSidebarTab.isPlugins()}
-          >
-            {t("appSidebar.plugins.label")}
-          </SidebarTab>
-          {folded && <FoldedProjectsPopover />}
+          {hasAdminAccess && (
+            <SidebarTab
+              icon={SvgPlug}
+              href="/app/plugins"
+              selected={activeSidebarTab.isPlugins()}
+            >
+              {t("appSidebar.plugins.label")}
+            </SidebarTab>
+          )}
         </SidebarLayouts.Header>
 
         <SidebarLayouts.Body scrollKey="app-sidebar">
@@ -713,25 +655,6 @@ export default function AppSidebar() {
                 ]}
                 onDragEnd={handleChatProjectDragEnd}
               >
-                {/* Projects */}
-                <SidebarLayouts.Section
-                  title={t("appSidebar.projects.title")}
-                  action={
-                    <OpalButton
-                      icon={SvgFolderPlus}
-                      prominence="tertiary"
-                      size="md"
-                      tooltip={t("appSidebar.newProject.tooltip")}
-                      onClick={() => createProjectModal.toggle(true)}
-                    />
-                  }
-                >
-                  {projects.map((project) => (
-                    <ProjectFolderButton key={project.id} project={project} />
-                  ))}
-                  {projects.length === 0 && newProjectButton}
-                </SidebarLayouts.Section>
-
                 {/* Recents */}
                 <RecentsSection
                   chatSessions={chatSessions}

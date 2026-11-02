@@ -29,6 +29,7 @@ import messages from "@/i18n/messages/en.json";
 const mockRouter = { push: jest.fn(), replace: jest.fn() };
 let mockChatId: string | null = "chat-a";
 let mockProjectId: number | null = null;
+let mockHasAdminAccess = true;
 jest.mock("next/navigation", () => ({
   useRouter: () => mockRouter,
   usePathname: () => "/app",
@@ -37,6 +38,16 @@ jest.mock("next/navigation", () => ({
       mockChatId ? `chatId=${mockChatId}` : `projectId=${mockProjectId}`
     ),
 }));
+jest.mock("@/providers/UserProvider", () => {
+  const actual = jest.requireActual("@/providers/UserProvider");
+  return {
+    ...actual,
+    useUser: () => ({
+      ...actual.useUser(),
+      hasAdminAccess: mockHasAdminAccess,
+    }),
+  };
+});
 jest.mock("@/lib/position/hooks", () => ({
   useAppPosition: () => ({
     chat: () => mockChatId,
@@ -209,6 +220,7 @@ beforeEach(() => {
   sessionStorage.clear();
   mockChatId = "chat-a";
   mockProjectId = null;
+  mockHasAdminAccess = true;
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -567,4 +579,25 @@ test("Actions keeps built-in search and Sources while custom plugins appear only
       filters: { selectedSources: ["slack"] },
     })
   );
+});
+
+test("teachers without admin access get no Plugins row in Actions", async () => {
+  mockHasAdminAccess = false;
+  network();
+  render(
+    <PickerHarness
+      selectedAgent={{
+        ...agent,
+        knowledge_sources: [ValidSources.Slack, ValidSources.Notion],
+      }}
+    />
+  );
+  const user = setupUser();
+  await user.click(
+    within(screen.getByTestId("action-management-toggle")).getByRole("button")
+  );
+  await screen.findByRole("button", { name: /Internal Search/ });
+  expect(
+    screen.queryByRole("button", { name: "Plugins" })
+  ).not.toBeInTheDocument();
 });

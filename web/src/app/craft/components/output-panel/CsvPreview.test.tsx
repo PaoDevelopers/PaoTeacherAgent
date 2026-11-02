@@ -35,12 +35,12 @@ it("uses the selected locale to format numeric preview limits", () => {
     Array.from({ length: 100 }, () => "value").join(",")
   ).join("\n");
   render(
-    <NextIntlClientProvider locale="de" messages={englishMessages}>
+    <NextIntlClientProvider locale="zh-u-nu-arab" messages={englishMessages}>
       <CsvPreview content={content} />
     </NextIntlClientProvider>
   );
   expect(screen.getByText(/Preview limited/)).toHaveTextContent(
-    "1.000 rows, 100 columns, and 5.000 cells"
+    "١٬٠٠٠ rows, ١٠٠ columns, and ٥٬٠٠٠ cells"
   );
 });
 
