@@ -1,12 +1,12 @@
 # PaoTeacherAgent customizations to upstream Onyx
 
-Base: upstream Onyx **v5.0.1** (tag `v5.0.1`). Only the web image is built from this fork
-(`ONYX_WEB_SERVER_IMAGE=paoteacheragent-web:<tag>`); backend images are upstream's, so the
-fork must stay on a release tag that matches `IMAGE_TAG`.
+Base: upstream Onyx **v5.0.1** (tag `v5.0.1`). We build the backend and web images from this
+fork (`ONYX_BACKEND_IMAGE`, `ONYX_WEB_SERVER_IMAGE`); other images are upstream's.
 
 No file under `backend/ee`, `web/src/app/ee` or `web/src/ee` is changed.
 
 Our own files (no merge conflicts possible): `deploy/`, `eval/`, `CUSTOMIZATIONS.md`,
+`backend/onyx/seeding/pao_agents.py`, `backend/onyx/seeding/pao_prompts/`, `backend/onyx/db/pao.py`,
 `web/public/paoteacheragent.svg`, `web/src/app/css/paoteacheragent.css`.
 
 ## Upstream files changed
@@ -14,6 +14,7 @@ Our own files (no merge conflicts possible): `deploy/`, `eval/`, `CUSTOMIZATIONS
 | File | Change | Reason |
 |------|--------|--------|
 | `README.md` | Replaced with the PaoTeacherAgent README | Our documentation. On merge conflicts, keep ours. |
+| `backend/onyx/setup.py` | Calls `seed_pao_agents` after `setup_postgres` (single tenant) | Built-in agents, their knowledge sync and the DeepSeek provider on every start |
 | `web/lib/opal/src/logos/onyx-logo.tsx` | Onyx mark replaced by PaoTeacherAgent mark (placeholder "P" until the school logo arrives) | Branding; whitelabeling is Business-tier in Onyx. Every app surface renders this component. |
 | `web/lib/opal/src/logos/onyx-typed.tsx` | "Onyx" wordmark replaced by "PaoTeacherAgent" | Branding (sidebar, login page) |
 | `web/src/lib/settings/hooks.ts` | Default app name `"Onyx"` → `"PaoTeacherAgent"` | Branding (client-side name) |
@@ -37,5 +38,7 @@ merge conflict.
 
 1. `git merge v<new tag>`; conflicts can only be in the files above.
 2. If upstream renamed or moved a logo component, re-point the change to the new component.
-3. Bump `IMAGE_TAG` and the `ONYX_WEB_SERVER_IMAGE` tag in `deploy/.env(.example)`, rebuild
-   with `deploy/compose.sh build web_server`.
+3. Bump `IMAGE_TAG` and the tags in `ONYX_BACKEND_IMAGE` and `ONYX_WEB_SERVER_IMAGE` in
+   `deploy/.env(.example)`, rebuild with `deploy/compose.sh build api_server web_server`.
+4. Check `pao_agents.py` still matches the Onyx functions it calls (`upsert_persona`,
+   `create_user_files`, `upsert_llm_provider`); the startup log shows a seeding error if not.
