@@ -11,6 +11,7 @@ The assistants inform teachers; they never make disciplinary decisions. Both put
 
 - [How it works](#how-it-works)
 - [Run locally](#run-locally)
+- [Set up a new deployment](#set-up-a-new-deployment)
 - [Environment variables](#environment-variables)
 - [LLM provider (DeepSeek)](#llm-provider-deepseek)
 - [Microsoft Entra sign-in](#microsoft-entra-sign-in)
@@ -35,7 +36,7 @@ The assistants inform teachers; they never make disciplinary decisions. Both put
 | `deploy/docker-compose.override.yml` | Our overlay: loads `deploy/.env`, runs Redis, turns off the code sandbox |
 | `deploy/.env.example` | Template for `deploy/.env` (never commit `deploy/.env`) |
 | `deploy/agent_policy_prompt.md`, `deploy/agent_behaviour_prompt.md` | The agent system prompts |
-| `deploy/sync_prompts.py` | Pushes the prompt files into the running agents |
+| `deploy/setup.py` | Creates or updates the DeepSeek provider, both agents, their prompts and documents. Safe to re-run. |
 
 ## Run locally
 
@@ -51,9 +52,30 @@ deploy/compose.sh up -d --wait
 deploy/compose.sh ps                 # all services healthy
 ```
 
-Open http://localhost. On an empty database, the first account to sign up becomes admin.
+Then set up the agents (next section).
 
 Docker Hub pulls can fail with `EOF` on some networks; just rerun the command, or `docker pull` the failing image until it succeeds.
+
+## Set up a new deployment
+
+A new deployment has an empty database: no LLM provider and no agents. Do these steps in order, **before any teacher signs up**. Onyx pins the agents to a person's sidebar only when their account is created, so anyone who signs up earlier does not see them.
+
+1. Open the site and sign up. On an empty database the first account becomes admin.
+2. Create an access token: **avatar menu → Settings → Access Tokens → New Access Token**. Put it in `deploy/.env` as `ONYX_PAT`, with `ONYX_URL` set to the site URL. Put the DeepSeek key in `DEEPSEEK_API_KEY`.
+3. Run the setup with the two document folders:
+
+   ```bash
+   set -a; . deploy/.env; set +a
+   python3 deploy/setup.py \
+     --policy-dir "path/to/YK Pao Behaviour Policies" \
+     --behaviour-dir "path/to/Best Practice Documents for Behaviour Leadership"
+   ```
+
+   It adds the DeepSeek provider, turns off Onyx's default assistant, uploads both folders, creates both agents and pins them for you. Images and `.doc` files in the folders are skipped and listed.
+4. Ask each agent a question to check it.
+5. Set up [Microsoft sign-in](#microsoft-entra-sign-in), then let teachers in.
+
+If someone signed up too early, they can pin the agents themselves from **More Agents**.
 
 ## Environment variables
 
@@ -69,11 +91,12 @@ All live in `deploy/.env`. Any variable from `deployment/docker_compose/env.temp
 | `OIDC_PKCE_ENABLED` | Forces PKCE on for SSO sign-in |
 | `DISABLE_TELEMETRY` | `true`: no usage telemetry to Onyx |
 | `MCP_SERVER_ENABLED` | `false`: no access for outside AI clients |
-| `ONYX_URL`, `ONYX_PAT` | For `deploy/sync_prompts.py`: the site URL and an admin's access token |
+| `ONYX_URL`, `ONYX_PAT` | For `deploy/setup.py`: the site URL and an admin's access token |
+| `DEEPSEEK_API_KEY` | Used once by `deploy/setup.py` to add the DeepSeek provider. Onyx then keeps the key, encrypted, in its database. |
 
 ## LLM provider (DeepSeek)
 
-Onyx connects to DeepSeek directly through its built-in OpenAI-compatible provider. The API key is stored encrypted in the Onyx database, not in env.
+Onyx connects to DeepSeek directly through its built-in OpenAI-compatible provider. The API key is stored encrypted in the Onyx database. `deploy/setup.py` adds the provider; to do it by hand instead:
 
 1. **Admin Panel → Language Models → add an OpenAI-Compatible provider.**
 2. API base `https://api.deepseek.com`, your API key, model `deepseek-flash` (1M context, reads images).
@@ -130,7 +153,7 @@ Do step 3 last. Turning off password login before a Microsoft account is admin l
 | Policy Assistant | *YK Pao Behaviour Policies* | Behaviour Policy, Dress Code, Technology Use Policy |
 | Behaviour Assistant | *Best Practice Documents for Behaviour Leadership* | DfE, Ofsted, EEF and similar guidance |
 
-Documents are files attached to each agent; there is no folder sync.
+Documents are files attached to each agent; there is no automatic folder sync. To replace an agent's whole document set from a folder, run `deploy/setup.py` with `--policy-dir` or `--behaviour-dir`. Its old files stay in your file list, unattached; delete them there.
 
 **Add or remove documents:** in the sidebar, open the agent's **⋯ → Edit** (or go to `/app/agents/edit/1` for Policy, `/app/agents/edit/2` for Behaviour) → **Knowledge → Your Files**. Use **Add File** to upload; tick or untick files to attach or detach them; then **Save**. A new file takes a few seconds to process.
 
@@ -154,12 +177,12 @@ The source of truth is `deploy/agent_policy_prompt.md` and `deploy/agent_behavio
 
 ```bash
 set -a; . deploy/.env; set +a
-python3 deploy/sync_prompts.py
+python3 deploy/setup.py
 ```
 
-It changes only the prompts and keeps every other agent setting. `ONYX_PAT` is an admin's access token: **avatar menu → Settings → Access Tokens → New Access Token**.
+Without folder options it keeps each agent's documents. It also resets the agents' names, descriptions and starter questions to the values in `deploy/setup.py`.
 
-Avoid editing the prompts in the agent editor: the next sync overwrites them. Start a new chat to see a prompt change.
+Avoid editing prompts, descriptions or starters in the agent editor: the next run overwrites them. Start a new chat to see a prompt change.
 
 ## Admins
 
