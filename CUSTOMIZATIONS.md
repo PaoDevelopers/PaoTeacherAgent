@@ -7,7 +7,7 @@ No file under `backend/ee`, `web/src/app/ee` or `web/src/ee` is changed.
 
 Our own files (no merge conflicts possible): `deploy/`, `eval/`, `CUSTOMIZATIONS.md`,
 `backend/onyx/seeding/pao_agents.py`, `backend/onyx/seeding/pao_prompts/`, `backend/onyx/db/pao.py`,
-`web/public/paoteacheragent.svg`, `web/public/yk-pao-logo.png`, `web/src/app/app/components/OnboardingCard.tsx` (and its test), `web/src/app/app/plugins/layout.tsx` (redirects users without admin-panel access to `/app`), `web/src/app/css/paoteacheragent.css`.
+`web/public/paoteacheragent.svg`, `web/public/yk-pao-logo.png`, `web/src/app/app/components/OnboardingCard.tsx` (and its test), `web/src/app/app/plugins/layout.tsx` (redirects users without admin-panel access to `/app`), `web/src/app/css/paoteacheragent.css`, `web/src/app/fonts/` (woff2 files for Google Sans and DM Mono, with their OFL license texts).
 
 ## Upstream files changed
 
@@ -19,7 +19,7 @@ Our own files (no merge conflicts possible): `deploy/`, `eval/`, `CUSTOMIZATIONS
 | `web/src/sections/sidebar/AppSidebar.tsx` | Removed the Projects section, its folded popover and new-project modal; the Craft entry shows only when Craft is available (no Business upsell); the Plugins entry shows only to users with admin-panel access | Teachers do not use Projects or plugins; Business and Enterprise features are hidden, not shown locked |
 | `web/src/refresh-components/avatars/CustomAgentAvatar.tsx` | An `icon_name` that is an emoji is drawn as text, without the octagon frame | The built-in agents use 📘 and 🌱; Onyx has no emoji icons |
 | `web/src/lib/tools/components/ToolsPopover.tsx` | The chat Actions menu lists the Plugins row only for users with admin-panel access | Plugins are limited to admins |
-| `web/src/app/layout.tsx` | UI font is SF Pro via `-apple-system` on Apple devices and Google Sans (OFL, self-hosted by `next/font`; Arial as its fallback) elsewhere, instead of Hanken Grotesk; the `--font-hanken-grotesk` variable keeps its name so every consumer works | School brand; also drops the Google Fonts download |
+| `web/src/app/layout.tsx` | UI font is SF Pro via `-apple-system` on Apple devices and Google Sans (OFL; Arial as its fallback) elsewhere, instead of Hanken Grotesk. Google Sans and DM Mono load from files in `web/src/app/fonts/` through `next/font/local`; the `--font-hanken-grotesk` variable keeps its name so every consumer works | School brand; no Google download at build or run time |
 | `web/src/sections/sidebar/ChatButton.tsx` | Removed the "Move to project" menu item | Projects are hidden |
 | `web/src/sections/sidebar/ChatSearchCommandMenu.tsx` | Removed the Projects filter, project results, "New project" actions and the project modal | Projects are hidden |
 | `web/src/sections/sidebar/AdminSidebar.tsx` | Admin entries above the workspace tier are dropped, not listed greyed out under an upsell tooltip | Business and Enterprise features are hidden |
