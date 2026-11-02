@@ -159,7 +159,6 @@ export default function AdminSidebar() {
             </SidebarLayouts.Section>
           </React.Fragment>
         ))}
-
       </SidebarLayouts.Body>
 
       <SidebarLayouts.Footer>

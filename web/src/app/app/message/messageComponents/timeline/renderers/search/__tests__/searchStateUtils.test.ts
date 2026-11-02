@@ -122,9 +122,7 @@ describe("formatSearchHeader", () => {
   });
 
   it("translates the default header", () => {
-    expect(formatSearchHeader([], null, tZh, "zh")).toBe(
-      "正在搜索内部文档"
-    );
+    expect(formatSearchHeader([], null, tZh, "zh")).toBe("正在搜索内部文档");
   });
 });
 

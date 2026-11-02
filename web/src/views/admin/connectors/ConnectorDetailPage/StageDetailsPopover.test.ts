@@ -166,8 +166,8 @@ describe("formatSeconds", () => {
   });
 
   it("follows the viewer's locale", () => {
-    expect(formatSeconds(createFormatter({ locale: "de" }), 9860)).toBe(
-      "9,860s"
+    expect(formatSeconds(createFormatter({ locale: "zh-u-nu-arab" }), 9860)).toBe(
+      "٩٫٨٦٠s"
     );
   });
 

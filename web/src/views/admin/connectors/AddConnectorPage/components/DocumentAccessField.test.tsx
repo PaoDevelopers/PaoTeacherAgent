@@ -97,25 +97,20 @@ describe("DocumentAccessField", () => {
     );
   });
 
-  it("lists the Business options locked under an upgrade link below Business", async () => {
+  it("offers no options and no upgrade link below Business", async () => {
     useTierAtLeast.mockReturnValue(false);
     const user = userEvent.setup();
     renderForm(ValidSources.Confluence as ConfigurableSources);
 
-    expect(screen.getByText("Business Plan")).toBeInTheDocument();
     await user.click(screen.getByRole("combobox"));
 
-    // Every option shows, locked, with Everyone selected.
-    const everyone = screen.getByRole("option", { name: /Everyone/ });
-    expect(everyone).toHaveAttribute("aria-disabled", "true");
-    expect(everyone).toHaveAttribute("aria-selected", "true");
+    // The settings section hides this field below Business; on its own it
+    // lists nothing and keeps the public default.
+    expect(screen.queryAllByRole("option")).toHaveLength(0);
+    expect(screen.queryByText("Upgrade Plan")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("option", { name: /Specific Groups/ })
-    ).toHaveAttribute("aria-disabled", "true");
-    expect(
-      screen.getByRole("option", { name: /Upgrade Plan/ })
-    ).toHaveAttribute("href", "/admin/billing");
-    expect(screen.getByText("Available for Business Plan")).toBeInTheDocument();
+      screen.queryByText("Available for Business Plan")
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("access-type")).toHaveTextContent("public");
   });
 });

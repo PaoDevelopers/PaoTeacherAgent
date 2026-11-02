@@ -17,21 +17,21 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import UploadFile
-from starlette.datastructures import Headers
 from sqlalchemy.orm import Session
+from starlette.datastructures import Headers
 
 from onyx.background.task_utils import drain_processing_loop
 from onyx.configs.constants import ANONYMOUS_USER_EMAIL
 from onyx.db.enums import LLMModelFlowType
-from onyx.db.llm import fetch_default_model
-from onyx.db.llm import update_default_model
-from onyx.db.llm import update_default_vision_provider
-from onyx.db.llm import upsert_llm_provider
+from onyx.db.llm import (
+    fetch_default_model,
+    update_default_model,
+    update_default_vision_provider,
+    upsert_llm_provider,
+)
 from onyx.db.models import StarterMessage
-from onyx.db.pao import get_persona_id_by_name
-from onyx.db.pao import pin_persona_for_existing_users
-from onyx.db.persona import get_persona_by_id
-from onyx.db.persona import upsert_persona
+from onyx.db.pao import get_persona_id_by_name, pin_persona_for_existing_users
+from onyx.db.persona import get_persona_by_id, upsert_persona
 from onyx.db.projects import create_user_files
 from onyx.db.tools import get_tool_by_name
 from onyx.db.users import get_user_by_email
@@ -39,10 +39,11 @@ from onyx.file_processing.file_types import guess_mime_type
 from onyx.key_value_store.factory import get_kv_store
 from onyx.key_value_store.interface import KvKeyNotFoundError
 from onyx.llm.constants import LlmProviderNames
-from onyx.server.manage.llm.models import LLMProviderUpsertRequest
-from onyx.server.manage.llm.models import ModelConfigurationUpsertRequest
-from onyx.server.settings.store import load_settings
-from onyx.server.settings.store import store_settings
+from onyx.server.manage.llm.models import (
+    LLMProviderUpsertRequest,
+    ModelConfigurationUpsertRequest,
+)
+from onyx.server.settings.store import load_settings, store_settings
 from onyx.utils.logger import setup_logger
 from shared_configs.contextvars import get_current_tenant_id
 
@@ -148,7 +149,9 @@ def _sync_folder(
         )
         created = create_user_files([upload], None, owner, db_session)
         if not created.user_files:
-            logger.error("PaoTeacherAgent: Onyx rejected %s: %s", path, created.rejected_files)
+            logger.error(
+                "PaoTeacherAgent: Onyx rejected %s: %s", path, created.rejected_files
+            )
             continue
         result[path.name] = {"sha256": sha, "id": str(created.user_files[0].id)}
         uploaded = True
@@ -176,7 +179,8 @@ def seed_pao_agents(db_session: Session) -> None:
         current_files: set[str] = set()
         if persona_id is not None:
             current_files = {
-                str(f.id) for f in get_persona_by_id(persona_id, None, db_session).user_files
+                str(f.id)
+                for f in get_persona_by_id(persona_id, None, db_session).user_files
             }
 
         old_managed: dict[str, dict[str, str]] = all_managed.get(agent["name"], {})
@@ -185,7 +189,9 @@ def seed_pao_agents(db_session: Session) -> None:
             new_managed, uploaded = _sync_folder(db_session, folder, old_managed)
             any_uploaded |= uploaded
         else:
-            logger.warning("PaoTeacherAgent: %s not found; keeping current knowledge", folder)
+            logger.warning(
+                "PaoTeacherAgent: %s not found; keeping current knowledge", folder
+            )
             new_managed = old_managed
         all_managed[agent["name"]] = new_managed
 
@@ -199,7 +205,9 @@ def seed_pao_agents(db_session: Session) -> None:
             name=agent["name"],
             description=agent["description"],
             icon_name=agent["icon_name"],
-            starter_messages=[StarterMessage(name=q, message=q) for q in agent["starters"]],
+            starter_messages=[
+                StarterMessage(name=q, message=q) for q in agent["starters"]
+            ],
             system_prompt=(PROMPTS_DIR / agent["prompt"]).read_text(),
             task_prompt="",
             datetime_aware=True,
@@ -215,7 +223,9 @@ def seed_pao_agents(db_session: Session) -> None:
         if persona_id is None:
             pinned = pin_persona_for_existing_users(db_session, persona.id)
             logger.notice(
-                "PaoTeacherAgent: pinned %s for %d existing users", agent["name"], pinned
+                "PaoTeacherAgent: pinned %s for %d existing users",
+                agent["name"],
+                pinned,
             )
         logger.notice(
             "PaoTeacherAgent: %s %s with %d files",

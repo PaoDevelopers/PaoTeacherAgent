@@ -58,18 +58,17 @@ describe("GroupShareList below its required tier", () => {
     expect(screen.getByPlaceholderText("Add groups")).toBeEnabled();
   });
 
-  it("lists the fixed rows, locked, under the plan heading", async () => {
+  it("lists no locked rows and no plan heading", async () => {
     const user = userEvent.setup({ delay: null });
     renderLocked();
 
     await user.click(screen.getByPlaceholderText("Add groups"));
 
     expect(
-      await screen.findByText("Available for Business Plan")
-    ).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /Admins/ })).toHaveAttribute(
-      "aria-disabled",
-      "true"
-    );
+      screen.queryByText("Available for Business Plan")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: /Admins/ })
+    ).not.toBeInTheDocument();
   });
 });
