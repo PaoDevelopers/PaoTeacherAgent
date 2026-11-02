@@ -49,7 +49,7 @@ cp deploy/.env.example deploy/.env
 openssl rand -hex 32
 # and DEEPSEEK_API_KEY.
 
-# Put the documents in place (see Documents):
+# Optional now, or any time later (see Documents):
 #   deploy/knowledge/policies/   YK Pao policies
 #   deploy/knowledge/behaviour/  behaviour best-practice guidance
 
@@ -138,7 +138,7 @@ Do step 3 last. Turning off password login before a Microsoft account is admin l
 | Policy Assistant | `deploy/knowledge/policies/` | YK Pao policies: Behaviour Policy, Dress Code, Technology Use Policy |
 | Behaviour Assistant | `deploy/knowledge/behaviour/` | Behaviour best-practice guidance: DfE, Ofsted, EEF |
 
-The folders are the source of truth. On every start the API server compares each folder with the agent's documents: new or changed files are added, and files no longer in the folder are removed from the agent. To apply a change without a full restart:
+The folders can start empty: the agents exist from the first start and get their documents when files are added. The folders are the source of truth. On every start the API server compares each folder with the agent's documents: new or changed files are added, and files no longer in the folder are removed from the agent. To apply a change without a full restart:
 
 ```bash
 deploy/compose.sh restart api_server
