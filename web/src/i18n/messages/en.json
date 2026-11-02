@@ -13557,6 +13557,10 @@
       },
       "incognito": {
         "title": "You're incognito"
+      },
+      "onboarding": {
+        "description": "Ask in your own words, or pick one of the suggested questions below. Answers are guidance only: the assistants never make disciplinary decisions. Please don't type student names. Some answers take up to 30 seconds. Use the sidebar to switch between the Policy Assistant and the Behaviour Assistant.",
+        "title": "New to PaoTeacherAgent?"
       }
     }
   },

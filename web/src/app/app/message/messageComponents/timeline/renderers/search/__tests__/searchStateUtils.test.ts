@@ -1,6 +1,6 @@
 import { createTranslator } from "next-intl";
 import en from "@/i18n/messages/en.json";
-import ar from "@/i18n/messages/ar.json";
+import zh from "@/i18n/messages/zh.json";
 import type { TimelineTranslate } from "@/app/app/message/messageComponents/toolDisplayHelpers";
 import {
   constructCurrentSearchState,
@@ -26,9 +26,9 @@ const tEn = createTranslator({
   messages: en,
   namespace: "chat.messages.timeline",
 }) as TimelineTranslate;
-const tAr = createTranslator({
-  locale: "ar",
-  messages: ar,
+const tZh = createTranslator({
+  locale: "zh",
+  messages: zh,
   namespace: "chat.messages.timeline",
 }) as TimelineTranslate;
 
@@ -80,11 +80,11 @@ describe("formatTimeWindow", () => {
   it("translates the phrase and formats the date in the active locale", () => {
     const window = formatTimeWindow(
       { start: "2024-01-05T12:00:00Z", end: null },
-      tAr,
-      "ar"
+      tZh,
+      "zh"
     );
-    expect(window).toContain("منذ");
-    expect(window).toContain("يناير");
+    expect(window).toContain("自");
+    expect(window).toContain("1月5日");
     expect(window).not.toContain("Jan");
   });
 });
@@ -122,8 +122,8 @@ describe("formatSearchHeader", () => {
   });
 
   it("translates the default header", () => {
-    expect(formatSearchHeader([], null, tAr, "ar")).toBe(
-      "جارٍ البحث في المستندات الداخلية"
+    expect(formatSearchHeader([], null, tZh, "zh")).toBe(
+      "正在搜索内部文档"
     );
   });
 });

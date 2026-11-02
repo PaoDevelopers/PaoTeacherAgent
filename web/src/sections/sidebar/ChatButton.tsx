@@ -36,7 +36,6 @@ import {
   SvgChevronLeft,
   SvgEdit,
   SvgFolder,
-  SvgFolderIn,
   SvgFolderPlus,
   SvgMoreHorizontal,
   SvgShare,
@@ -204,13 +203,6 @@ const ChatButton = memo(
         icon: SvgEdit,
         title: t("chatButton.rename.label"),
         onSelect: () => setRenaming(true),
-      },
-      {
-        kind: "action",
-        id: "move",
-        icon: SvgFolderIn,
-        title: t("chatButton.moveToProject.label"),
-        onSelect: (views) => views.push("move"),
       },
       ...(project
         ? [

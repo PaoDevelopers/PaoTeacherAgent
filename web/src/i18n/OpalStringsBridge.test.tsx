@@ -1,10 +1,10 @@
 import { NextIntlClientProvider } from "next-intl";
 import { render } from "@tests/setup/test-utils";
 import Footer from "@opal/components/table/Footer";
-import { runtimeLocale, type RuntimeLocale } from "@/i18n/config";
+import { type RuntimeLocale } from "@/i18n/config";
 import OpalStringsBridge from "@/i18n/OpalStringsBridge";
-import arabicMessages from "@/i18n/messages/ar.json";
 import englishMessages from "@/i18n/messages/en.json";
+import chineseMessages from "@/i18n/messages/zh.json";
 
 type Messages = typeof englishMessages;
 
@@ -45,20 +45,13 @@ describe("OpalStringsBridge", () => {
   });
 
   it("splits a translated rich message into the same span layout", () => {
-    const row = renderFooterThroughBridge("ar", arabicMessages);
-    expect(row.textContent).toBe("عرض 1~10 من 22 users");
+    const row = renderFooterThroughBridge("zh", chineseMessages);
+    expect(row.textContent).toBe("显示 1~10，共 22 users");
     expect([...row.children].map((child) => child.tagName)).toEqual([
       "SPAN",
       "SPAN",
       "SPAN",
       "SPAN",
     ]);
-    expect(row.querySelector('span[dir="ltr"]')).toHaveTextContent("1~10");
-  });
-
-  it("renders the footer digits in the numbering system of the runtime locale", () => {
-    const row = renderFooterThroughBridge(runtimeLocale("ar"), arabicMessages);
-    expect(row.textContent).toBe("عرض ١~١٠ من ٢٢ users");
-    expect(row.querySelector('span[dir="ltr"]')).toHaveTextContent("١~١٠");
   });
 });

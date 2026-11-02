@@ -29,6 +29,7 @@ from onyx.db.llm import update_default_vision_provider
 from onyx.db.llm import upsert_llm_provider
 from onyx.db.models import StarterMessage
 from onyx.db.pao import get_persona_id_by_name
+from onyx.db.pao import pin_persona_for_existing_users
 from onyx.db.persona import get_persona_by_id
 from onyx.db.persona import upsert_persona
 from onyx.db.projects import create_user_files
@@ -59,6 +60,7 @@ SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".doc"}
 AGENTS: list[dict[str, Any]] = [
     {
         "name": "Policy Assistant",
+        "icon_name": "📘",
         "description": "Ask about school rules, behavior, and consequences.",
         "prompt": "policy_assistant.md",
         "folder": "policies",
@@ -72,6 +74,7 @@ AGENTS: list[dict[str, Any]] = [
     },
     {
         "name": "Behaviour Assistant",
+        "icon_name": "🌱",
         "description": "Get best-practice ideas for managing behaviour and classroom routines.",
         "prompt": "behaviour_assistant.md",
         "folder": "behaviour",
@@ -190,11 +193,12 @@ def seed_pao_agents(db_session: Session) -> None:
         new_ids = {m["id"] for m in new_managed.values()}
         file_ids = (current_files - old_ids) | new_ids
 
-        upsert_persona(
+        persona = upsert_persona(
             user=None,
             persona_id=persona_id,
             name=agent["name"],
             description=agent["description"],
+            icon_name=agent["icon_name"],
             starter_messages=[StarterMessage(name=q, message=q) for q in agent["starters"]],
             system_prompt=(PROMPTS_DIR / agent["prompt"]).read_text(),
             task_prompt="",
@@ -208,6 +212,11 @@ def seed_pao_agents(db_session: Session) -> None:
             user_file_ids=[UUID(i) for i in sorted(file_ids)],
             db_session=db_session,
         )
+        if persona_id is None:
+            pinned = pin_persona_for_existing_users(db_session, persona.id)
+            logger.notice(
+                "PaoTeacherAgent: pinned %s for %d existing users", agent["name"], pinned
+            )
         logger.notice(
             "PaoTeacherAgent: %s %s with %d files",
             "updated" if persona_id is not None else "created",

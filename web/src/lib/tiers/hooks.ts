@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import type { SelectOption, SelectOptions } from "@opal/components";
-import { SvgArrowUpCircle, SvgOrganization, SvgUsers } from "@opal/icons";
+import { SvgOrganization, SvgUsers } from "@opal/icons";
 import type { IconFunctionComponent } from "@opal/types";
 import { markdown } from "@opal/utils";
 import type { PlanColor, PlanMetadata } from "@/lib/tiers/types";
@@ -68,13 +68,9 @@ export function usePlans(): Record<Tier, PlanMetadata> {
   }, [t]);
 }
 
-// The value of the "Upgrade Plan" row. It is a link, so it is never picked.
-const UPGRADE_PLAN_VALUE = "upgrade-plan";
-
 /**
- * Lays out a select's options that need `required`. Below that tier: an
- * "Upgrade Plan" row linking to billing, then the options, disabled, under an
- * "Available for {Plan}" divider. At or above it: the options as they are.
+ * Returns a select's options that need `required`. Below that tier the options
+ * are dropped, with no upgrade row. At or above it: the options as they are.
  *
  *   const lockForBusiness = useTierLockedOptions(Tier.BUSINESS);
  *   options={[...everyTier, ...lockForBusiness(businessOnly)]}
@@ -82,29 +78,9 @@ const UPGRADE_PLAN_VALUE = "upgrade-plan";
 export function useTierLockedOptions(
   required: Tier
 ): (options: SelectOption[]) => SelectOptions {
-  const t = useTranslations("common.plans");
-  const plans = usePlans();
   const locked: boolean = !useTierAtLeast(required);
   return useCallback(
-    (options: SelectOption[]): SelectOptions =>
-      locked
-        ? [
-            {
-              options: [
-                {
-                  value: UPGRADE_PLAN_VALUE,
-                  title: t("upgrade.label"),
-                  icon: SvgArrowUpCircle,
-                  href: "/admin/billing",
-                },
-              ],
-            },
-            {
-              title: t("availableFor", { plan: plans[required].title }),
-              options: options.map((option) => ({ ...option, disabled: true })),
-            },
-          ]
-        : options,
-    [locked, t, plans, required]
+    (options: SelectOption[]): SelectOptions => (locked ? [] : options),
+    [locked]
   );
 }

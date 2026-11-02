@@ -13557,6 +13557,10 @@
       },
       "incognito": {
         "title": "您处于无痕模式"
+      },
+      "onboarding": {
+        "description": "您可以用自己的话直接提问，也可以点击下方的推荐问题。回答仅供参考，助手不会做出任何纪律处分的决定。请不要输入学生姓名。部分回答最多需要 30 秒。您可以在侧边栏的 Policy Assistant 和 Behaviour Assistant 之间切换。",
+        "title": "初次使用 PaoTeacherAgent？"
       }
     }
   },

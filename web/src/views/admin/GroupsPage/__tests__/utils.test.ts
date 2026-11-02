@@ -1,6 +1,6 @@
 import { createTranslator } from "next-intl";
 import en from "@/i18n/messages/en.json";
-import ar from "@/i18n/messages/ar.json";
+import zh from "@/i18n/messages/zh.json";
 import type { UserGroup } from "@/lib/types";
 import {
   buildGroupDescription,
@@ -14,9 +14,9 @@ const tEn = createTranslator({
   messages: en,
   namespace: "admin.groups",
 }) as GroupsTranslate;
-const tAr = createTranslator({
-  locale: "ar",
-  messages: ar,
+const tZh = createTranslator({
+  locale: "zh",
+  messages: zh,
   namespace: "admin.groups",
 }) as GroupsTranslate;
 
@@ -37,12 +37,12 @@ function group(overrides: Partial<UserGroup>): UserGroup {
 describe("displayGroupName", () => {
   it("translates the two built-in groups and leaves custom names alone", () => {
     expect(
-      displayGroupName(group({ name: "Admin", is_default: true }), tAr)
-    ).toBe("المشرفون");
+      displayGroupName(group({ name: "Admin", is_default: true }), tZh)
+    ).toBe("管理员");
     expect(
-      displayGroupName(group({ name: "Basic", is_default: true }), tAr)
-    ).toBe("أساسي");
-    expect(displayGroupName(group({ name: "Admin" }), tAr)).toBe("Admin");
+      displayGroupName(group({ name: "Basic", is_default: true }), tZh)
+    ).toBe("基本");
+    expect(displayGroupName(group({ name: "Admin" }), tZh)).toBe("Admin");
   });
 });
 
@@ -72,9 +72,9 @@ describe("buildGroupDescription", () => {
 });
 
 describe("formatMemberCount", () => {
-  it("pluralizes in English and uses the Arabic forms", () => {
+  it("pluralizes in English and uses the Chinese form", () => {
     expect(formatMemberCount(1, tEn)).toBe("1 Member");
     expect(formatMemberCount(306, tEn)).toBe("306 Members");
-    expect(formatMemberCount(2, tAr)).toBe("عضوان");
+    expect(formatMemberCount(2, tZh)).toBe("2 名成员");
   });
 });

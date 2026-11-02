@@ -93,6 +93,7 @@ import useScreenSize from "@/hooks/useScreenSize";
 import { useSidebarState } from "@opal/layouts";
 import { useQueryController } from "@/providers/QueryControllerProvider";
 import WelcomeMessage from "@/app/app/components/WelcomeMessage";
+import OnboardingCard from "@/app/app/components/OnboardingCard";
 import ChatUI from "@/sections/chat/ChatUI";
 import { useFullWidthChat } from "@/providers/FullWidthChatProvider";
 import { paidTierGated } from "@/ce";
@@ -1000,6 +1001,7 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
                           />
                         )}
                     </Section>
+                    {activeAgent && !isPlainChat && <OnboardingCard />}
                     <Spacer rem={1.5} />
                   </Fade>
                 </div>

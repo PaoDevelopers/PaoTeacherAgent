@@ -8,17 +8,12 @@ import { useAppPosition } from "@/lib/position/hooks";
 import CommandMenu, {
   useCommandMenuContext,
 } from "@/refresh-components/commandmenu/CommandMenu";
-import { useProjects } from "@/lib/projects/hooks";
-import { useCreateModal } from "@opal/components";
-import { CreateProjectModal } from "@/lib/projects/components";
 import { timeAgo } from "@opal/time";
 import { highlightMatch } from "@/lib/sidebar/utils";
 import Text from "@/refresh-components/texts/Text";
 import useChatSearchOptimistic from "@/lib/sidebar/hooks";
 import {
   SvgEditBig,
-  SvgFolder,
-  SvgFolderPlus,
   SvgBubbleText,
   SvgArrowUpDown,
   SvgKeystroke,
@@ -58,13 +53,6 @@ interface ChatSearchCommandMenuProps {
   trigger: (open: () => void, isOpen: boolean) => React.ReactNode;
 }
 
-interface FilterableProject {
-  id: number;
-  label: string;
-  description: string | null;
-  time: string;
-}
-
 export default function ChatSearchCommandMenu({
   trigger,
 }: ChatSearchCommandMenuProps) {
@@ -72,28 +60,18 @@ export default function ChatSearchCommandMenu({
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const [activeFilter, setActiveFilter] = useState<
-    "all" | "chats" | "projects"
-  >("all");
-  const [initialProjectName, setInitialProjectName] = useState<
-    string | undefined
-  >();
+  const [activeFilter, setActiveFilter] = useState<"all" | "chats">("all");
   const appPosition = useAppPosition();
   const router = useRouter();
 
-  // Data hooks
-  const { projects } = useProjects();
-  const createProjectModal = useCreateModal();
-
   // Constants for preview limits
   const PREVIEW_CHATS_LIMIT = 4;
-  const PREVIEW_PROJECTS_LIMIT = 3;
 
   // Determine if we should enable optimistic search (when searching or viewing chats filter)
   const shouldUseOptimisticSearch =
     searchValue.trim().length > 0 || activeFilter === "chats";
 
-  // Use optimistic search hook for chat sessions (includes fallback from useChatSessions + useProjects)
+  // Use optimistic search hook for chat sessions (includes fallback from useChatSessions)
   const {
     results: filteredChats,
     isSearching,
@@ -105,27 +83,6 @@ export default function ChatSearchCommandMenu({
     enabled: shouldUseOptimisticSearch,
   });
 
-  // Transform and filter projects (sorted by latest first)
-  const filteredProjects = useMemo<FilterableProject[]>(() => {
-    const projectList = projects
-      .map((project) => ({
-        id: project.id,
-        label: project.name,
-        description: project.description,
-        time: project.created_at,
-      }))
-      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-
-    if (!searchValue.trim()) return projectList;
-
-    const term = searchValue.toLowerCase();
-    return projectList.filter(
-      (project) =>
-        project.label.toLowerCase().includes(term) ||
-        project.description?.toLowerCase().includes(term)
-    );
-  }, [projects, searchValue]);
-
   // Compute displayed items based on filter state
   const displayedChats = useMemo(() => {
     if (activeFilter === "all" && !searchValue.trim()) {
@@ -134,20 +91,10 @@ export default function ChatSearchCommandMenu({
     return filteredChats;
   }, [filteredChats, activeFilter, searchValue]);
 
-  const displayedProjects = useMemo(() => {
-    if (activeFilter === "all" && !searchValue.trim()) {
-      return filteredProjects.slice(0, PREVIEW_PROJECTS_LIMIT);
-    }
-    return filteredProjects;
-  }, [filteredProjects, activeFilter, searchValue]);
-
   // Header filters for showing active filter as a chip
   const headerFilters = useMemo(() => {
     if (activeFilter === "chats") {
       return [{ id: "chats", label: t("chatSearch.sessionsFilter.label") }];
-    }
-    if (activeFilter === "projects") {
-      return [{ id: "projects", label: t("chatSearch.projectsFilter.label") }];
     }
     return [];
   }, [activeFilter, t]);
@@ -168,23 +115,6 @@ export default function ChatSearchCommandMenu({
       setOpen(false);
     },
     [appPosition]
-  );
-
-  const handleProjectSelect = useCallback(
-    (projectId: number) => {
-      appPosition.openProject(projectId);
-      setOpen(false);
-    },
-    [appPosition]
-  );
-
-  const handleNewProject = useCallback(
-    (initialName?: string) => {
-      setInitialProjectName(initialName);
-      setOpen(false);
-      createProjectModal.toggle(true);
-    },
-    [createProjectModal]
   );
 
   const handleOpen = useCallback(() => setOpen(true), []);
@@ -300,80 +230,8 @@ export default function ChatSearchCommandMenu({
                 </>
               )}
 
-            {/* Projects section - show if filter is 'all' or 'projects' */}
-            {(activeFilter === "all" || activeFilter === "projects") && (
-              <>
-                <CommandMenu.Filter
-                  value="projects"
-                  onSelect={() => setActiveFilter("projects")}
-                  isApplied={
-                    activeFilter === "projects" ||
-                    filteredProjects.length <= PREVIEW_PROJECTS_LIMIT
-                  }
-                >
-                  {t("chatSearch.projectsFilter.label")}
-                </CommandMenu.Filter>
-                {/* New Project action - shown after Projects filter when no search term */}
-                {!hasSearchValue && activeFilter === "all" && (
-                  <CommandMenu.Action
-                    value="new-project"
-                    icon={SvgFolderPlus}
-                    onSelect={() => handleNewProject()}
-                  >
-                    {t("chatSearch.newProject.label")}
-                  </CommandMenu.Action>
-                )}
-                {displayedProjects.map((project) => (
-                  <CommandMenu.Item
-                    key={project.id}
-                    value={`project-${project.id}`}
-                    icon={SvgFolder}
-                    rightContent={({ isHighlighted }) =>
-                      isHighlighted ? (
-                        <Text figureKeystroke text02>
-                          ↵
-                        </Text>
-                      ) : (
-                        <Text
-                          secondaryBody
-                          text03
-                          data-testid="command-menu-timestamp"
-                        >
-                          {timeAgo(project.time, locale)}
-                        </Text>
-                      )
-                    }
-                    onSelect={() => handleProjectSelect(project.id)}
-                  >
-                    {highlightMatch(project.label, searchValue)}
-                  </CommandMenu.Item>
-                ))}
-              </>
-            )}
-
-            {/* Create New Project with search term - shown at bottom when searching */}
-            {hasSearchValue &&
-              (activeFilter === "all" || activeFilter === "projects") && (
-                <CommandMenu.Action
-                  value="create-project-with-name"
-                  icon={SvgFolderPlus}
-                  onSelect={() => handleNewProject(searchValue.trim())}
-                >
-                  {t.rich("chatSearch.createNamedProject.label", {
-                    projectName: searchValue.trim(),
-                    name: (chunks) => (
-                      <span className="text-text-05">{chunks}</span>
-                    ),
-                  })}
-                </CommandMenu.Action>
-              )}
-
             {/* No more results divider - shown when no results for the active filter */}
-            {((activeFilter === "chats" && displayedChats.length === 0) ||
-              (activeFilter === "projects" && displayedProjects.length === 0) ||
-              (activeFilter === "all" &&
-                displayedChats.length === 0 &&
-                displayedProjects.length === 0)) && (
+            {displayedChats.length === 0 && (
               <TextSeparator
                 text={t("chatSearch.noMoreResults.text")}
                 className="mt-auto mb-2"
@@ -384,11 +242,6 @@ export default function ChatSearchCommandMenu({
           <DynamicFooter />
         </CommandMenu.Content>
       </CommandMenu>
-
-      {/* Project creation modal */}
-      <createProjectModal.Provider>
-        <CreateProjectModal initialProjectName={initialProjectName} />
-      </createProjectModal.Provider>
     </>
   );
 }

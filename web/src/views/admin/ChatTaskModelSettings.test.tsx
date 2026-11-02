@@ -10,7 +10,7 @@ import {
 import { toast } from "@opal/layouts";
 import { NextIntlClientProvider } from "next-intl";
 import OpalStringsBridge from "@/i18n/OpalStringsBridge";
-import frenchMessages from "@/i18n/messages/fr.json";
+import chineseMessages from "@/i18n/messages/zh.json";
 import ChatTaskModelSettings from "@/views/admin/ChatTaskModelSettings";
 import type { DefaultModel, LLMProviderView } from "@/lib/languageModels/types";
 import { SWR_KEYS } from "@/lib/swr-keys";
@@ -161,14 +161,14 @@ describe("ChatTaskModelSettings", () => {
 
   test("translates both optional suffixes through the Opal strings bridge", async () => {
     render(
-      <NextIntlClientProvider locale="fr" messages={frenchMessages}>
+      <NextIntlClientProvider locale="zh" messages={chineseMessages}>
         <OpalStringsBridge>
           <ChatTaskModelSettings />
         </OpalStringsBridge>
       </NextIntlClientProvider>
     );
 
-    expect(await screen.findAllByText("(Facultatif)")).toHaveLength(2);
+    expect(await screen.findAllByText("（可选）")).toHaveLength(2);
     expect(screen.queryByText("(Optional)")).not.toBeInTheDocument();
   });
 

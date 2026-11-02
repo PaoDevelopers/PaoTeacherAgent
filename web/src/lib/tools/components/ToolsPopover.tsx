@@ -51,7 +51,7 @@ export default function ToolsPopover({
     plugin: MemberPlugin;
   } | null>(null);
   const focusOnMount = useFocusOnMount<HTMLInputElement>();
-  const { permissions } = useUser();
+  const { permissions, hasAdminAccess } = useUser();
   const { vectorDbEnabled } = useSettings();
   const { ccPairs } = useCCPairs(vectorDbEnabled);
   const { currentProjectId, allCurrentProjectFiles } = useProjectsContext();
@@ -153,18 +153,23 @@ export default function ToolsPopover({
                   ...filteredTools.map((tool) => (
                     <ToolLineItem key={tool.id} tool={tool} />
                   )),
-                  <ChatPluginsPopover
-                    key="plugins"
-                    agent={agent}
-                    toolConfiguration={toolConfiguration}
-                    catalog={catalog}
-                    disabled={disabled}
-                    onConnect={(plugin) => {
-                      setConnection({ agentId: agent.id, plugin });
-                      close();
-                    }}
-                    onBrowse={close}
-                  />,
+                  // Plugins are limited to admin-panel users.
+                  ...(hasAdminAccess
+                    ? [
+                        <ChatPluginsPopover
+                          key="plugins"
+                          agent={agent}
+                          toolConfiguration={toolConfiguration}
+                          catalog={catalog}
+                          disabled={disabled}
+                          onConnect={(plugin) => {
+                            setConnection({ agentId: agent.id, plugin });
+                            close();
+                          }}
+                          onBrowse={close}
+                        />,
+                      ]
+                    : []),
                 ]}
               </PopoverMenu>
             )}
