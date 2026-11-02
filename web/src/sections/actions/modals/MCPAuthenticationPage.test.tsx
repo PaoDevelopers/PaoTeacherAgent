@@ -790,7 +790,9 @@ test("each authentication method shows its explanation in the main form", async 
     screen.getByRole("combobox", { name: copy.authType.label })
   ).toHaveValue(copy.authType.oauth.label);
   expect(
-    screen.getByText(copy.oauthInfo.discovery.replaceAll("{appName}", "PaoTeacherAgent"))
+    screen.getByText(
+      copy.oauthInfo.discovery.replaceAll("{appName}", "PaoTeacherAgent")
+    )
   ).toBeVisible();
   await user.click(screen.getByRole("combobox", { name: copy.authType.label }));
   await user.click(
@@ -808,7 +810,10 @@ test("each authentication method shows its explanation in the main form", async 
   );
   expect(
     screen.getByText(
-      copy.passThroughNotice.description.replaceAll("{appName}", "PaoTeacherAgent")
+      copy.passThroughNotice.description.replaceAll(
+        "{appName}",
+        "PaoTeacherAgent"
+      )
     )
   ).toBeVisible();
 });
