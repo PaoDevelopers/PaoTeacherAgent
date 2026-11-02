@@ -9,10 +9,23 @@ x-pao-env: &pao-env
     - path: ../../deploy/.env
       required: true
 
+x-pao-backend-build: &pao-backend-build
+  context: ../..
+  dockerfile: deploy/backend.Dockerfile
+  args:
+    - IMAGE_TAG=${IMAGE_TAG}
+
 services:
-  api_server: *pao-env
+  api_server:
+    <<: *pao-env
+    build: *pao-backend-build
+    volumes:
+      # Knowledge folders the built-in agents sync from on every start (onyx/seeding/pao_agents.py).
+      - ${PAO_KNOWLEDGE_HOST_DIR:-../../deploy/knowledge}:/app/pao_knowledge:ro
   web_server: *pao-env
-  mcp_server: *pao-env
+  mcp_server:
+    <<: *pao-env
+    build: *pao-backend-build
   # Lite moves Redis to a profile, but credential_audit.py still calls Redis on every
   # LLM key read; without it each chat stalls ~60s on connection retries. Run it.
   cache:

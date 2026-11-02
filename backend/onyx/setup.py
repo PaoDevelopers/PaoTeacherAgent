@@ -114,6 +114,12 @@ def setup_onyx(
     # setup Postgres with default credential, llm providers, etc.
     setup_postgres(db_session)
 
+    if not MULTI_TENANT:
+        # PaoTeacherAgent: built-in agents, their knowledge and the DeepSeek provider.
+        from onyx.seeding.pao_agents import seed_pao_agents
+
+        seed_pao_agents(db_session)
+
     # Does the user need to trigger a reindexing to bring the document index
     # into a good state, marked in the kv store
     if not MULTI_TENANT:
