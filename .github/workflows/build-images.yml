@@ -1,0 +1,93 @@
+# Builds our backend and web images on each push to main and pushes them to GHCR.
+# compose.yaml pulls them through ONYX_BACKEND_IMAGE / ONYX_WEB_SERVER_IMAGE in deploy/.env.
+name: Build images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/onyx/**"
+      - "web/**"
+      - "deploy/backend.Dockerfile*"
+      - "deploy/.env.example"
+      - ".github/workflows/build-images.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: build-images
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io/paodevelopers
+
+jobs:
+  build:
+    name: build ${{ matrix.image }} (${{ matrix.arch }})
+    # Native runners per arch: emulating the web build on arm64 takes far longer.
+    runs-on: ${{ matrix.arch == 'arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        image: [backend, web]
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The backend image extends the upstream release named by IMAGE_TAG.
+      - name: Read IMAGE_TAG
+        id: upstream
+        run: echo "tag=$(sed -n 's/^IMAGE_TAG=//p' deploy/.env.example)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.image == 'web' && 'web' || '.' }}
+          file: ${{ matrix.image == 'web' && 'web/Dockerfile' || 'deploy/backend.Dockerfile' }}
+          platforms: linux/${{ matrix.arch }}
+          build-args: |
+            IMAGE_TAG=${{ steps.upstream.outputs.tag }}
+            NODE_OPTIONS=--max-old-space-size=4096
+          push: true
+          provenance: false
+          tags: ${{ env.REGISTRY }}/paoteacheragent-${{ matrix.image }}:sha-${{ github.sha }}-${{ matrix.arch }}
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.arch }}
+
+  publish:
+    name: publish ${{ matrix.image }}
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    strategy:
+      matrix:
+        image: [backend, web]
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Join the arch images into one multi-arch tag
+        env:
+          IMAGE: ${{ env.REGISTRY }}/paoteacheragent-${{ matrix.image }}
+        run: |
+          docker buildx imagetools create \
+            -t "$IMAGE:latest" -t "$IMAGE:sha-$GITHUB_SHA" \
+            "$IMAGE:sha-$GITHUB_SHA-amd64" "$IMAGE:sha-$GITHUB_SHA-arm64"
