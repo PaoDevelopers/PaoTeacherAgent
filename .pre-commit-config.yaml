@@ -219,10 +219,6 @@ repos:
     rev: 745eface02aef23e168a8afb6b5737818efbea95 # frozen: v0.11.0.1
     hooks:
       - id: shellcheck
-        exclude: >-
-          (?x)^(
-            deployment/docker_compose/init-letsencrypt\.sh
-          )$
 
   - repo: https://github.com/golangci/golangci-lint
     rev: 27774aaf853a4fd21f1dd5e69439459dc1b26e68 # frozen: v2.13.2

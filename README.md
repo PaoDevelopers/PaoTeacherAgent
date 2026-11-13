@@ -41,7 +41,7 @@ The assistants inform teachers. They never make disciplinary decisions. Both put
 
 | Path | What it is |
 |---|---|
-| `deploy/compose.sh` | Runs the upstream compose file, the Lite overlay and our overlay. Use it instead of `docker compose`. |
+| `compose.yaml` | The stack: includes the upstream compose file, the Lite overlay and our overlay, and reads `deploy/.env`. Run `docker compose` from the repo root. |
 | `deploy/docker-compose.override.yml` | Our overlay: loads `deploy/.env`, builds our backend image, mounts the knowledge folders, runs Redis, turns off the code sandbox |
 | `deploy/backend.Dockerfile` | Our backend image: the upstream image plus our `backend/onyx` code |
 | `deploy/.env.example` | Template for `deploy/.env`. Never commit `deploy/.env`. |
@@ -52,7 +52,7 @@ The assistants inform teachers. They never make disciplinary decisions. Both put
 
 ## Run locally
 
-You need Docker with Compose v2. On a Mac, use Docker Desktop or OrbStack.
+You need Docker with a recent Docker Compose (tested with 5.5). On a Mac, use Docker Desktop or OrbStack. Run all `docker compose` commands from the repo root.
 
 ```bash
 cp deploy/.env.example deploy/.env
@@ -60,8 +60,8 @@ cp deploy/.env.example deploy/.env
 openssl rand -hex 32
 # Set DEEPSEEK_API_KEY.
 
-deploy/compose.sh build api_server web_server   # first build takes about 15 min
-deploy/compose.sh up -d --wait
+docker compose build api_server web_server   # first build takes about 15 min
+docker compose up -d --wait
 ```
 
 Open http://localhost (or http://localhost:3000). On an empty database, the first account to sign up becomes admin. Both agents are already there.
@@ -74,7 +74,7 @@ Production uses the same compose stack as local development, on one server.
 
 ### 1. Prepare the server
 
-- A Linux server with Docker Engine and the Compose v2 plugin. Set Docker to start when the server starts.
+- A Linux server with Docker Engine and a recent Compose plugin (tested with 5.5). Set Docker to start when the server starts.
 - Memory and disk: the running stack uses about 1 GB of memory, and the images use about 4 GB of disk. The web image build needs more memory than the running stack.
 - A DNS name for the site, for example `teacheragent.<school domain>`.
 - Access to `api.deepseek.com` and Docker Hub from the server.
@@ -105,9 +105,9 @@ Copy the files into `policies/` and `behaviour/` in the knowledge folder. See [D
 ### 4. Build and start
 
 ```bash
-deploy/compose.sh build api_server web_server
-deploy/compose.sh up -d --wait
-deploy/compose.sh ps          # all services must show "healthy"
+docker compose build api_server web_server
+docker compose up -d --wait
+docker compose ps          # all services must show "healthy"
 ```
 
 The containers restart automatically after a crash or a server restart (`restart: unless-stopped`).
@@ -143,9 +143,9 @@ To deploy new code from `main`:
 
 ```bash
 git pull
-deploy/compose.sh build api_server web_server
-deploy/compose.sh up -d --wait     # database migrations run automatically
-deploy/compose.sh restart nginx    # nginx must find the new containers
+docker compose build api_server web_server
+docker compose up -d --wait     # database migrations run automatically
+docker compose restart nginx    # nginx must find the new containers
 ```
 
 If you changed only the documents, restart the API server instead (see [Documents](#documents)).
@@ -153,8 +153,8 @@ If you changed only the documents, restart the API server instead (see [Document
 ### Logs
 
 ```bash
-deploy/compose.sh logs -f api_server
-deploy/compose.sh logs api_server | grep PaoTeacherAgent    # agent and document sync
+docker compose logs -f api_server
+docker compose logs api_server | grep PaoTeacherAgent    # agent and document sync
 ```
 
 ## Environment variables
@@ -237,15 +237,15 @@ Do step 3 last. If you turn off password login before a Microsoft account is adm
 The folders can start empty. The agents exist from the first start and get their documents when you add files. The folders are the source of truth. On each start, the API server compares each folder with the agent's documents. It adds new or changed files, and removes files that are no longer in the folder. To apply a change without a full restart:
 
 ```bash
-deploy/compose.sh restart api_server
+docker compose restart api_server
 ```
 
-New files need a short time to process after the restart. The log shows what was synced: `deploy/compose.sh logs api_server | grep PaoTeacherAgent`.
+New files need a short time to process after the restart. The log shows what was synced: `docker compose logs api_server | grep PaoTeacherAgent`.
 
 **Replace an outdated policy**, so that the agent never cites old consequences:
 
 1. Delete the old file from `deploy/knowledge/policies/` and copy in the new one.
-2. Run `deploy/compose.sh restart api_server`.
+2. Run `docker compose restart api_server`.
 3. Ask a question about the change. Make sure the answer cites the new file.
 
 **File rules:**
@@ -266,9 +266,9 @@ The agents are defined in the backend:
 After an edit, rebuild and restart. The rebuild is fast, because only the code layer changes.
 
 ```bash
-deploy/compose.sh build api_server
-deploy/compose.sh up -d --wait
-deploy/compose.sh restart nginx
+docker compose build api_server
+docker compose up -d --wait
+docker compose restart nginx
 ```
 
 Start a new chat to see a prompt change. The next start overwrites edits to these fields that you make in the agent editor.
@@ -298,9 +298,9 @@ Also back up the knowledge folders (`deploy/knowledge/` or `PAO_KNOWLEDGE_HOST_D
 docker exec onyx-relational_db-1 pg_dump -U postgres -Fc postgres > paoteacheragent-$(date +%F).dump
 
 # Restore into a new deployment that uses the same deploy/.env
-deploy/compose.sh up -d relational_db
+docker compose up -d relational_db
 docker exec -i onyx-relational_db-1 pg_restore -U postgres -d postgres --clean --if-exists < paoteacheragent-YYYY-MM-DD.dump
-deploy/compose.sh up -d --wait
+docker compose up -d --wait
 ```
 
 Run the backup on a schedule (for example, a nightly cron job) and keep copies off the server.
@@ -317,9 +317,9 @@ git merge vX.Y.Z
 #    again. For README.md, keep ours. Delete again the upstream files we removed.
 # 1. Set IMAGE_TAG=vX.Y.Z, and the vX.Y.Z tag in ONYX_BACKEND_IMAGE and
 #    ONYX_WEB_SERVER_IMAGE, in deploy/.env and deploy/.env.example
-deploy/compose.sh build api_server web_server
-deploy/compose.sh up -d --wait   # database migrations run automatically
-deploy/compose.sh restart nginx
+docker compose build api_server web_server
+docker compose up -d --wait   # database migrations run automatically
+docker compose restart nginx
 ```
 
 Read the upstream release notes first. Test the upgrade locally before production. After a migration, you need the database backup to go back to the old version.
@@ -328,9 +328,9 @@ Read the upstream release notes first. Test the upgrade locally before productio
 
 | Problem | Fix |
 |---|---|
-| The site shows `502 Bad Gateway` after a rebuild | nginx still points to the old containers. Run `deploy/compose.sh restart nginx`. |
+| The site shows `502 Bad Gateway` after a rebuild | nginx still points to the old containers. Run `docker compose restart nginx`. |
 | A Docker Hub pull fails with `EOF` | This occurs on some networks. Run the command again, or `docker pull` the image until it works. |
-| A document does not appear in an agent | Look for `skipping knowledge file` in `deploy/compose.sh logs api_server`. Check the [file rules](#documents). |
+| A document does not appear in an agent | Look for `skipping knowledge file` in `docker compose logs api_server`. Check the [file rules](#documents). |
 | A chat waits a long time and then fails | Make sure the server can reach `api.deepseek.com`, and that the DeepSeek key is valid (**Admin Panel → Language Models**). |
 
 ## Not done yet

@@ -5,7 +5,7 @@ fork (`ONYX_BACKEND_IMAGE`, `ONYX_WEB_SERVER_IMAGE`); other images are upstream'
 
 No file under `backend/ee`, `web/src/app/ee` or `web/src/ee` is changed.
 
-Our own files (no merge conflicts possible): `deploy/`, `eval/`, `CUSTOMIZATIONS.md`,
+Our own files (no merge conflicts possible): `compose.yaml` (the stack: run `docker compose` from the repo root), `deploy/`, `CUSTOMIZATIONS.md`,
 `backend/onyx/seeding/pao_agents.py`, `backend/onyx/seeding/pao_prompts/`, `backend/onyx/db/pao.py`,
 `web/public/paoteacheragent.svg`, `web/public/yk-pao-logo.png`, `web/src/app/app/components/OnboardingCard.tsx` (and its test), `web/src/app/app/plugins/layout.tsx` (redirects users without admin-panel access to `/app`), `web/src/app/css/paoteacheragent.css`, `web/src/app/fonts/` (woff2 files for Google Sans and DM Mono, with their OFL license texts).
 
@@ -52,16 +52,16 @@ The school runs Docker Compose only, so these upstream files are deleted. After 
 |---|---|
 | `.github/` | Onyx CI workflows, actions, CODEOWNERS and Dependabot config |
 | `deployment/helm/`, `deployment/terraform/`, `deployment/aws_ecs_fargate/`, `deployment/tests/`, `deployment/README.md`, `deployment/fleet-telemetry.md` | Kubernetes, Terraform and AWS deployment, and their tests |
-| `deployment/docker_compose/`: `docker-compose.{airgap-test,airgap-tls-test,mcp-api-key-test,mcp-ci,mcp-oauth-test,mcp-per-user-key-test,mock-llm-test,multitenant,resources,search-testing}.yml`, `install.sh`, `install.ps1`, `mcp-ci-web.conf` | CI and test overlays, multi-tenant overlay, Onyx guided installer |
+| `deployment/docker_compose/`: `docker-compose.{airgap-test,airgap-tls-test,mcp-api-key-test,mcp-ci,mcp-oauth-test,mcp-per-user-key-test,mock-llm-test,multitenant,resources,search-testing}.yml`, `install.sh`, `install.ps1`, `init-letsencrypt.sh`, `mcp-ci-web.conf` | CI and test overlays, multi-tenant overlay, Onyx guided installer, Let's Encrypt setup script |
 | `tools/helm/`, `backend/tests/external_dependency_unit/craft_helm/`, `Makefile` | Helm chart checks and tests, Kubernetes dev targets |
 | `docs/`, `README.zh-CN.md`, `contributor_ip_assignment/` | Onyx design docs and contributor documents |
 | `.coderabbit.yaml`, `cubic.yaml`, `.greptile/`, `ct.yaml`, `cr.yaml`, `docker-bake.hcl`, `.zed/` | Review-bot, chart-testing, image-bake and editor config |
 
-Kept in `deployment/docker_compose/`: the files `deploy/compose.sh` runs, plus `docker-compose.template.yml`,
+Kept in `deployment/docker_compose/`: the files the root `compose.yaml` includes, plus `docker-compose.template.yml`,
 `.dev.yml`, `.craft.yml`, `.prod*.yml`, the env templates and `README.md`, because `ods generate-compose`
 and the dev stack read them.
 
-Upstream files changed for the removal: `.pre-commit-config.yaml` (Helm and Terraform hooks removed),
+Upstream files changed for the removal: `.pre-commit-config.yaml` (Helm and Terraform hooks and the `init-letsencrypt.sh` shellcheck exclude removed),
 `.agents/feature-map/path-allowlist.txt` (removed paths listed, so the feature-map docs stay as upstream),
 `backend/scripts/env_inventory_baseline.txt` (regenerated without the Helm values).
 
@@ -74,6 +74,6 @@ merge conflict.
 1. `git merge v<new tag>`; conflicts can only be in the files above.
 2. If upstream renamed or moved a logo component, re-point the change to the new component.
 3. Bump `IMAGE_TAG` and the tags in `ONYX_BACKEND_IMAGE` and `ONYX_WEB_SERVER_IMAGE` in
-   `deploy/.env(.example)`, rebuild with `deploy/compose.sh build api_server web_server`.
+   `deploy/.env(.example)`, rebuild with `docker compose build api_server web_server`.
 4. Check `pao_agents.py` still matches the Onyx functions it calls (`upsert_persona`,
    `create_user_files`, `upsert_llm_provider`); the startup log shows a seeding error if not.
