@@ -55,8 +55,8 @@ The school runs Docker Compose only, so these upstream files are deleted. After 
 | `deployment/docker_compose/`: `docker-compose.{airgap-test,airgap-tls-test,mcp-api-key-test,mcp-ci,mcp-oauth-test,mcp-per-user-key-test,mock-llm-test,multitenant,resources,search-testing}.yml`, `install.sh`, `install.ps1`, `init-letsencrypt.sh`, `mcp-ci-web.conf` | CI and test overlays, multi-tenant overlay, Onyx guided installer, Let's Encrypt setup script |
 | `tools/helm/`, `backend/tests/external_dependency_unit/craft_helm/`, `Makefile` | Helm chart checks and tests, Kubernetes dev targets |
 | `docs/`, `README.zh-CN.md`, `contributor_ip_assignment/` | Onyx design docs and contributor documents |
-| `.coderabbit.yaml`, `cubic.yaml`, `.greptile/`, `ct.yaml`, `cr.yaml`, `docker-bake.hcl`, `.zed/` | Review-bot, chart-testing, image-bake and editor config |
-| `.agents/`, `.claude/`, `.codex/`, `.cursor/`, `.devcontainer/`, `.vscode/` | AI-agent skills, hooks and feature map, editor and dev-container config. Not deleted: git ignores them, so each developer keeps a local copy. |
+| `.coderabbit.yaml`, `cubic.yaml`, `.greptile/`, `ct.yaml`, `cr.yaml`, `docker-bake.hcl`, `.zed/`, `.git-blame-ignore-revs`, `.gitattributes` | Review-bot, chart-testing, image-bake, editor and git-display config |
+| `.agents/`, `.claude/`, `.codex/`, `.cursor/`, `.devcontainer/`, `.vscode/`, `.mcp.json` | AI-agent skills, hooks and feature map, editor and dev-container config. Not deleted: git ignores them, so each developer keeps a local copy. |
 | `backend/tests/unit/scripts/test_ensure_latest_main.py`, `backend/tests/external_dependency_unit/scripts/test_ensure_latest_main_repos.py` | Tests for a hook in `.agents/` |
 
 Kept in `deployment/docker_compose/`: the files the root `compose.yaml` includes, plus `docker-compose.template.yml`,
