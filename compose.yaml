@@ -1,0 +1,11 @@
+# PaoTeacherAgent stack: upstream compose + Onyx Lite overlay + our overlay.
+# From the repo root: docker compose build api_server web_server && docker compose up -d --wait
+name: onyx
+
+include:
+  - path:
+      - deployment/docker_compose/docker-compose.yml
+      - deployment/docker_compose/docker-compose.onyx-lite.yml
+      - deploy/docker-compose.override.yml
+    project_directory: deployment/docker_compose
+    env_file: deploy/.env
