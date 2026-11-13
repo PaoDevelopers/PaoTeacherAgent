@@ -6,6 +6,7 @@
 /.cursor/
 /.devcontainer/
 /.vscode/
+/.mcp.json
 
 # macos
 .DS_store
