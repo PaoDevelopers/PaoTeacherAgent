@@ -1,6 +1,7 @@
 "use client";
 
 import { useLayoutEffect } from "react";
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useAppPosition } from "@/lib/position/hooks";
 import { useSettings } from "@/lib/settings/hooks";
@@ -11,9 +12,12 @@ import { SEARCH_TOOL_ID, WEB_SEARCH_TOOL_ID } from "@/lib/tools/constants";
 
 export function useCustomFooterContent(): string {
   const settings = useSettings();
-  return (
-    settings.enterprise?.custom_lower_disclaimer_content || settings.appName
-  );
+  const t = useTranslations("common");
+  // PaoTeacherAgent: the credit line also follows a custom disclaimer.
+  return t("footer.credit.label", {
+    content:
+      settings.enterprise?.custom_lower_disclaimer_content || settings.appName,
+  });
 }
 
 export function useAppDocumentTitle(): void {

@@ -31,7 +31,7 @@ Our own files (no merge conflicts possible): `deploy/`, `eval/`, `CUSTOMIZATIONS
 | `web/src/lib/settings/types.ts` | Same default, in a doc comment | Keep comment accurate |
 | `web/src/lib/app/svcSS.ts` | Same default; favicon `/onyx.ico` → `/yk-pao-logo.png` | Browser tab title and icon |
 | `web/src/app/globals.css` | One `@import "./css/paoteacheragent.css"` line | Brand colour override for `--theme-primary-04/05/06` |
-| `web/src/lib/app/hooks.ts` | Chat footer "Onyx vX – Open Source AI Platform" → app name | Branding |
+| `web/src/lib/app/hooks.ts` | Chat footer "Onyx vX – Open Source AI Platform" → app name, followed by the "Made by Henry Yang and Kenny Lin with care" credit (`common.footer.credit.label`; also after a custom disclaimer) | Branding; author credit |
 | `web/src/sections/sidebar/AccountPopover.tsx` | Removed "Help & FAQ" (docs.onyx.app); version row shows "PaoTeacherAgent vX" with no Onyx link | Branding; Onyx admin docs are not teacher help |
 | `web/lib/opal/src/components/buttons/attachment-item-button/styles.css` | Title text takes the remaining row width; center slot never shrinks below its content | Bug fix: long file names ran under the "1 hour ago" timestamp in Recent Files. Worth upstreaming. |
 | `web/src/refresh-components/popovers/FilePickerPopover.tsx` | `titleMaxLines={1}` on file rows | Bug fix: long file names wrapped over several lines and ran into the PDF/PPTX label |

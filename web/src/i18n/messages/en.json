@@ -14128,6 +14128,11 @@
     },
     "appFooter": {
       "slogan": "Open Source AI Platform"
+    },
+    "footer": {
+      "credit": {
+        "label": "{content} · Made by Henry Yang and Kenny Lin with care"
+      }
     }
   },
   "craft": {

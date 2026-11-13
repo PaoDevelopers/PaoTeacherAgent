@@ -14128,6 +14128,11 @@
     },
     "appFooter": {
       "slogan": "开源 AI 平台"
+    },
+    "footer": {
+      "credit": {
+        "label": "{content} · 由 Henry Yang 和 Kenny Lin 用心打造"
+      }
     }
   },
   "craft": {
