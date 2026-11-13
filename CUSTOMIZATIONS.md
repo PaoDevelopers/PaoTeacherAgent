@@ -1,11 +1,11 @@
 # PaoTeacherAgent customizations to upstream Onyx
 
-Base: upstream Onyx **v5.0.1** (tag `v5.0.1`). We build the backend and web images from this
-fork (`ONYX_BACKEND_IMAGE`, `ONYX_WEB_SERVER_IMAGE`); other images are upstream's.
+Base: upstream Onyx **v5.0.1** (tag `v5.0.1`). GitHub Actions builds the backend and web images from this
+fork and pushes them to GHCR (`ONYX_BACKEND_IMAGE`, `ONYX_WEB_SERVER_IMAGE`); other images are upstream's.
 
 No file under `backend/ee`, `web/src/app/ee` or `web/src/ee` is changed.
 
-Our own files (no merge conflicts possible): `compose.yaml` (the stack: run `docker compose` from the repo root), `deploy/`, `CUSTOMIZATIONS.md`,
+Our own files (no merge conflicts possible): `compose.yaml` (the stack: run `docker compose` from the repo root), `.github/workflows/build-images.yml` (builds our images and pushes them to GHCR), `deploy/`, `CUSTOMIZATIONS.md`,
 `backend/onyx/seeding/pao_agents.py`, `backend/onyx/seeding/pao_prompts/`, `backend/onyx/db/pao.py`,
 `web/public/paoteacheragent.svg`, `web/public/yk-pao-logo.png`, `web/src/app/app/components/OnboardingCard.tsx` (and its test), `web/src/app/app/plugins/layout.tsx` (redirects users without admin-panel access to `/app`), `web/src/app/css/paoteacheragent.css`, `web/src/app/fonts/` (woff2 files for Google Sans and DM Mono, with their OFL license texts).
 
@@ -50,7 +50,7 @@ The school runs Docker Compose only, so these upstream files are deleted. After 
 
 | Path | What it was |
 |---|---|
-| `.github/` | Onyx CI workflows, actions, CODEOWNERS and Dependabot config |
+| `.github/` (all upstream files) | Onyx CI workflows, actions, CODEOWNERS and Dependabot config. Our `build-images.yml` is the only workflow. |
 | `deployment/helm/`, `deployment/terraform/`, `deployment/aws_ecs_fargate/`, `deployment/tests/`, `deployment/README.md`, `deployment/fleet-telemetry.md` | Kubernetes, Terraform and AWS deployment, and their tests |
 | `deployment/docker_compose/`: `docker-compose.{airgap-test,airgap-tls-test,mcp-api-key-test,mcp-ci,mcp-oauth-test,mcp-per-user-key-test,mock-llm-test,multitenant,resources,search-testing}.yml`, `install.sh`, `install.ps1`, `init-letsencrypt.sh`, `mcp-ci-web.conf` | CI and test overlays, multi-tenant overlay, Onyx guided installer, Let's Encrypt setup script |
 | `tools/helm/`, `backend/tests/external_dependency_unit/craft_helm/`, `Makefile` | Helm chart checks and tests, Kubernetes dev targets |
@@ -73,7 +73,6 @@ merge conflict.
 
 1. `git merge v<new tag>`; conflicts can only be in the files above.
 2. If upstream renamed or moved a logo component, re-point the change to the new component.
-3. Bump `IMAGE_TAG` and the tags in `ONYX_BACKEND_IMAGE` and `ONYX_WEB_SERVER_IMAGE` in
-   `deploy/.env(.example)`, rebuild with `docker compose build api_server web_server`.
+3. Bump `IMAGE_TAG` in `deploy/.env(.example)`; the image names stay on `:latest`. Merging into `main` makes GitHub Actions build the new images. To test first, build locally with `docker compose build api_server web_server`.
 4. Check `pao_agents.py` still matches the Onyx functions it calls (`upsert_persona`,
    `create_user_files`, `upsert_llm_provider`); the startup log shows a seeding error if not.

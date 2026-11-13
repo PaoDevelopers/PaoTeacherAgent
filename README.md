@@ -37,12 +37,14 @@ The assistants inform teachers. They never make disciplinary decisions. Both put
 
   A new deployment needs no setup clicks.
 - **School branding.** The UI shows the YK Pao logo and the PaoTeacherAgent name. It is in English and Simplified Chinese only.
-- **Our changes to Onyx** are in [CUSTOMIZATIONS.md](CUSTOMIZATIONS.md). This includes the upstream files we removed. We build our own backend and web images from this repo. The other images are the upstream images.
+- **Our changes to Onyx** are in [CUSTOMIZATIONS.md](CUSTOMIZATIONS.md). This includes the upstream files we removed.
+- **Our images.** GitHub Actions builds our backend and web images on each push to `main` and pushes them to the GitHub Container Registry (`ghcr.io/paodevelopers/paoteacheragent-backend` and `-web`, for amd64 and arm64). `docker compose pull` gets them, so a deployment does not build anything. The other images are the upstream images.
 
 | Path | What it is |
 |---|---|
+| `.github/workflows/build-images.yml` | Builds our images and pushes them to GHCR, tagged `latest` and `sha-<commit>` |
 | `compose.yaml` | The stack: includes the upstream compose file, the Lite overlay and our overlay, and reads `deploy/.env`. Run `docker compose` from the repo root. |
-| `deploy/docker-compose.override.yml` | Our overlay: loads `deploy/.env`, builds our backend image, mounts the knowledge folders, runs Redis, turns off the code sandbox |
+| `deploy/docker-compose.override.yml` | Our overlay: loads `deploy/.env`, sets how to build our backend image locally, mounts the knowledge folders, runs Redis, turns off the code sandbox |
 | `deploy/backend.Dockerfile` | Our backend image: the upstream image plus our `backend/onyx` code |
 | `deploy/.env.example` | Template for `deploy/.env`. Never commit `deploy/.env`. |
 | `deploy/knowledge/policies/`, `deploy/knowledge/behaviour/` | The agents' documents. Git ignores them. Set `PAO_KNOWLEDGE_HOST_DIR` to use a different folder. |
@@ -60,9 +62,18 @@ cp deploy/.env.example deploy/.env
 openssl rand -hex 32
 # Set DEEPSEEK_API_KEY.
 
-docker compose build api_server web_server   # first build takes about 15 min
+docker compose pull
 docker compose up -d --wait
 ```
+
+To test local code changes before you push them, build the images on your computer. Then start the stack:
+
+```bash
+docker compose build api_server web_server   # the first web build takes about 15 min
+docker compose up -d --wait
+```
+
+`docker compose pull` replaces these local builds with the GHCR images again.
 
 Open http://localhost (or http://localhost:3000). On an empty database, the first account to sign up becomes admin. Both agents are already there.
 
@@ -75,9 +86,9 @@ Production uses the same compose stack as local development, on one server.
 ### 1. Prepare the server
 
 - A Linux server with Docker Engine and a recent Compose plugin (tested with 5.5). Set Docker to start when the server starts.
-- Memory and disk: the running stack uses about 1 GB of memory, and the images use about 4 GB of disk. The web image build needs more memory than the running stack.
+- Memory and disk: the running stack uses about 1 GB of memory, and the images use about 4 GB of disk.
 - A DNS name for the site, for example `teacheragent.<school domain>`.
-- Access to `api.deepseek.com` and Docker Hub from the server.
+- Access to `api.deepseek.com`, Docker Hub and `ghcr.io` from the server.
 - Open ports 80 and 443 only. Do not open the Postgres or Redis ports. The stack does not publish them.
 
 ### 2. Get the code and set the configuration
@@ -102,10 +113,10 @@ Keep a copy of `deploy/.env` in a safe place. Without `ENCRYPTION_KEY_SECRET`, O
 
 Copy the files into `policies/` and `behaviour/` in the knowledge folder. See [Documents](#documents) for the file rules.
 
-### 4. Build and start
+### 4. Start
 
 ```bash
-docker compose build api_server web_server
+docker compose pull
 docker compose up -d --wait
 docker compose ps          # all services must show "healthy"
 ```
@@ -139,11 +150,11 @@ Caddy gets and renews the certificate itself.
 
 ### Update the deployment
 
-To deploy new code from `main`:
+Merge the change into `main`. Wait until the **Build images** workflow finishes (about 15 min for a web change). Then, on the server:
 
 ```bash
-git pull
-docker compose build api_server web_server
+git pull                        # compose files and deploy/.env.example
+docker compose pull
 docker compose up -d --wait     # database migrations run automatically
 docker compose restart nginx    # nginx must find the new containers
 ```
@@ -164,7 +175,7 @@ All variables are in `deploy/.env`. You can also add any variable from `deployme
 | Variable | Purpose |
 |---|---|
 | `IMAGE_TAG` | The upstream Onyx release this fork uses |
-| `ONYX_BACKEND_IMAGE`, `ONYX_WEB_SERVER_IMAGE` | Our images, built from this repo |
+| `ONYX_BACKEND_IMAGE`, `ONYX_WEB_SERVER_IMAGE` | Our images on GHCR. `:latest` is the newest build of `main`. To fix a deployment to one build, use the `:sha-<commit>` tag. |
 | `USER_AUTH_SECRET`, `ENCRYPTION_KEY_SECRET`, `POSTGRES_PASSWORD` | Secrets. `ENCRYPTION_KEY_SECRET` encrypts the stored LLM key and SSO secret. If you lose it, you must enter them again. |
 | `WEB_DOMAIN` | `http://localhost` locally, `https://<domain>` in production. Must agree with the Entra redirect URI. |
 | `VALID_EMAIL_DOMAINS` | Email domains that can sign in, for example the school domain |
@@ -263,7 +274,7 @@ The agents are defined in the backend:
 - Prompts: `backend/onyx/seeding/pao_prompts/policy_assistant.md` and `behaviour_assistant.md`.
 - Names, descriptions, starter questions and folders: `AGENTS` in `backend/onyx/seeding/pao_agents.py`.
 
-After an edit, rebuild and restart. The rebuild is fast, because only the code layer changes.
+Merge the edit into `main`, then [update the deployment](#update-the-deployment). The backend build takes about 1 min. To test the edit locally first:
 
 ```bash
 docker compose build api_server
@@ -315,11 +326,14 @@ git fetch upstream tag vX.Y.Z --no-tags
 git merge vX.Y.Z
 #    Conflicts can occur only in the files in CUSTOMIZATIONS.md. Apply each change
 #    again. For README.md, keep ours. Delete again the upstream files we removed.
-# 1. Set IMAGE_TAG=vX.Y.Z, and the vX.Y.Z tag in ONYX_BACKEND_IMAGE and
-#    ONYX_WEB_SERVER_IMAGE, in deploy/.env and deploy/.env.example
+# 1. Set IMAGE_TAG=vX.Y.Z in deploy/.env.example (the workflow reads it)
+#    and in deploy/.env
+# 2. Test locally
 docker compose build api_server web_server
 docker compose up -d --wait   # database migrations run automatically
 docker compose restart nginx
+# 3. Merge into main, wait for the Build images workflow, then update the
+#    deployment (see Update the deployment)
 ```
 
 Read the upstream release notes first. Test the upgrade locally before production. After a migration, you need the database backup to go back to the old version.
@@ -329,6 +343,7 @@ Read the upstream release notes first. Test the upgrade locally before productio
 | Problem | Fix |
 |---|---|
 | The site shows `502 Bad Gateway` after a rebuild | nginx still points to the old containers. Run `docker compose restart nginx`. |
+| `docker compose pull` fails with `denied` or `unauthorized` for a `ghcr.io` image | The image is private. Make the package public (**GitHub → PaoDevelopers → Packages → the package → Package settings → Change visibility**), or run `docker login ghcr.io` with a GitHub token that has `read:packages`. |
 | A Docker Hub pull fails with `EOF` | This occurs on some networks. Run the command again, or `docker pull` the image until it works. |
 | A document does not appear in an agent | Look for `skipping knowledge file` in `docker compose logs api_server`. Check the [file rules](#documents). |
 | A chat waits a long time and then fails | Make sure the server can reach `api.deepseek.com`, and that the DeepSeek key is valid (**Admin Panel → Language Models**). |
@@ -339,4 +354,4 @@ Read the upstream release notes first. Test the upgrade locally before productio
 - **Built-in HTTPS:** the stack serves HTTP only. Use a reverse proxy (see [Add HTTPS](#5-add-https)).
 - **Safeguarding policy:** not uploaded yet. The agents can only refer teachers to the designated safeguarding lead. They cannot cite the procedure.
 - **Hiding agent creation from teachers:** not done. Any teacher can create their own agents.
-- **CI:** the repo has no automatic checks on pull requests. Run `pre-commit` locally.
+- **Checks on pull requests:** GitHub Actions only builds images. It does not run tests or linters. Run `pre-commit` locally.
