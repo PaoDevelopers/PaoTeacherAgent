@@ -56,13 +56,15 @@ The school runs Docker Compose only, so these upstream files are deleted. After 
 | `tools/helm/`, `backend/tests/external_dependency_unit/craft_helm/`, `Makefile` | Helm chart checks and tests, Kubernetes dev targets |
 | `docs/`, `README.zh-CN.md`, `contributor_ip_assignment/` | Onyx design docs and contributor documents |
 | `.coderabbit.yaml`, `cubic.yaml`, `.greptile/`, `ct.yaml`, `cr.yaml`, `docker-bake.hcl`, `.zed/` | Review-bot, chart-testing, image-bake and editor config |
+| `.agents/`, `.claude/`, `.codex/`, `.cursor/`, `.devcontainer/`, `.vscode/` | AI-agent skills, hooks and feature map, editor and dev-container config. Not deleted: git ignores them, so each developer keeps a local copy. |
+| `backend/tests/unit/scripts/test_ensure_latest_main.py`, `backend/tests/external_dependency_unit/scripts/test_ensure_latest_main_repos.py` | Tests for a hook in `.agents/` |
 
 Kept in `deployment/docker_compose/`: the files the root `compose.yaml` includes, plus `docker-compose.template.yml`,
 `.dev.yml`, `.craft.yml`, `.prod*.yml`, the env templates and `README.md`, because `ods generate-compose`
 and the dev stack read them.
 
-Upstream files changed for the removal: `.pre-commit-config.yaml` (Helm and Terraform hooks and the `init-letsencrypt.sh` shellcheck exclude removed),
-`.agents/feature-map/path-allowlist.txt` (removed paths listed, so the feature-map docs stay as upstream),
+Upstream files changed for the removal: `.pre-commit-config.yaml` (Helm, Terraform and feature-map hooks and the `init-letsencrypt.sh` shellcheck exclude removed),
+`.gitignore` (ignores the editor and AI-agent folders),
 `backend/scripts/env_inventory_baseline.txt` (regenerated without the Helm values).
 
 Admin-only translation strings that mention "Onyx" (connectors, licensing, Onyx Lite notices)
