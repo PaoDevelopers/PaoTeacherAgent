@@ -7,10 +7,11 @@ AI assistant for YK Pao School teachers, built on [Onyx](https://github.com/onyx
 | **Policy Assistant** (default) | YK Pao School policies only | Rules, behaviour, consequences, what to record and who to tell |
 | **Behaviour Assistant** | Behaviour best-practice guidance chosen by the school (DfE, Ofsted, EEF) | Classroom management, routines, engagement, students with additional needs |
 
-The assistants inform teachers; they never make disciplinary decisions. Both put safeguarding first and never repeat student names.
+The assistants inform teachers. They never make disciplinary decisions. Both put safeguarding first and never repeat student names.
 
 - [How it works](#how-it-works)
 - [Run locally](#run-locally)
+- [Deploy with Docker Compose](#deploy-with-docker-compose)
 - [Environment variables](#environment-variables)
 - [LLM provider (DeepSeek)](#llm-provider-deepseek)
 - [Microsoft Entra sign-in](#microsoft-entra-sign-in)
@@ -20,90 +21,185 @@ The assistants inform teachers; they never make disciplinary decisions. Both put
 - [Chat retention and privacy](#chat-retention-and-privacy)
 - [Backups](#backups)
 - [Upgrading Onyx](#upgrading-onyx)
+- [Troubleshooting](#troubleshooting)
 - [Not done yet](#not-done-yet)
 
 ## How it works
 
-- **Onyx Lite mode**: Postgres, Redis, the API server, the web server and nginx. No vector database and no embedding model, so it runs on modest hardware without AVX.
-- **No RAG.** Each agent's documents are attached to the agent as files. On every question the model gets the full text of all its documents (both sets fit well within DeepSeek Flash's 1M-token context). If a set ever grows too large, Onyx switches to letting the model open files itself with its `read_file` tool.
-- **Citations** are clickable and point to the source file; the model adds the page or section after each one.
-- **Built-in agents.** The two agents are part of the backend: on every start the API server creates or updates them, syncs their documents from two folders, adds the DeepSeek provider if none exists, and turns off Onyx's default assistant. A new deployment works with no setup clicks, and every account gets both agents pinned.
-- **Our changes to Onyx** are listed in [CUSTOMIZATIONS.md](CUSTOMIZATIONS.md). We build our own backend and web images from this repo.
+- **Onyx Lite mode.** The stack is Postgres, Redis, the API server, the web server and nginx. It has no vector database and no embedding model, so it runs on modest hardware without AVX.
+- **No RAG.** Each agent's documents are attached to the agent as files. For each question the model gets the full text of all the agent's documents. Both sets fit well in the 1M-token context of DeepSeek Flash. If a set becomes too large, Onyx lets the model open files itself with its `read_file` tool.
+- **Citations** are links to the source file. The model adds the page or section after each citation.
+- **Built-in agents.** The two agents are part of the backend. On each start the API server:
+  - creates or updates the two agents and pins them for every account
+  - syncs their documents from two folders
+  - adds the DeepSeek provider if no provider exists
+  - turns off the default Onyx assistant
+
+  A new deployment needs no setup clicks.
+- **School branding.** The UI shows the YK Pao logo and the PaoTeacherAgent name. It is in English and Simplified Chinese only.
+- **Our changes to Onyx** are in [CUSTOMIZATIONS.md](CUSTOMIZATIONS.md). This includes the upstream files we removed. We build our own backend and web images from this repo. The other images are the upstream images.
 
 | Path | What it is |
 |---|---|
-| `deploy/compose.sh` | Runs upstream compose + Lite overlay + our overlay. Use it instead of `docker compose`. |
-| `deploy/docker-compose.override.yml` | Our overlay: loads `deploy/.env`, runs Redis, turns off the code sandbox |
-| `deploy/.env.example` | Template for `deploy/.env` (never commit `deploy/.env`) |
-| `deploy/knowledge/policies/`, `deploy/knowledge/behaviour/` | The agents' documents (git-ignored; set `PAO_KNOWLEDGE_HOST_DIR` to use another folder) |
+| `deploy/compose.sh` | Runs the upstream compose file, the Lite overlay and our overlay. Use it instead of `docker compose`. |
+| `deploy/docker-compose.override.yml` | Our overlay: loads `deploy/.env`, builds our backend image, mounts the knowledge folders, runs Redis, turns off the code sandbox |
+| `deploy/backend.Dockerfile` | Our backend image: the upstream image plus our `backend/onyx` code |
+| `deploy/.env.example` | Template for `deploy/.env`. Never commit `deploy/.env`. |
+| `deploy/knowledge/policies/`, `deploy/knowledge/behaviour/` | The agents' documents. Git ignores them. Set `PAO_KNOWLEDGE_HOST_DIR` to use a different folder. |
+| `deployment/docker_compose/`, `deployment/data/nginx/` | Upstream compose files and nginx config. Do not edit them. |
 | `backend/onyx/seeding/pao_agents.py` | The built-in agents: names, descriptions, starter questions, folder sync |
 | `backend/onyx/seeding/pao_prompts/` | The agent system prompts |
 
 ## Run locally
 
-Needs Docker with Compose v2.
+You need Docker with Compose v2. On a Mac, use Docker Desktop or OrbStack.
 
 ```bash
 cp deploy/.env.example deploy/.env
-# Fill in USER_AUTH_SECRET, ENCRYPTION_KEY_SECRET and POSTGRES_PASSWORD, each from:
+# Set USER_AUTH_SECRET, ENCRYPTION_KEY_SECRET and POSTGRES_PASSWORD, each from:
 openssl rand -hex 32
-# and DEEPSEEK_API_KEY.
+# Set DEEPSEEK_API_KEY.
 
-# Optional now, or any time later (see Documents):
-#   deploy/knowledge/policies/   YK Pao policies
-#   deploy/knowledge/behaviour/  behaviour best-practice guidance
-
-deploy/compose.sh build api_server web_server   # our images; first build ~15 min
+deploy/compose.sh build api_server web_server   # first build takes about 15 min
 deploy/compose.sh up -d --wait
-deploy/compose.sh ps                            # all services healthy
 ```
 
-Open the site. On an empty database the first account to sign up becomes admin. Both agents are already there.
+Open http://localhost (or http://localhost:3000). On an empty database, the first account to sign up becomes admin. Both agents are already there.
 
-Docker Hub pulls can fail with `EOF` on some networks; just rerun the command, or `docker pull` the failing image until it succeeds.
+The documents are optional at this step. You can add them now or later (see [Documents](#documents)).
+
+## Deploy with Docker Compose
+
+Production uses the same compose stack as local development, on one server.
+
+### 1. Prepare the server
+
+- A Linux server with Docker Engine and the Compose v2 plugin. Set Docker to start when the server starts.
+- Memory and disk: the running stack uses about 1 GB of memory, and the images use about 4 GB of disk. The web image build needs more memory than the running stack.
+- A DNS name for the site, for example `teacheragent.<school domain>`.
+- Access to `api.deepseek.com` and Docker Hub from the server.
+- Open ports 80 and 443 only. Do not open the Postgres or Redis ports. The stack does not publish them.
+
+### 2. Get the code and set the configuration
+
+```bash
+git clone https://github.com/PaoDevelopers/PaoTeacherAgent.git
+cd PaoTeacherAgent
+cp deploy/.env.example deploy/.env
+```
+
+Edit `deploy/.env`:
+
+- Set `USER_AUTH_SECRET`, `ENCRYPTION_KEY_SECRET` and `POSTGRES_PASSWORD`. Make each with `openssl rand -hex 32`.
+- Set `WEB_DOMAIN=https://<your domain>`.
+- Set `VALID_EMAIL_DOMAINS` to the school email domain.
+- Set `DEEPSEEK_API_KEY`.
+- Optional: set `PAO_KNOWLEDGE_HOST_DIR` to a folder outside the repo, for example `/srv/paoteacheragent/knowledge`.
+
+Keep a copy of `deploy/.env` in a safe place. Without `ENCRYPTION_KEY_SECRET`, Onyx cannot decrypt the stored DeepSeek key and SSO secret.
+
+### 3. Add the documents
+
+Copy the files into `policies/` and `behaviour/` in the knowledge folder. See [Documents](#documents) for the file rules.
+
+### 4. Build and start
+
+```bash
+deploy/compose.sh build api_server web_server
+deploy/compose.sh up -d --wait
+deploy/compose.sh ps          # all services must show "healthy"
+```
+
+The containers restart automatically after a crash or a server restart (`restart: unless-stopped`).
+
+### 5. Add HTTPS
+
+The stack serves HTTP on port 80 (and on port 3000). Put a TLS reverse proxy in front of it. You can use the school's proxy or load balancer, or Caddy or nginx on the same server.
+
+- Send all traffic for the domain to `http://<server>:80`.
+- Pass the `Host` and `X-Forwarded-*` headers. Caddy does this by default.
+- Allow long requests and streamed responses. Answers stream for up to a few minutes.
+- If the proxy is on the same server and needs port 80, move the stack: set `HOST_PORT_80` (and `HOST_PORT`) in `deploy/.env`, for example `HOST_PORT_80=8081`.
+
+Example `Caddyfile` for a proxy on the same server, with `HOST_PORT_80=8081`:
+
+```
+teacheragent.example.org {
+    reverse_proxy localhost:8081
+}
+```
+
+Caddy gets and renews the certificate itself.
+
+### 6. Finish the setup
+
+1. Open `https://<your domain>` and sign up. The first account becomes admin.
+2. Set up [Microsoft Entra sign-in](#microsoft-entra-sign-in). Use the `https://<your domain>` redirect URI.
+3. Set up [Backups](#backups).
+
+### Update the deployment
+
+To deploy new code from `main`:
+
+```bash
+git pull
+deploy/compose.sh build api_server web_server
+deploy/compose.sh up -d --wait     # database migrations run automatically
+deploy/compose.sh restart nginx    # nginx must find the new containers
+```
+
+If you changed only the documents, restart the API server instead (see [Documents](#documents)).
+
+### Logs
+
+```bash
+deploy/compose.sh logs -f api_server
+deploy/compose.sh logs api_server | grep PaoTeacherAgent    # agent and document sync
+```
 
 ## Environment variables
 
-All live in `deploy/.env`. Any variable from `deployment/docker_compose/env.template` can also go there.
+All variables are in `deploy/.env`. You can also add any variable from `deployment/docker_compose/env.template`.
 
 | Variable | Purpose |
 |---|---|
-| `IMAGE_TAG` | Upstream Onyx release this fork is based on |
+| `IMAGE_TAG` | The upstream Onyx release this fork uses |
 | `ONYX_BACKEND_IMAGE`, `ONYX_WEB_SERVER_IMAGE` | Our images, built from this repo |
-| `USER_AUTH_SECRET`, `ENCRYPTION_KEY_SECRET`, `POSTGRES_PASSWORD` | Secrets. `ENCRYPTION_KEY_SECRET` encrypts the stored LLM key and SSO secret: lose it and you must re-enter them. |
-| `WEB_DOMAIN` | `http://localhost` locally, `https://<domain>` in production. Must match the Entra redirect URI. |
-| `VALID_EMAIL_DOMAINS` | Email domains allowed to sign in, e.g. your school domain |
-| `OIDC_PKCE_ENABLED` | Forces PKCE on for SSO sign-in |
+| `USER_AUTH_SECRET`, `ENCRYPTION_KEY_SECRET`, `POSTGRES_PASSWORD` | Secrets. `ENCRYPTION_KEY_SECRET` encrypts the stored LLM key and SSO secret. If you lose it, you must enter them again. |
+| `WEB_DOMAIN` | `http://localhost` locally, `https://<domain>` in production. Must agree with the Entra redirect URI. |
+| `VALID_EMAIL_DOMAINS` | Email domains that can sign in, for example the school domain |
+| `OIDC_PKCE_ENABLED` | Turns on PKCE for SSO sign-in |
 | `DISABLE_TELEMETRY` | `true`: no usage telemetry to Onyx |
-| `MCP_SERVER_ENABLED` | `false`: no access for outside AI clients |
-| `DEEPSEEK_API_KEY` | Adds the DeepSeek provider on first start, when no chat model exists. Onyx then keeps the key, encrypted, in its database. |
-| `PAO_KNOWLEDGE_HOST_DIR` | Folder holding `policies/` and `behaviour/`. Default `deploy/knowledge`. |
+| `MCP_SERVER_ENABLED` | `false`: no access for external AI clients |
+| `DEEPSEEK_API_KEY` | Adds the DeepSeek provider on first start, if no chat model exists. Onyx then keeps the key, encrypted, in its database. |
+| `PAO_KNOWLEDGE_HOST_DIR` | Folder that holds `policies/` and `behaviour/`. Default: `deploy/knowledge`. |
+| `HOST_PORT_80`, `HOST_PORT` | Host ports for nginx. Defaults: `80` and `3000`. |
 
 ## LLM provider (DeepSeek)
 
-Onyx connects to DeepSeek directly through its built-in OpenAI-compatible provider. The API server adds it on first start from `DEEPSEEK_API_KEY` and stores the key encrypted in the database. To change the key or model later, or to add it by hand:
+Onyx connects to DeepSeek directly through its built-in OpenAI-compatible provider. The API server adds the provider on first start from `DEEPSEEK_API_KEY`, and stores the key encrypted in the database. To change the key or model later, or to add the provider manually:
 
 1. **Admin Panel → Language Models → add an OpenAI-Compatible provider.**
-2. API base `https://api.deepseek.com`, your API key, model `deepseek-flash` (1M context, reads images).
+2. Set the API base to `https://api.deepseek.com`, your API key, and the model `deepseek-flash` (1M context, reads images).
 3. Set it as the **default** model and the **default vision** model.
 4. Test it with a chat.
 
-Answer time: about 5–10 s for the Policy Assistant and 15–30 s for the Behaviour Assistant, which reads a much larger set. The first question after an agent's files change can take a minute or two while DeepSeek processes the new text.
+Answer time is about 5–10 s for the Policy Assistant and 15–30 s for the Behaviour Assistant, which reads a much larger set. After an agent's files change, the first question can take one or two minutes while DeepSeek processes the new text.
 
 ## Microsoft Entra sign-in
 
-SSO is set up in the admin panel (Onyx v5 no longer uses `AUTH_TYPE` env variables). It is free in Community Edition.
+You set up SSO in the admin panel. Onyx v5 does not use `AUTH_TYPE` env variables. SSO is free in Community Edition.
 
 ### 1. Register the app in Entra
 
-At **entra.microsoft.com → Applications → App registrations → New registration**:
+Go to **entra.microsoft.com → Applications → App registrations → New registration**:
 
-1. **Name** `PaoTeacherAgent`. **Supported account types:** *Accounts in this organizational directory only (Single tenant)*.
-2. **Redirect URI:** platform **Web**, `http://localhost/api/auth/oidc/entra/callback`. Under **Authentication → Add URI**, also add `https://<domain>/api/auth/oidc/entra/callback`. The path ends in the provider *Name* from step 2 (`entra`).
+1. Set **Name** to `PaoTeacherAgent`. Set **Supported account types** to *Accounts in this organizational directory only (Single tenant)*.
+2. **Redirect URI:** platform **Web**, `http://localhost/api/auth/oidc/entra/callback`. Under **Authentication → Add URI**, also add `https://<domain>/api/auth/oidc/entra/callback`. The last part of the path is the provider *Name* from section 2 (`entra`).
 3. **Certificates & secrets → New client secret.** Copy the *Value* immediately.
-4. **API permissions → Microsoft Graph → Delegated:** `openid`, `profile`, `email` (and the default `User.Read`), then **Grant admin consent**.
+4. **API permissions → Microsoft Graph → Delegated:** add `openid`, `profile` and `email` (keep the default `User.Read`). Then select **Grant admin consent**.
 5. **Token configuration → Add optional claim → ID → `email`.**
-6. From **Overview**, copy the *Application (client) ID* and the *Directory (tenant) ID*.
+6. On **Overview**, copy the *Application (client) ID* and the *Directory (tenant) ID*.
 
 ### 2. Add the provider in Onyx
 
@@ -112,24 +208,24 @@ At **entra.microsoft.com → Applications → App registrations → New registra
 | Field | Value |
 |---|---|
 | Provider Type | OIDC |
-| Name | `entra` (can't be changed later) |
+| Name | `entra` (you cannot change it later) |
 | Display Name | `Microsoft` |
-| Client ID / Client Secret | from step 1 |
+| Client ID / Client Secret | from section 1 |
 | OpenID Configuration URL | `https://login.microsoftonline.com/<TENANT_ID>/v2.0/.well-known/openid-configuration` |
-| Require Verified Email Claim | **Off** (Entra doesn't send it) |
+| Require Verified Email Claim | **Off** (Entra does not send it) |
 | Enable PKCE | On |
 | Scopes | empty |
-| Allowed Email Domains | your school email domain(s) |
+| Allowed Email Domains | the school email domains |
 
-The single-tenant app plus your tenant ID in the URL means only your school's accounts can sign in.
+A single-tenant app with your tenant ID in the URL lets only school accounts sign in.
 
 ### 3. Lock it down, in this order
 
-1. Sign in with Microsoft to check it works.
-2. Make your Microsoft account an admin (see [Admins](#admins)) and sign in again to confirm you can open the Admin Panel.
+1. Sign in with Microsoft to make sure it works.
+2. Make your Microsoft account an admin (see [Admins](#admins)). Sign in again and make sure you can open the Admin Panel.
 3. **Admin Panel → Security & Hardening → turn off password login.**
 
-Do step 3 last. Turning off password login before a Microsoft account is admin locks everyone out of the admin panel.
+Do step 3 last. If you turn off password login before a Microsoft account is admin, nobody can open the admin panel.
 
 ## Documents
 
@@ -138,27 +234,27 @@ Do step 3 last. Turning off password login before a Microsoft account is admin l
 | Policy Assistant | `deploy/knowledge/policies/` | YK Pao policies: Behaviour Policy, Dress Code, Technology Use Policy |
 | Behaviour Assistant | `deploy/knowledge/behaviour/` | Behaviour best-practice guidance: DfE, Ofsted, EEF |
 
-The folders can start empty: the agents exist from the first start and get their documents when files are added. The folders are the source of truth. On every start the API server compares each folder with the agent's documents: new or changed files are added, and files no longer in the folder are removed from the agent. To apply a change without a full restart:
+The folders can start empty. The agents exist from the first start and get their documents when you add files. The folders are the source of truth. On each start, the API server compares each folder with the agent's documents. It adds new or changed files, and removes files that are no longer in the folder. To apply a change without a full restart:
 
 ```bash
 deploy/compose.sh restart api_server
 ```
 
-New files take a short time to process after the restart. The log shows what was synced: `deploy/compose.sh logs api_server | grep PaoTeacherAgent`.
+New files need a short time to process after the restart. The log shows what was synced: `deploy/compose.sh logs api_server | grep PaoTeacherAgent`.
 
-**Replace an outdated policy** so old consequences are never cited:
+**Replace an outdated policy**, so that the agent never cites old consequences:
 
 1. Delete the old file from `deploy/knowledge/policies/` and copy in the new one.
 2. Run `deploy/compose.sh restart api_server`.
-3. Ask a question the change affects and check the answer cites the new file.
+3. Ask a question about the change. Make sure the answer cites the new file.
 
 **File rules:**
 
-- Use PDF, DOCX or PPTX. Convert old `.doc` files to `.docx`; `.doc` files are skipped.
-- Don't add standalone images (PNG/JPG); they are skipped. The model would see them as if the teacher had just sent them. Add the document that contains the image instead.
-- Scanned PDFs have no text; add a text version.
+- Use PDF, DOCX or PPTX. The sync skips `.doc` files, so convert them to `.docx` first.
+- Do not add images (PNG or JPG). The sync skips them. The model would see them as if the teacher sent them. Add the document that contains the image.
+- Scanned PDFs have no text. Add a text version.
 
-Admins can also attach extra files to an agent in the agent editor (**⋯ → Edit → Knowledge → Your Files**). The folder sync keeps those; it only manages files that came from the folders.
+Admins can also attach more files to an agent in the agent editor (**⋯ → Edit → Knowledge → Your Files**). The folder sync keeps these files. It manages only the files that came from the folders.
 
 ## Editing the agents
 
@@ -167,69 +263,80 @@ The agents are defined in the backend:
 - Prompts: `backend/onyx/seeding/pao_prompts/policy_assistant.md` and `behaviour_assistant.md`.
 - Names, descriptions, starter questions and folders: `AGENTS` in `backend/onyx/seeding/pao_agents.py`.
 
-After an edit, rebuild and restart (the rebuild is quick; only the code layer changes):
+After an edit, rebuild and restart. The rebuild is fast, because only the code layer changes.
 
 ```bash
 deploy/compose.sh build api_server
 deploy/compose.sh up -d --wait
+deploy/compose.sh restart nginx
 ```
 
-Start a new chat to see a prompt change. Edits made in the agent editor to these fields are overwritten on the next start.
+Start a new chat to see a prompt change. The next start overwrites edits to these fields that you make in the agent editor.
 
 ## Admins
 
-**Admin Panel → Users →** change the person's role to **Admin**. They must have signed in once first. On a new, empty database, the first person to sign in becomes admin automatically.
+**Admin Panel → Users →** change the person's role to **Admin**. The person must sign in one time first. On a new, empty database, the first person to sign in becomes admin automatically.
 
 ## Chat retention and privacy
 
-- **Where chats are stored:** the Postgres database on our server (Docker volume `onyx_db_volume`), together with users, agents and uploaded files.
-- **Who can read them:** each teacher sees only their own chats in the app. Community Edition has no admin screen for browsing other people's chats (query history is a paid Onyx feature), but anyone with server or database access can read everything.
-- **Retention:** kept forever. Automatic deletion after N days is a paid (Enterprise) Onyx feature. Teachers can delete their own chats.
-- **Memory:** Onyx can remember facts about a teacher (role, year groups) across chats. The prompts tell it never to store anything about students. Teachers can view, delete or turn off memory under **Settings → Personalization**.
-- **What leaves the server:** chat content goes only to DeepSeek. Telemetry is off (`DISABLE_TELEMETRY=true`). Onyx also fetches public model lists from GitHub, which contain no chat content. The code sandbox and the MCP server are turned off.
-- **Student data:** the agents never ask for student names and don't repeat them, but whatever a teacher types is stored with the chat and sent to DeepSeek.
+- **Where chats are stored:** in the Postgres database on our server (Docker volume `onyx_db_volume`), with the users, agents and uploaded files.
+- **Who can read them:** each teacher sees only their own chats in the app. Community Edition has no admin screen to see other people's chats (query history is a paid Onyx feature). But anyone with access to the server or database can read all chats.
+- **Retention:** chats are kept forever. Automatic deletion after N days is a paid (Enterprise) Onyx feature. Teachers can delete their own chats.
+- **Memory:** Onyx can remember facts about a teacher (role, year groups) across chats. The prompts tell it never to store information about students. Teachers can see, delete or turn off memory in **Settings → Personalization**.
+- **What leaves the server:** chat content goes only to DeepSeek. Telemetry is off (`DISABLE_TELEMETRY=true`). Onyx also gets public model lists from GitHub, which contain no chat content. The code sandbox and the MCP server are off.
+- **Student data:** the agents never ask for student names and do not repeat them. But the app stores everything a teacher types with the chat, and sends it to DeepSeek.
 
 ## Backups
 
-In Lite mode everything lives in Postgres: chats, users, agents, settings and the uploaded documents. One dump covers it all.
+In Lite mode, all data is in Postgres: chats, users, agents, settings and the uploaded documents. One dump contains all of it.
 
-Also back up the knowledge folders (`deploy/knowledge/` or `PAO_KNOWLEDGE_HOST_DIR`): they are the source of truth for the agents' documents.
+Also back up the knowledge folders (`deploy/knowledge/` or `PAO_KNOWLEDGE_HOST_DIR`). They are the source of truth for the agents' documents.
 
 ```bash
-# Backup (also keep a copy of deploy/.env: without ENCRYPTION_KEY_SECRET the stored
-# DeepSeek key and SSO secret can't be decrypted)
+# Backup. Also keep a copy of deploy/.env: without ENCRYPTION_KEY_SECRET,
+# Onyx cannot decrypt the stored DeepSeek key and SSO secret.
 docker exec onyx-relational_db-1 pg_dump -U postgres -Fc postgres > paoteacheragent-$(date +%F).dump
 
-# Restore into a fresh deployment with the same deploy/.env
+# Restore into a new deployment that uses the same deploy/.env
 deploy/compose.sh up -d relational_db
 docker exec -i onyx-relational_db-1 pg_restore -U postgres -d postgres --clean --if-exists < paoteacheragent-YYYY-MM-DD.dump
 deploy/compose.sh up -d --wait
 ```
 
-Run the backup on a schedule (e.g. a nightly cron job) and store copies off the server.
+Run the backup on a schedule (for example, a nightly cron job) and keep copies off the server.
 
 ## Upgrading Onyx
 
-This repo is a fork of Onyx pinned to a release tag (see `IMAGE_TAG`). To move to a new release:
+This repo is a fork of Onyx at a fixed release tag (see `IMAGE_TAG`). To move to a new release:
 
 ```bash
-# 0. Back up first (see Backups)
+# 0. Make a backup first (see Backups)
 git fetch upstream tag vX.Y.Z --no-tags
 git merge vX.Y.Z
-#    Conflicts can only be in the files listed in CUSTOMIZATIONS.md;
-#    re-apply each change there. For README.md, keep ours.
-# 1. Set IMAGE_TAG=vX.Y.Z and the vX.Y.Z tag in ONYX_BACKEND_IMAGE and ONYX_WEB_SERVER_IMAGE
-#    in deploy/.env (and deploy/.env.example)
+#    Conflicts can occur only in the files in CUSTOMIZATIONS.md. Apply each change
+#    again. For README.md, keep ours. Delete again the upstream files we removed.
+# 1. Set IMAGE_TAG=vX.Y.Z, and the vX.Y.Z tag in ONYX_BACKEND_IMAGE and
+#    ONYX_WEB_SERVER_IMAGE, in deploy/.env and deploy/.env.example
 deploy/compose.sh build api_server web_server
-deploy/compose.sh up -d --wait   # database migrations run automatically on start
+deploy/compose.sh up -d --wait   # database migrations run automatically
+deploy/compose.sh restart nginx
 ```
 
-Check the upstream release notes first, and test the upgrade locally before production. Rolling back after a migration needs the database backup.
+Read the upstream release notes first. Test the upgrade locally before production. After a migration, you need the database backup to go back to the old version.
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| The site shows `502 Bad Gateway` after a rebuild | nginx still points to the old containers. Run `deploy/compose.sh restart nginx`. |
+| A Docker Hub pull fails with `EOF` | This occurs on some networks. Run the command again, or `docker pull` the image until it works. |
+| A document does not appear in an agent | Look for `skipping knowledge file` in `deploy/compose.sh logs api_server`. Check the [file rules](#documents). |
+| A chat waits a long time and then fails | Make sure the server can reach `api.deepseek.com`, and that the DeepSeek key is valid (**Admin Panel → Language Models**). |
 
 ## Not done yet
 
-- **Evaluation:** `eval/questions.yaml` and the runner script.
-- **Production deployment:** HTTPS for the school domain.
-- **School logo:** a placeholder "P" mark is used until the logo is provided.
-- **Safeguarding policy:** not yet uploaded, so the agents can only point to the designated safeguarding lead, not cite the procedure.
-- **Hiding agent creation from teachers:** not done; any teacher can create their own agents.
+- **Evaluation:** a question set and a runner script to test answers.
+- **Built-in HTTPS:** the stack serves HTTP only. Use a reverse proxy (see [Add HTTPS](#5-add-https)).
+- **Safeguarding policy:** not uploaded yet. The agents can only refer teachers to the designated safeguarding lead. They cannot cite the procedure.
+- **Hiding agent creation from teachers:** not done. Any teacher can create their own agents.
+- **CI:** the repo has no automatic checks on pull requests. Run `pre-commit` locally.
