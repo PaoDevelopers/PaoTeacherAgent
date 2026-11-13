@@ -43,6 +43,28 @@ Our own files (no merge conflicts possible): `deploy/`, `eval/`, `CUSTOMIZATIONS
 | `web/src/i18n/**` and `web/tests/e2e/settings/language_switch.spec.ts`, `searchStateUtils.test.ts`, `GroupsPage/__tests__/utils.test.ts`, `ChatTaskModelSettings.test.tsx` | Tests that named removed languages now use `zh`; the Arabic number and right-to-left tests are gone | Keeps the test suite green |
 | `web/src/views/AppPage.tsx` | Mounts `<OnboardingCard />` under the agent heading on the chat home | Welcome card for new teachers (our file: `web/src/app/app/components/OnboardingCard.tsx`) |
 
+## Upstream files removed
+
+The school runs Docker Compose only, so these upstream files are deleted. After an upstream merge,
+`git rm` them again if upstream edited them.
+
+| Path | What it was |
+|---|---|
+| `.github/` | Onyx CI workflows, actions, CODEOWNERS and Dependabot config |
+| `deployment/helm/`, `deployment/terraform/`, `deployment/aws_ecs_fargate/`, `deployment/tests/`, `deployment/README.md`, `deployment/fleet-telemetry.md` | Kubernetes, Terraform and AWS deployment, and their tests |
+| `deployment/docker_compose/`: `docker-compose.{airgap-test,airgap-tls-test,mcp-api-key-test,mcp-ci,mcp-oauth-test,mcp-per-user-key-test,mock-llm-test,multitenant,resources,search-testing}.yml`, `install.sh`, `install.ps1`, `mcp-ci-web.conf` | CI and test overlays, multi-tenant overlay, Onyx guided installer |
+| `tools/helm/`, `backend/tests/external_dependency_unit/craft_helm/`, `Makefile` | Helm chart checks and tests, Kubernetes dev targets |
+| `docs/`, `README.zh-CN.md`, `contributor_ip_assignment/` | Onyx design docs and contributor documents |
+| `.coderabbit.yaml`, `cubic.yaml`, `.greptile/`, `ct.yaml`, `cr.yaml`, `docker-bake.hcl`, `.zed/` | Review-bot, chart-testing, image-bake and editor config |
+
+Kept in `deployment/docker_compose/`: the files `deploy/compose.sh` runs, plus `docker-compose.template.yml`,
+`.dev.yml`, `.craft.yml`, `.prod*.yml`, the env templates and `README.md`, because `ods generate-compose`
+and the dev stack read them.
+
+Upstream files changed for the removal: `.pre-commit-config.yaml` (Helm and Terraform hooks removed),
+`.agents/feature-map/path-allowlist.txt` (removed paths listed, so the feature-map docs stay as upstream),
+`backend/scripts/env_inventory_baseline.txt` (regenerated without the Helm values).
+
 Admin-only translation strings that mention "Onyx" (connectors, licensing, Onyx Lite notices)
 are left as upstream: they describe the platform, and editing the locale files would make every
 merge conflict.
