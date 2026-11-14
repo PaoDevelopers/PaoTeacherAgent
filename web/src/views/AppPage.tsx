@@ -33,7 +33,6 @@ import useChatSessions from "@/hooks/useChatSessions";
 import useCCPairs from "@/hooks/useCCPairs";
 import { useDocumentSets } from "@/lib/hooks/useDocumentSets";
 import { useAgents } from "@/lib/agents/hooks";
-import { AppPopup } from "@/app/app/components/AppPopup";
 import { useUser } from "@/providers/UserProvider";
 import { useCurrentUser } from "@/lib/users/hooks";
 import { NoAgentModal } from "@/lib/agents/components";
@@ -766,8 +765,6 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
 
   return (
     <>
-      <AppPopup />
-
       {presentingDocument && (
         <PreviewModal
           presentingDocument={presentingDocument}

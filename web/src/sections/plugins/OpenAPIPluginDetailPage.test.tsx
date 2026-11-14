@@ -107,7 +107,6 @@ beforeEach(() => {
     if (path === "/api/admin/default-assistant/configuration")
       return json({ tool_ids: defaultChatToolIds });
     if (path === "/api/settings") return json({});
-    if (path === "/api/enterprise-settings") return json({});
     if (path === "/api/auth/type") return json({ oauth_enabled: true });
     if (path.startsWith("/api/admin/oauth-config/") && !init?.method) {
       const id = Number(path.split("/").at(-1));

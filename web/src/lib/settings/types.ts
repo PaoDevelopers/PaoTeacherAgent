@@ -97,9 +97,6 @@ export interface Settings {
   // production — the underlying SSE endpoint also gates on the env var.
   opencode_debugging_enabled?: boolean;
 
-  // Whether EE features are unlocked (user has a valid enterprise license).
-  // Controls UI visibility of EE features like user groups, analytics, RBAC.
-  ee_features_enabled?: boolean;
   tier?: Tier;
 
   // Seat usage - populated when seat limit is exceeded
@@ -132,39 +129,6 @@ export interface Settings {
   is_containerized?: boolean;
 }
 
-export interface NavigationItem {
-  link: string;
-  icon?: string;
-  svg_logo?: string;
-  title: string;
-}
-
-export interface EnterpriseSettings {
-  application_name: string | null;
-  use_custom_logo: boolean;
-  use_custom_logotype: boolean;
-  logo_display_style: "logo_and_name" | "logo_only" | "name_only" | null;
-
-  // custom navigation
-  custom_nav_items: NavigationItem[];
-
-  // custom Chat components
-  custom_lower_disclaimer_content: string | null;
-  custom_header_content: string | null;
-  two_lines_for_chat_header: boolean | null;
-  custom_popup_header: string | null;
-  custom_popup_content: string | null;
-  enable_consent_screen: boolean | null;
-  consent_screen_prompt: string | null;
-  show_first_visit_notice: boolean | null;
-  custom_greeting_message: string | null;
-  custom_login_subtitle: string | null;
-
-  // Custom help link surfaced in the profile dropdown alongside "Help & FAQ".
-  custom_help_link_url: string | null;
-  custom_help_link_label: string | null;
-}
-
 /**
  * Combined settings shape returned by the server-side `fetchSettingsSS`
  * helper in `lib/settings/svcSS.ts`. Used only for SSR — client
@@ -172,7 +136,6 @@ export interface EnterpriseSettings {
  */
 export interface CombinedSettings {
   settings: Settings;
-  enterpriseSettings: EnterpriseSettings | null;
   webVersion: string | null;
   webDomain: string | null;
   appName: string;
@@ -183,7 +146,6 @@ export interface CombinedSettings {
  * returning only the plain `Settings` slice safe to send to the backend.
  */
 export function toSettings({
-  enterprise: _enterprise,
   appName: _appName,
   vectorDbEnabled: _vectorDbEnabled,
   isLoading: _isLoading,
@@ -196,22 +158,11 @@ export function toSettings({
 /**
  * The fully-derived application settings object returned by `useSettings()`.
  *
- * Extends `Settings` with enterprise data and pre-computed derived fields so
- * callers never have to fetch enterprise settings separately or re-derive
- * values like `appName`.
+ * Extends `Settings` with pre-computed derived fields.
  */
 export interface AppSettings extends Settings {
-  /** Raw enterprise settings — null when EE is disabled or not yet loaded. */
-  enterprise: EnterpriseSettings | null;
-  /** Resolved display name: enterprise.application_name || "PaoTeacherAgent". */
+  /** Always APP_NAME ("PaoTeacherAgent"). */
   appName: string;
-  /**
-   * URL of the logo image to render, or `null` to use the default Onyx SVG.
-   * Includes a cache-buster that updates whenever enterprise settings are
-   * revalidated, forcing the browser to re-fetch after an admin uploads a
-   * new logo.
-   */
-  logoUrl: string | null;
   /** False when DISABLE_VECTOR_DB is set server-side. */
   vectorDbEnabled: boolean;
   isLoading: boolean;

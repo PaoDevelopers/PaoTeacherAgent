@@ -61,7 +61,6 @@ export const SWR_KEYS = {
 
   // ── Settings ──────────────────────────────────────────────────────────────
   settings: "/api/settings",
-  enterpriseSettings: "/api/enterprise-settings",
   authType: "/api/auth/type",
   adminSecuritySettings: "/api/admin/security",
   adminSecurityPinnedFields: "/api/admin/security/pinned-fields",

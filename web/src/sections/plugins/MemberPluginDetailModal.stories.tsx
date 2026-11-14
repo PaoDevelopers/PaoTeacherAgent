@@ -115,8 +115,6 @@ const meta = {
           onyx_craft_enabled: true,
           onyx_craft_available: true,
         });
-      if (String(input) === "/api/enterprise-settings")
-        return Response.json({});
       if (
         (String(input) === "/api/mcp/server/7/preferences" ||
           String(input) === "/api/tool/7/preferences") &&

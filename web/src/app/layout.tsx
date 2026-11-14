@@ -2,7 +2,6 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import { MODAL_ROOT_ID } from "@/lib/constants";
-import { generateFaviconMetadata } from "@/lib/app/svcSS";
 import AppProvider from "@/providers/AppProvider";
 import Script from "next/script";
 import localFont from "next/font/local";
@@ -95,9 +94,7 @@ const dmMonoLatinExt = localFont({
 // time — many child routes use cookies() which requires dynamic rendering.
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-  return { icons: await generateFaviconMetadata() };
-}
+export const metadata: Metadata = { icons: { icon: "/yk-pao-logo.png" } };
 
 interface LayoutProps {
   children: React.ReactNode;

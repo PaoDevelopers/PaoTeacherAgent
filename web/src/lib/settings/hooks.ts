@@ -1,20 +1,18 @@
 "use client";
 
 import useSWR from "swr";
-import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import useCCPairs from "@/hooks/useCCPairs";
-import { errorHandlingFetcher, isNotFoundError } from "@/lib/fetcher";
+import { errorHandlingFetcher } from "@/lib/fetcher";
 import { SWR_KEYS } from "@/lib/swr-keys";
 import { isAuthPath } from "@/lib/auth/paths";
 import {
   ApplicationStatus,
   AppSettings,
-  EnterpriseSettings,
   QueryHistoryType,
   Settings,
 } from "@/lib/settings/types";
-import { EE_ENABLED } from "@/lib/constants";
+import { APP_NAME } from "@/lib/constants";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 
 const SETTINGS_ERROR_RETRY_INTERVAL = 5_000;
@@ -36,20 +34,14 @@ const DEFAULT_SETTINGS: Settings = {
   default_language: DEFAULT_LOCALE,
 };
 
-// A CE backend never registers the enterprise-settings route, so its 404
-// means no enterprise settings, not an outage: no error and no retry.
-const isEnterpriseSettingsMissing = isNotFoundError;
-
 /**
- * The single settings hook. Returns a fully-derived `AppSettings` object that
- * merges core settings and enterprise settings into one consistent shape.
+ * The single settings hook. Returns a fully-derived `AppSettings` object.
  *
  * Derived fields (`appName`, `vectorDbEnabled`) are pre-computed so callers
- * never have to re-derive them or fetch enterprise settings separately.
+ * never have to re-derive them.
  */
 export function useSettings(): AppSettings {
-  // Skip core settings on /auth/* routes: unauthenticated callers 403 there, and
-  // the login shell only needs enterprise-derived `appName` (fetched below).
+  // Skip core settings on /auth/* routes: unauthenticated callers 403 there.
   const onAuthPath = isAuthPath(usePathname());
 
   const {
@@ -69,65 +61,21 @@ export function useSettings(): AppSettings {
   );
 
   const core = rawSettings ?? DEFAULT_SETTINGS;
-  // Auth pages need branding pre-sign-in but standard web images lack the EE
-  // flag, so probe the endpoint.
-  const shouldFetchEnterprise =
-    EE_ENABLED ||
-    onAuthPath ||
-    (!settingsLoading && !settingsError && core.ee_features_enabled !== false);
-
-  const {
-    data: enterprise,
-    error: enterpriseError,
-    isLoading: enterpriseLoading,
-  } = useSWR<EnterpriseSettings>(
-    shouldFetchEnterprise ? SWR_KEYS.enterpriseSettings : null,
-    errorHandlingFetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      revalidateIfStale: false,
-      dedupingInterval: 30_000,
-      errorRetryInterval: SETTINGS_ERROR_RETRY_INTERVAL,
-      shouldRetryOnError: (err) => !isEnterpriseSettingsMissing(err),
-      // Referential equality — logo can change without JSON changing, so
-      // mutate() must propagate a new reference for cache-busters.
-      compare: (a, b) => a === b,
-    }
-  );
-
-  // Cache-buster: the logo endpoint URL never changes, so the browser serves
-  // a cached image even after an admin uploads a new logo. Regenerating this
-  // timestamp whenever the enterprise settings reference changes forces a
-  // re-fetch. We use referential equality on the SWR data (compare: a===b),
-  // so this only fires when SWR actually receives new enterprise data.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const logoBuster = useMemo(() => Date.now(), [enterprise]);
 
   return {
     ...core,
-    enterprise: enterprise ?? null,
-    appName: enterprise?.application_name?.trim() || "PaoTeacherAgent",
-    logoUrl: enterprise?.use_custom_logo
-      ? `/api/enterprise-settings/logo?v=${logoBuster}`
-      : null,
+    appName: APP_NAME,
     vectorDbEnabled:
       !settingsLoading && !settingsError && core.vector_db_enabled !== false,
-    isLoading:
-      settingsLoading || (shouldFetchEnterprise ? enterpriseLoading : false),
-    error:
-      settingsError ??
-      (isEnterpriseSettingsMissing(enterpriseError)
-        ? undefined
-        : enterpriseError),
+    isLoading: settingsLoading,
+    error: settingsError,
   };
 }
 
 /**
  * Returns `true` when search mode is actually usable by the current user.
  *
- * This is a cross-cutting hook: it joins `useSettings()` (two settings
- * endpoints) with connector state (`useCCPairs`). It is intentionally kept
+ * This is a cross-cutting hook: it joins `useSettings()` with connector state (`useCCPairs`). It is intentionally kept
  * separate from `useSettings()` so that the connector list fetch only fires in
  * the small number of components that actually need it.
  */

@@ -3,6 +3,8 @@
 import useSWR, { mutate } from "swr";
 import { errorHandlingFetcher } from "@/lib/fetcher";
 import { useSettings } from "@/lib/settings/hooks";
+import { Tier } from "@/lib/tiers/types";
+import { tierAtLeast } from "@/lib/tiers/utils";
 import { SWR_KEYS } from "@/lib/swr-keys";
 
 export interface MinimalUserGroupSnapshot {
@@ -16,7 +18,7 @@ export interface MinimalUserGroupSnapshot {
 export default function useShareableGroups() {
   const settings = useSettings();
   const isPaidEnterpriseFeaturesEnabled =
-    !settings.isLoading && settings.enterprise !== null;
+    !settings.isLoading && tierAtLeast(settings.tier, Tier.BUSINESS);
 
   const { data, error, isLoading } = useSWR<MinimalUserGroupSnapshot[]>(
     isPaidEnterpriseFeaturesEnabled ? SWR_KEYS.shareableGroups : null,

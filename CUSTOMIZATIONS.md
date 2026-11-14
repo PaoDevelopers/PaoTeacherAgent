@@ -27,12 +27,10 @@ Our own files (no merge conflicts possible): `compose.yaml`, `Dockerfile`, `.env
 | `web/src/lib/tiers/hooks.ts` | `useTierLockedOptions` returns no options below the tier (was an "Upgrade Plan" row plus disabled options) | Business and Enterprise options are hidden |
 | `web/src/views/admin/connectors/AddConnectorPage/sections/ConnectorSettingsSection.tsx` | Document access and manage-access fields render only on Business or higher; the form keeps its `access_type: "public"` default | Business features are hidden |
 | `web/lib/opal/src/logos/onyx-typed.tsx` | "Onyx" wordmark replaced by "PaoTeacherAgent" | Branding (sidebar, login page) |
-| `web/src/lib/settings/hooks.ts` | Default app name `"Onyx"` → `"PaoTeacherAgent"` | Branding (client-side name) |
-| `web/src/lib/settings/svcSS.ts` | Same default | Branding (server-rendered name) |
-| `web/src/lib/settings/types.ts` | Same default, in a doc comment | Keep comment accurate |
-| `web/src/lib/app/svcSS.ts` | Same default; favicon `/onyx.ico` → `/yk-pao-logo.png` | Browser tab title and icon |
+| `web/src/lib/constants.ts` | `APP_NAME = "PaoTeacherAgent"`, the app name everywhere (`useSettings().appName`, `fetchSettingsSS`, the auth pages, the admin tab title) | Branding |
+| `web/src/app/layout.tsx`, `web/src/app/admin/layout.tsx` | Favicon `/onyx.ico` → `/yk-pao-logo.png`; admin tab title "Admin — PaoTeacherAgent" | Browser tab title and icon |
 | `web/src/app/globals.css` | One `@import "./css/paoteacheragent.css"` line | Brand colour override for `--theme-primary-04/05/06` |
-| `web/src/lib/app/hooks.ts` | Chat footer "Onyx vX – Open Source AI Platform" → app name, followed by the "Made by Henry Yang and Kenny Lin with care" credit (`common.footer.credit.label`; also after a custom disclaimer) | Branding; author credit |
+| `web/src/lib/app/hooks.ts` | Chat footer "Onyx vX – Open Source AI Platform" → app name, followed by the "Made by Henry Yang and Kenny Lin with care" credit (`common.footer.credit.label`) | Branding; author credit |
 | `web/src/sections/sidebar/AccountPopover.tsx` | Removed "Help & FAQ" (docs.onyx.app); version row shows "PaoTeacherAgent vX" with no Onyx link | Branding; Onyx admin docs are not teacher help |
 | `web/lib/opal/src/components/buttons/attachment-item-button/styles.css` | Title text takes the remaining row width; center slot never shrinks below its content | Bug fix: long file names ran under the "1 hour ago" timestamp in Recent Files. Worth upstreaming. |
 | `web/src/refresh-components/popovers/FilePickerPopover.tsx` | `titleMaxLines={1}` on file rows | Bug fix: long file names wrapped over several lines and ran into the PDF/PPTX label |
@@ -110,12 +108,15 @@ EE code is not covered by the MIT license, and the school has no Onyx license.
   Their sidebar entries, the "Upgrade Plan" entry, search mode and the payment banner are gone.
   Agent knowledge search returns folders only, because document search was EE. Tier checks that render
   nothing on Community are left as upstream to keep merges small.
+  The Enterprise whitelabel settings (`/enterprise-settings`: custom name, logo, popup, consent screen,
+  greeting, header, login subtitle, help link), the `ee_features_enabled` / `NEXT_PUBLIC_ENABLE_PAID_EE_FEATURES`
+  flags and the connector "Authorize" button they gated are gone.
 
 After an upstream merge, check that none of it came back. These commands should print nothing:
 
 ```
 git grep -n -E 'from ee\b|import ee\b|fetch_versioned_implementation|fetch_ee_implementation_or_noop|sentry_sdk|posthog|fleet_telemetry' -- backend ':!backend/alembic/versions'
-git grep -n -i -E 'posthog-js|@sentry/|googletagmanager|@/app/ee|@/ee/' -- web
+git grep -n -i -E 'posthog-js|@sentry/|googletagmanager|@/app/ee|@/ee/|enterprise-settings|enterpriseSettings|ee_features_enabled|ENABLE_PAID_EE' -- web backend/onyx
 ```
 
 ## Re-applying after an upstream merge

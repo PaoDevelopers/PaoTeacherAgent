@@ -135,10 +135,8 @@ beforeEach(() => {
     if (path === "/api/settings")
       return json({
         tier: Tier.BUSINESS,
-        ee_features_enabled: true,
         onyx_craft_available: craftAvailable,
       });
-    if (path === "/api/enterprise-settings") return json({});
     if (path === "/api/manage/admin/user-group")
       return json([{ id: 1, name: "Engineering", users: [] }]);
     if (path === "/api/auth/type")

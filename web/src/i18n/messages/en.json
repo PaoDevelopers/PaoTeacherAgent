@@ -2722,10 +2722,6 @@
         "syncNotice": "Connect as a workspace member, not a guest, who belongs to every private team you want to index. Onyx cannot see private teams the connected user is not in. Issues in public teams are searchable by every workspace member, and issues in private or restricted teams by their members."
       },
       "add": {
-        "authorizeButton": {
-          "label": "Authorize with {source}",
-          "pendingLabel": "Authorizing..."
-        },
         "connectWithTab": {
           "label": "OAuth"
         },
@@ -9275,9 +9271,6 @@
       "createAccountLink": {
         "label": "Create an Account"
       },
-      "logo": {
-        "alt": "Logo"
-      },
       "signInLink": {
         "label": "Sign In"
       },
@@ -11043,23 +11036,6 @@
         }
       }
     },
-    "popup": {
-      "consentCheckbox": {
-        "label": "Consent checkbox"
-      },
-      "consentRequired": {
-        "error": "You need to agree to the terms to access the application."
-      },
-      "header": {
-        "title": "Welcome to {appName}!"
-      },
-      "logoIcon": {
-        "alt": "Logo"
-      },
-      "startButton": {
-        "label": "Start"
-      }
-    },
     "projects": {
       "chatItem": {
         "lastMessage": {
@@ -11239,9 +11215,6 @@
     "agentAvatar": {
       "image": {
         "altFallback": "Agent avatar"
-      },
-      "logo": {
-        "alt": "Logo"
       }
     },
     "attachment": {
@@ -11611,14 +11584,6 @@
       },
       "usersFallback": {
         "text": "Users"
-      }
-    },
-    "logo": {
-      "image": {
-        "alt": "Logo"
-      },
-      "poweredBy": {
-        "label": "Powered by Onyx"
       }
     },
     "modelSelectors": {

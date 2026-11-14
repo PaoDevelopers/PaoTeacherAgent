@@ -28,12 +28,7 @@ export const LOGOUT_DISABLED =
 export const NEXT_PUBLIC_CUSTOM_REFRESH_URL =
   process.env.NEXT_PUBLIC_CUSTOM_REFRESH_URL;
 
-// NOTE: since this is a `NEXT_PUBLIC_` variable, it will be set at
-// build-time
-// TODO: consider moving this to an API call so that the api_server
-// can be the single source of truth
-export const EE_ENABLED =
-  process.env.NEXT_PUBLIC_ENABLE_PAID_EE_FEATURES?.toLowerCase() === "true";
+export const APP_NAME = "PaoTeacherAgent";
 
 export const NEXT_PUBLIC_CLOUD_ENABLED =
   process.env.NEXT_PUBLIC_CLOUD_ENABLED?.toLowerCase() === "true";

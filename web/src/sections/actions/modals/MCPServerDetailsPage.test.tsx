@@ -176,11 +176,9 @@ beforeEach(() => {
       return new Response(
         JSON.stringify({
           tier: workspaceTier,
-          ee_features_enabled: true,
           onyx_craft_available: craftAvailable,
         })
       );
-    if (url === "/api/enterprise-settings") return new Response("{}");
     if (url === "/api/manage/admin/user-group")
       return new Response(JSON.stringify(availableGroups));
     throw new Error(`Unexpected request: ${url}`);
@@ -645,7 +643,9 @@ describe("inline server configuration", () => {
       screen.queryByRole("button", { name: "Cancel" })
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: messages.actions.mcpSetup.continue })
+      screen.queryByRole("button", {
+        name: messages.actions.mcpSetup.continue,
+      })
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Save Changes" }));
     await waitFor(() =>

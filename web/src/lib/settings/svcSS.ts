@@ -1,11 +1,10 @@
 import {
   CombinedSettings,
-  EnterpriseSettings,
   ApplicationStatus,
   Settings,
   QueryHistoryType,
 } from "@/lib/settings/types";
-import { HOST_URL } from "@/lib/constants";
+import { APP_NAME, HOST_URL } from "@/lib/constants";
 import { fetchSS } from "@/lib/utilsSS";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 import { getWebVersion } from "@/lib/version";
@@ -20,25 +19,9 @@ export async function fetchStandardSettingsSS(): Promise<Settings | null> {
   }
 }
 
-export async function fetchEnterpriseSettingsSS(): Promise<EnterpriseSettings | null> {
-  try {
-    const response = await fetchSS("/enterprise-settings");
-    if (!response?.ok) return null;
-    return response.json();
-  } catch {
-    return null;
-  }
-}
-
 export async function fetchSettingsSS(): Promise<CombinedSettings | null> {
-  const settingsTask = fetchSS("/settings");
-  const enterpriseTask = fetchSS("/enterprise-settings");
-
   try {
-    const [settingsResponse, enterpriseResponse] = await Promise.all([
-      settingsTask,
-      enterpriseTask,
-    ]);
+    const settingsResponse = await fetchSS("/settings");
 
     let settings: Settings;
     if (!settingsResponse) {
@@ -72,35 +55,15 @@ export async function fetchSettingsSS(): Promise<CombinedSettings | null> {
       settings = await settingsResponse.json();
     }
 
-    let enterpriseSettings: EnterpriseSettings | null = null;
-    if (enterpriseResponse) {
-      if (enterpriseResponse.ok) {
-        enterpriseSettings = await enterpriseResponse.json();
-      } else if (
-        // 404: a build without Enterprise code has no such route.
-        enterpriseResponse.status !== 404 &&
-        enterpriseResponse.status !== 403 &&
-        enterpriseResponse.status !== 401
-      ) {
-        throw new Error(
-          `fetchSettingsSS: enterprise failed status=${
-            enterpriseResponse.status
-          } body=${await enterpriseResponse.text()}`
-        );
-      }
-    }
-
     if (settings.deep_research_enabled == null) {
       settings.deep_research_enabled = true;
     }
 
     return {
       settings,
-      enterpriseSettings,
       webVersion: settings.version ?? getWebVersion(),
       webDomain: HOST_URL,
-      appName:
-        enterpriseSettings?.application_name?.trim() || "PaoTeacherAgent",
+      appName: APP_NAME,
     };
   } catch (error) {
     console.error("fetchSettingsSS exception: ", error);

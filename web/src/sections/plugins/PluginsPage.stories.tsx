@@ -146,10 +146,8 @@ function PluginsStory({ scenario }: PluginsStoryProps) {
       if (url.pathname === "/api/settings")
         return json({
           tier: "community",
-          ee_features_enabled: false,
           onyx_craft_available: true,
         });
-      if (url.pathname === "/api/enterprise-settings") return json({});
       if (url.pathname === "/api/build/admin/apps")
         return json(scenario.empty ? [] : apps);
       if (url.pathname === "/api/build/admin/apps/built-in/options")

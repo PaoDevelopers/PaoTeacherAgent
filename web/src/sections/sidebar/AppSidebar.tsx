@@ -46,7 +46,6 @@ import { removeChatSessionFromProject } from "@/lib/projects/svc";
 import type { Project } from "@/lib/projects/types";
 import { SidebarLayouts, useSidebarState } from "@opal/layouts";
 import { renderSidebarLogo } from "@/lib/sidebar/utils";
-import { useShowLogoWhenFolded } from "@/lib/sidebar/hooks";
 import { cn } from "@opal/utils";
 import { useTierAtLeast } from "@/lib/tiers/hooks";
 import { Tier } from "@/lib/tiers/types";
@@ -456,7 +455,6 @@ export default function AppSidebar() {
 
   const { hasAdminAccess, adminCapabilities, user } = useUser();
   const activeSidebarTab = useAppPosition();
-  const showLogoWhenFolded = useShowLogoWhenFolded();
   const defaultAppMode =
     (user?.preferences?.default_app_mode?.toLowerCase() as "chat" | "search") ??
     "chat";
@@ -543,10 +541,7 @@ export default function AppSidebar() {
       </AnimatePresence>
 
       <SidebarLayouts.Root foldable>
-        <SidebarLayouts.Header
-          showLogoWhenFolded={showLogoWhenFolded}
-          renderAppLogo={renderSidebarLogo}
-        >
+        <SidebarLayouts.Header renderAppLogo={renderSidebarLogo}>
           <div data-testid="AppSidebar/new-session">
             <SidebarTab
               icon={SvgEditBig}

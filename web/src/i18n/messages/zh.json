@@ -2722,10 +2722,6 @@
         "syncNotice": "请以属于您要索引的每个私有团队的工作区成员（而非访客）身份连接。Onyx 无法看到已连接用户不在其中的私有团队。公开团队的问题可由所有工作区成员搜索，私有或受限团队的问题仅可由其成员搜索。"
       },
       "add": {
-        "authorizeButton": {
-          "label": "使用 {source} 授权",
-          "pendingLabel": "正在授权…"
-        },
         "connectWithTab": {
           "label": "OAuth"
         },
@@ -9275,9 +9271,6 @@
       "createAccountLink": {
         "label": "创建账户"
       },
-      "logo": {
-        "alt": "徽标"
-      },
       "signInLink": {
         "label": "登录"
       },
@@ -11043,23 +11036,6 @@
         }
       }
     },
-    "popup": {
-      "consentCheckbox": {
-        "label": "同意复选框"
-      },
-      "consentRequired": {
-        "error": "您需要同意条款才能使用本应用。"
-      },
-      "header": {
-        "title": "欢迎使用 {appName}！"
-      },
-      "logoIcon": {
-        "alt": "徽标"
-      },
-      "startButton": {
-        "label": "开始"
-      }
-    },
     "projects": {
       "chatItem": {
         "lastMessage": {
@@ -11239,9 +11215,6 @@
     "agentAvatar": {
       "image": {
         "altFallback": "智能体头像"
-      },
-      "logo": {
-        "alt": "徽标"
       }
     },
     "attachment": {
@@ -11611,14 +11584,6 @@
       },
       "usersFallback": {
         "text": "用户"
-      }
-    },
-    "logo": {
-      "image": {
-        "alt": "徽标"
-      },
-      "poweredBy": {
-        "label": "由 Onyx 提供支持"
       }
     },
     "modelSelectors": {

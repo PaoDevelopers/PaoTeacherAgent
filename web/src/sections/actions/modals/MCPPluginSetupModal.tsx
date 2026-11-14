@@ -109,7 +109,7 @@ function MCPSetupSession({
   );
   const settings = useSettings();
   const businessTier = useTierAtLeast(Tier.BUSINESS);
-  const canRestrict = businessTier && settings.enterprise !== null;
+  const canRestrict = businessTier;
   const { isLoading: groupsLoading, error: groupsError } =
     useUserGroups(canRestrict);
   const authorityLoading = userResolution !== "resolved" || settings.isLoading;

@@ -36,9 +36,8 @@ export function usePermissionAuthority(
 }
 
 /**
- * Mirrors the backend BUSINESS gate on `/manage/admin/user-group`. Gate edit
- * affordances on this, not `settings.enterprise` — that only means "EE build",
- * and below Business the endpoint 402s.
+ * Mirrors the backend BUSINESS gate on `/manage/admin/user-group`. Below
+ * Business the endpoint 402s.
  */
 export function useCanManageGroups(): boolean {
   return useTierAtLeast(Tier.BUSINESS);
