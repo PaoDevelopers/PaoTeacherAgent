@@ -17,8 +17,6 @@ import { Button, Divider } from "@opal/components";
 import { MinimalAgent } from "@/lib/agents/types";
 import DocumentSetCard from "@/sections/cards/DocumentSetCard";
 import CollapsibleSection from "@/app/admin/agents/CollapsibleSection";
-import { StandardAnswerCategoryResponse } from "@/components/standardAnswers/getStandardAnswerCategoriesIfEE";
-import { StandardAnswerCategoryDropdownField } from "@/components/standardAnswers/StandardAnswerCategoryDropdown";
 import { InputSingleComboBox } from "@opal/components";
 import { RadioGroup } from "@/components/ui/radio-group";
 import { RadioGroupItemField } from "@/components/ui/RadioGroupItemField";
@@ -44,7 +42,6 @@ export interface SlackChannelConfigFormFieldsProps {
   documentSets: DocumentSetSummary[];
   searchEnabledAgents: MinimalAgent[];
   nonSearchAgents: MinimalAgent[];
-  standardAnswerCategoryResponse: StandardAnswerCategoryResponse;
   slack_bot_id: number;
   formikProps: any;
 }
@@ -55,7 +52,6 @@ export function SlackChannelConfigFormFields({
   documentSets,
   searchEnabledAgents,
   nonSearchAgents,
-  standardAnswerCategoryResponse,
   slack_bot_id,
   formikProps,
 }: SlackChannelConfigFormFieldsProps) {
@@ -540,14 +536,6 @@ export function SlackChannelConfigFormFields({
                   values.is_ephemeral
                     ? t("form.respondMemberGroupList.disabled.tooltip")
                     : undefined
-                }
-              />
-
-              <StandardAnswerCategoryDropdownField
-                standardAnswerCategoryResponse={standardAnswerCategoryResponse}
-                categories={values.standard_answer_categories}
-                setCategories={(categories: any) =>
-                  setFieldValue("standard_answer_categories", categories)
                 }
               />
             </div>

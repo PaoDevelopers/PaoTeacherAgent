@@ -3,27 +3,20 @@ import { Tier } from "@/lib/tiers/types";
 import { IconFunctionComponent } from "@opal/types";
 import {
   SvgActions,
-  SvgActivity,
   SvgArrowExchange,
   SvgAudio,
-  SvgShareWebhook,
   SvgBarChart,
   SvgBubbleText,
-  SvgClipboard,
   SvgCpu,
-  SvgDownload,
   SvgEmpty,
   SvgFileText,
   SvgFiles,
   SvgGlobe,
-  SvgHistory,
   SvgImage,
   SvgLinkedDots,
   SvgMcp,
   SvgOnyxOctagon,
-  SvgPaintBrush,
   SvgProgressBars,
-  SvgPieChart,
   SvgPlug,
   SvgSearchMenu,
   SvgShield,
@@ -33,9 +26,6 @@ import {
   SvgUser,
   SvgUserCheck,
   SvgUserKey,
-  SvgUserSync,
-  SvgUsers,
-  SvgWallet,
   SvgZoomIn,
   SvgDiscord,
   SvgSlack,
@@ -45,9 +35,6 @@ export interface FeatureFlags {
   vectorDbEnabled: boolean;
   enableCloud: boolean;
   tier: Tier | undefined;
-  hasSubscription: boolean;
-  hooksEnabled: boolean;
-  queryHistoryEnabled: boolean;
   craftAvailable: boolean;
 }
 
@@ -151,16 +138,6 @@ export const ADMIN_ROUTES = {
     requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
     section: "",
     requiredTier: null,
-    visibleWhen: null,
-  },
-  LLM_GATEWAY: {
-    path: "/admin/llm-gateway",
-    icon: SvgGlobe,
-    title: "LLM Gateway",
-    sidebarLabel: "LLM Gateway",
-    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
-    section: "",
-    requiredTier: Tier.BUSINESS,
     visibleWhen: null,
   },
   // ── Craft ─────────────────────────────────────────────────────────
@@ -319,16 +296,6 @@ export const ADMIN_ROUTES = {
     visibleWhen: (f: FeatureFlags) => f.vectorDbEnabled,
   },
   // ── Integrations ──────────────────────────────────────────────────
-  API_KEYS: {
-    path: "/admin/service-accounts",
-    icon: SvgUserKey,
-    title: "Service Accounts",
-    sidebarLabel: "Service Accounts",
-    requiredPermission: Permission.MANAGE_SERVICE_ACCOUNT_API_KEYS,
-    section: "Integrations",
-    requiredTier: Tier.BUSINESS,
-    visibleWhen: null,
-  },
   SLACK_BOTS: {
     path: "/admin/bots",
     icon: SvgSlack,
@@ -349,16 +316,6 @@ export const ADMIN_ROUTES = {
     requiredTier: null,
     visibleWhen: null,
   },
-  HOOKS: {
-    path: "/admin/hooks",
-    icon: SvgShareWebhook,
-    title: "Hook Extensions",
-    sidebarLabel: "Hook Extensions",
-    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
-    section: "Integrations",
-    requiredTier: Tier.ENTERPRISE,
-    visibleWhen: (f: FeatureFlags) => f.hooksEnabled,
-  },
 
   // ── Permissions ───────────────────────────────────────────────────
   USERS: {
@@ -369,26 +326,6 @@ export const ADMIN_ROUTES = {
     requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
     section: "Permissions",
     requiredTier: null,
-    visibleWhen: null,
-  },
-  GROUPS: {
-    path: "/admin/groups",
-    icon: SvgUsers,
-    title: "Manage User Groups",
-    sidebarLabel: "Groups",
-    requiredPermission: Permission.MANAGE_USER_GROUPS,
-    section: "Permissions",
-    requiredTier: Tier.BUSINESS,
-    visibleWhen: null,
-  },
-  SCIM: {
-    path: "/admin/scim",
-    icon: SvgUserSync,
-    title: "SCIM",
-    sidebarLabel: "SCIM",
-    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
-    section: "Permissions",
-    requiredTier: Tier.ENTERPRISE,
     visibleWhen: null,
   },
   OAUTH_TEST: {
@@ -404,26 +341,6 @@ export const ADMIN_ROUTES = {
   },
 
   // ── Organization ──────────────────────────────────────────────────
-  BILLING: {
-    path: "/admin/billing",
-    icon: SvgWallet,
-    title: "Plans & Billing",
-    sidebarLabel: "Plans & Billing",
-    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
-    section: "Organization",
-    requiredTier: null,
-    visibleWhen: (f: FeatureFlags) => f.hasSubscription,
-  },
-  THEME: {
-    path: "/admin/theme",
-    icon: SvgPaintBrush,
-    title: "Appearance & Theming",
-    sidebarLabel: "Appearance & Theming",
-    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
-    section: "Organization",
-    requiredTier: Tier.BUSINESS,
-    visibleWhen: null,
-  },
   SECURITY_HARDENING: {
     path: "/admin/security",
     icon: SvgShield,
@@ -448,36 +365,6 @@ export const ADMIN_ROUTES = {
   },
 
   // ── Usage ─────────────────────────────────────────────────────────
-  USAGE: {
-    path: "/admin/performance/usage",
-    icon: SvgPieChart,
-    title: "Usage",
-    sidebarLabel: "Usage",
-    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
-    section: "Usage",
-    requiredTier: Tier.BUSINESS,
-    visibleWhen: null,
-  },
-  WORKSPACE_ANALYTICS: {
-    path: "/admin/performance/analytics",
-    icon: SvgActivity,
-    title: "Analytics",
-    sidebarLabel: "Analytics",
-    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
-    section: "Usage",
-    requiredTier: Tier.BUSINESS,
-    visibleWhen: null,
-  },
-  QUERY_HISTORY: {
-    path: "/admin/performance/query-history",
-    icon: SvgHistory,
-    title: "Query History",
-    sidebarLabel: "Query History",
-    requiredPermission: Permission.READ_QUERY_HISTORY,
-    section: "Usage",
-    requiredTier: Tier.BUSINESS,
-    visibleWhen: (f: FeatureFlags) => f.queryHistoryEnabled,
-  },
   // Tracing config is not supported on multi-tenant cloud.
   TRACING: {
     path: "/admin/tracing",
@@ -489,43 +376,10 @@ export const ADMIN_ROUTES = {
     requiredTier: null,
     visibleWhen: (f: FeatureFlags) => !f.enableCloud,
   },
-  // Log export reads container-local files; not applicable on multi-tenant cloud.
-  EXPORT_LOGS: {
-    path: "/admin/export-logs",
-    icon: SvgDownload,
-    title: "Export Logs",
-    sidebarLabel: "Export Logs",
-    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
-    section: "Usage",
-    requiredTier: Tier.ENTERPRISE,
-    visibleWhen: (f: FeatureFlags) => !f.enableCloud,
-  },
-
-  // ── Other (admin-only) ────────────────────────────────────────────
-  STANDARD_ANSWERS: {
-    path: "/admin/standard-answer",
-    icon: SvgClipboard,
-    title: "Standard Answers",
-    sidebarLabel: "",
-    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
-    section: "",
-    requiredTier: null,
-    visibleWhen: null,
-  },
 
   // ── Prefix-only entries (layout matching, not sidebar items) ──────
   DOCUMENTS: {
     path: "/admin/documents",
-    icon: SvgEmpty,
-    title: "",
-    sidebarLabel: "",
-    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
-    section: "",
-    requiredTier: null,
-    visibleWhen: null,
-  },
-  PERFORMANCE: {
-    path: "/admin/performance",
     icon: SvgEmpty,
     title: "",
     sidebarLabel: "",

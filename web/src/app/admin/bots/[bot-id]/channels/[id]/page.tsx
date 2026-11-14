@@ -11,14 +11,9 @@ import { SvgSlack } from "@opal/logos";
 import { useSlackChannelConfigs } from "@/app/admin/bots/[bot-id]/hooks";
 import { useDocumentSets } from "@/app/admin/documents/sets/hooks";
 import { useAgents } from "@/lib/agents/hooks";
-import { useStandardAnswerCategories } from "@/app/ee/admin/standard-answer/hooks";
-import { useTierAtLeast } from "@/lib/tiers/hooks";
-import { Tier } from "@/lib/tiers/types";
-import type { StandardAnswerCategoryResponse } from "@/components/standardAnswers/getStandardAnswerCategoriesIfEE";
 
 function EditSlackChannelConfigContent({ id }: { id: string }) {
   const t = useTranslations("admin.slackBots");
-  const enterpriseTier = useTierAtLeast(Tier.ENTERPRISE);
 
   const {
     data: slackChannelConfigs,
@@ -38,17 +33,7 @@ function EditSlackChannelConfigContent({ id }: { id: string }) {
     error: agentsError,
   } = useAgents();
 
-  const {
-    data: standardAnswerCategories,
-    isLoading: isStdAnswerLoading,
-    error: stdAnswerError,
-  } = useStandardAnswerCategories();
-
-  const isLoading =
-    isChannelsLoading ||
-    isDocSetsLoading ||
-    isAgentsLoading ||
-    (enterpriseTier && isStdAnswerLoading);
+  const isLoading = isChannelsLoading || isDocSetsLoading || isAgentsLoading;
 
   const slackChannelConfig = slackChannelConfigs?.find(
     (config) => config.id === Number(id)
@@ -95,17 +80,6 @@ function EditSlackChannelConfigContent({ id }: { id: string }) {
             slack_bot_id={slackChannelConfig.slack_bot_id}
             documentSets={documentSets}
             personas={agents}
-            standardAnswerCategoryResponse={
-              enterpriseTier
-                ? {
-                    paidEnterpriseFeaturesEnabled: true,
-                    categories: standardAnswerCategories ?? [],
-                    error: stdAnswerError
-                      ? { message: String(stdAnswerError) }
-                      : undefined,
-                  }
-                : { paidEnterpriseFeaturesEnabled: false }
-            }
             existingSlackChannelConfig={slackChannelConfig}
           />
         )}

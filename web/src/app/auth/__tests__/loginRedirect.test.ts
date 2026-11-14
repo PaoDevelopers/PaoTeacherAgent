@@ -5,7 +5,6 @@ import { cookies, headers } from "next/headers";
 import { proxy } from "@/proxy";
 import { requireAuth } from "@/lib/auth/svcSS";
 import { ORIGINAL_PATH_HEADER } from "@/lib/auth/paths";
-import { SERVER_SIDE_ONLY__AUTH_COOKIE_NAME } from "@/lib/constants";
 
 const APP_DOMAIN = "https://onyx.example.com";
 const STAMPED = `x-middleware-request-${ORIGINAL_PATH_HEADER}`;
@@ -41,18 +40,6 @@ describe("proxy stamps the original path", () => {
     expect(res.headers.get(STAMPED)).toBe(
       "/app?user-prompt=hello&sources=slack"
     );
-  });
-
-  test("on the EE rewrite", async () => {
-    const res = await proxy(
-      new NextRequest(`${APP_DOMAIN}/admin/groups?tab=members`, {
-        headers: { cookie: `${SERVER_SIDE_ONLY__AUTH_COOKIE_NAME}=session` },
-      })
-    );
-    expect(res.headers.get("x-middleware-rewrite")).toBe(
-      `${APP_DOMAIN}/ee/admin/groups`
-    );
-    expect(res.headers.get(STAMPED)).toBe("/admin/groups?tab=members");
   });
 
   test("replaces a value the client supplied", async () => {

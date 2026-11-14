@@ -18,7 +18,6 @@ import {
   SvgStar,
   SvgStarOff,
   SvgShare,
-  SvgBarChart,
   SvgTrash,
 } from "@opal/icons";
 import { ConfirmationModalLayout } from "@opal/layouts";
@@ -32,8 +31,6 @@ import {
 } from "@/lib/agents/svc";
 import type { Agent } from "@/lib/agents/types";
 import { ShareAgentModal } from "@/lib/agents/components";
-import { useTierAtLeast } from "@/lib/tiers/hooks";
-import { Tier } from "@/lib/tiers/types";
 import { can } from "@/lib/permissions/resource-actions";
 
 // ---------------------------------------------------------------------------
@@ -55,7 +52,6 @@ export default function AgentRowActions({
 }: AgentRowActionsProps) {
   const t = useTranslations("admin.agents");
   const router = useRouter();
-  const businessTier = useTierAtLeast(Tier.BUSINESS);
   const shareModal = useCreateModal();
 
   // Gate on the list row's stamped permissions so controls render immediately, rather
@@ -64,10 +60,8 @@ export default function AgentRowActions({
   const canList = can(agent, "list");
   const canUpdateFeaturedStatus = can(agent, "feature");
   const canShare = can(agent, "share");
-  const canViewStats = can(agent, "view_stats");
   const canDeleteRow = !agent.builtin_persona && can(agent, "delete");
-  const hasOverflowItems =
-    canList || canShare || (businessTier && canViewStats) || canDeleteRow;
+  const hasOverflowItems = canList || canShare || canDeleteRow;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,17 +120,6 @@ export default function AgentRowActions({
             icon: SvgShare,
             title: t("rowActions.shareItem.title"),
             onSelect: () => shareModal.toggle(true),
-          },
-        ]
-      : []),
-    ...(businessTier && canViewStats
-      ? [
-          {
-            kind: "action" as const,
-            id: "stats",
-            icon: SvgBarChart,
-            title: t("rowActions.statsItem.title"),
-            onSelect: () => router.push(`/ee/agents/stats/${agent.id}`),
           },
         ]
       : []),

@@ -13,7 +13,6 @@ import { OpenSearchResourcePopup } from "@/sections/banners/OpenSearchResourceWa
 import AppHealthBanner from "@/sections/banners/HealthBanner";
 import BannerQueue from "@/sections/banners/BannerQueue";
 import { AuthenticationShell } from "@/lib/auth/components";
-import ProductGatingWrapper from "@/providers/ProductGatingWrapper";
 import SWRConfigProvider from "@/providers/SWRConfigProvider";
 import { NextIntlClientProvider } from "next-intl";
 import OpalStringsBridge from "@/i18n/OpalStringsBridge";
@@ -200,9 +199,7 @@ export default async function Layout({ children }: LayoutProps) {
                         <AppProvider>
                           <OpenSearchResourcePopup />
                           <div id={MODAL_ROOT_ID} className="h-screen w-screen">
-                            <ProductGatingWrapper>
-                              {children}
-                            </ProductGatingWrapper>
+                            {children}
                           </div>
                           {process.env.NEXT_PUBLIC_ENABLE_STATS === "true" && (
                             <StatsOverlayLoader />
