@@ -691,9 +691,6 @@ _VECTOR_DB_TASK_MODULES: set[str] = {
     "onyx.background.celery.tasks.tabular_rechunk",
     "onyx.background.celery.tasks.doc_permission_syncing",
     "onyx.background.celery.tasks.hierarchyfetching",
-    # EE modules that are vector-DB-dependent
-    "ee.onyx.background.celery.tasks.doc_permission_syncing",
-    "ee.onyx.background.celery.tasks.external_group_syncing",
 }
 # NOTE: "onyx.background.celery.tasks.shared" is intentionally NOT in the set
 # above. It contains celery_beat_heartbeat (which only writes to Redis) alongside

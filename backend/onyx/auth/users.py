@@ -171,7 +171,6 @@ from onyx.utils.audit import AuditAction, AuditActor, AuditOutcome, emit_audit_e
 from onyx.utils.logger import setup_logger
 from onyx.utils.timing import log_function_time
 from onyx.utils.url import add_url_params, sanitize_next_url
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from shared_configs.configs import (
     MULTI_TENANT,
     POSTGRES_DEFAULT_SCHEMA,
@@ -369,29 +368,6 @@ def remove_user_from_invited_users_after_login(
         )
 
 
-def rekey_tenant_mapping_after_login(
-    email: str,
-    tenant_id: str,
-    oauth_identities: list[tuple[str, str]],
-    previous_email: str | None = None,
-) -> None:
-    """Best-effort catalog rekey for a login that has already succeeded.
-
-    Tenant resolution routes by linked subject, so a membership row left under
-    the old address still reaches the right workspace and the next login retries.
-    """
-    try:
-        fetch_ee_implementation_or_noop(
-            "onyx.db.user_tenant_mapping", "rekey_user_mapping_email", None
-        )(email, tenant_id, oauth_identities, previous_email)
-    except Exception:
-        logger.warning(
-            "Tenant mapping rekey failed after login: tenant=%s",
-            tenant_id,
-            exc_info=True,
-        )
-
-
 def verify_email_in_whitelist(
     email: str,
     tenant_id: str,
@@ -460,87 +436,9 @@ def verify_email_domain(
             raise OnyxError(OnyxErrorCode.INVALID_INPUT, "Email domain is not valid")
 
 
-def enforce_seat_limit(
-    db_session: Session,
-    seats_needed: int = 1,
-    lock_session: Session | None = None,
-) -> None:
-    """Raise ``OnyxError(SEAT_LIMIT_EXCEEDED)`` if seats would be exceeded.
-
-    Self-hosted runs ``check_seat_availability``; cloud delegates to
-    ``enforce_cloud_seat_limit`` which auto-bills via Stripe. Use
-    ``enforce_seat_limit_locked`` when followed by a write in the same
-    transaction.
-    """
-    if MULTI_TENANT:
-        fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.billing",
-            "enforce_cloud_seat_limit",
-            lambda **_kw: None,
-        )(
-            seats_needed=seats_needed,
-            tenant_id=get_current_tenant_id(),
-            db_session=lock_session,
-        )
-        return
-
-    result = fetch_ee_implementation_or_noop(
-        "onyx.db.license", "check_seat_availability", None
-    )(db_session, seats_needed=seats_needed)
-
-    if result is not None and not result.available:
-        raise OnyxError(OnyxErrorCode.SEAT_LIMIT_EXCEEDED, result.error_message)
-
-
-def enforce_seat_limit_locked(db_session: Session, seats_needed: int = 1) -> None:
-    """Acquire the tenant advisory lock on ``db_session``, then enforce.
-
-    Self-hosted: lock + ``check_seat_availability`` on the caller's
-    session — held until caller commits.
-
-    Cloud: lock + ``get_tenant_count`` + Stripe modify also held on the
-    caller's session — released on caller commit so the seat-consuming
-    write (e.g. ``activate_user``) is covered.
-    """
-    fetch_ee_implementation_or_noop("onyx.db.license", "acquire_seat_lock", None)(
-        db_session, get_current_tenant_id()
-    )
-
-    enforce_seat_limit(db_session, seats_needed=seats_needed, lock_session=db_session)
-
-
-def _user_currently_counts_toward_seats(user: User) -> bool:
-    """Delegate to canonical ``ee/onyx/db/license.py:user_counts_toward_seats``."""
-    return bool(
-        fetch_ee_implementation_or_noop(
-            "onyx.db.license", "user_counts_toward_seats", False
-        )(user)
-    )
-
-
-def _upgrade_will_add_seat(user_before: User, will_become_active: bool) -> bool:
-    """Whether promoting to STANDARD will consume a seat.
-
-    Cloud counts ``UserTenantMapping`` rows, not user attributes — an
-    upgrade leaves the mapping count unchanged, so always seat-neutral
-    in MT. Self-hosted compares the per-user predicate before vs after.
-    """
-    if MULTI_TENANT:
-        return False
-    will_be_counted = will_become_active and user_before.email != ANONYMOUS_USER_EMAIL
-    return will_be_counted and not _user_currently_counts_toward_seats(user_before)
-
-
-def _invalidate_license_cache_after_seat_change() -> None:
-    """Invalidate license cache so middleware re-reads ``used_seats``."""
-    fetch_ee_implementation_or_noop(
-        "onyx.db.license", "invalidate_license_cache", None
-    )()
-
-
 def _upgrade_placeholder_to_web_login__no_commit(
     user_id: uuid.UUID, is_verified_by_default: bool, db_session: Session
-) -> bool:
+) -> None:
     """Promote a placeholder row (EXT_PERM_USER, BOT) to a real web login.
 
     Does NOT commit. Must run on the session that already holds the ``"user"``
@@ -551,32 +449,21 @@ def _upgrade_placeholder_to_web_login__no_commit(
     the reconcile before this runs, which drops it. Re-locking on the same
     connection is a no-op when it is still held, and serializes concurrent
     first logins when it is not.
-
-    Returns whether the upgrade consumed a seat.
     """
     user = fetch_user_by_id(db_session, user_id, for_update=True)
     if user is None:
-        return False
+        return
 
     # The caller decided to promote from a read taken before this lock. Confirm
     # the row is still a placeholder now that it is held: a concurrent login may
     # have promoted it already, and an admin may have since deactivated the
-    # resulting account. Promoting again would reactivate a disabled account and
-    # re-check a seat that is already taken.
+    # resulting account. Promoting again would reactivate a disabled account.
     if user.account_type.is_web_login():
-        return False
-
-    # The row is active once this returns: it already was, or the promotion
-    # below reactivates it.
-    seat_added = False
-    if _upgrade_will_add_seat(user, will_become_active=True):
-        enforce_seat_limit_locked(db_session, seats_needed=1)
-        seat_added = True
+        return
 
     promote_placeholder_to_web_login__no_commit(
         db_session, user, is_verified=is_verified_by_default
     )
-    return seat_added
 
 
 async def resolve_tenant_for_user(email: str, request: Request | None = None) -> str:
@@ -586,11 +473,7 @@ async def resolve_tenant_for_user(email: str, request: Request | None = None) ->
     if override is not None:
         return override
 
-    return await fetch_ee_implementation_or_noop(
-        "onyx.server.tenants.provisioning",
-        "get_or_provision_tenant",
-        async_return_default_schema,
-    )(email=email, request=request)
+    return await async_return_default_schema(email=email, request=request)
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
@@ -617,9 +500,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             CURRENT_TENANT_ID_CONTEXTVAR.reset(token)
 
     async def get_by_email(self, user_email: str) -> User:
-        tenant_id = fetch_ee_implementation_or_noop(
-            "onyx.db.user_tenant_mapping", "get_tenant_id_for_email", None
-        )(user_email)
+        tenant_id = None
         async with get_async_session_context_manager(tenant_id) as db_session:
             if MULTI_TENANT:
                 tenant_user_db = SQLAlchemyUserDatabase[User, uuid.UUID](
@@ -659,15 +540,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         except KeyError:
             raise exceptions.InvalidVerifyToken()
 
-        try:
-            tenant_id = fetch_ee_implementation_or_noop(
-                "onyx.db.user_tenant_mapping",
-                "get_tenant_id_for_email",
-                None,
-            )(email)
-        except exceptions.UserNotExists:
-            raise exceptions.InvalidVerifyToken()
-
+        tenant_id = None
         contextvar_token = CURRENT_TENANT_ID_CONTEXTVAR.set(tenant_id)
         try:
             async with get_async_session_context_manager(tenant_id) as db_session:
@@ -774,14 +647,8 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             else None
         )
 
-        tenant_id = await fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.provisioning",
-            "get_or_provision_tenant",
-            async_return_default_schema,
-        )(
-            email=user_create.email,
-            referral_source=referral_source,
-            request=request,
+        tenant_id = await async_return_default_schema(
+            email=user_create.email, referral_source=referral_source, request=request
         )
         user: User
 
@@ -810,15 +677,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                     user_count == 0
                     or user_create.email in get_default_admin_user_emails()
                 )
-
-                # Lock + check on the same session that does the insert.
-                existing = await self.user_db.session.run_sync(
-                    lambda s: get_user_by_email(user_create.email, s)
-                )
-                if existing is None:
-                    await self.user_db.session.run_sync(
-                        lambda s: enforce_seat_limit_locked(s, seats_needed=1)
-                    )
 
                 user_created = False
                 try:
@@ -914,14 +772,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     ) -> None:
         """Upgrade a non-web user to STANDARD + assign groups in one tx.
 
-        Enforces the seat limit inside the same transaction when the
-        upgrade flips an uncounted user (EXT_PERM_USER, SERVICE_ACCOUNT)
-        into a counted one.
-
         ``safe`` marks the public register path, where the request body is
         untrusted and cannot decide is_verified.
         """
-        seat_added = False
         with get_session_with_current_tenant() as sync_db:
             sync_user = (
                 sync_db.query(User)
@@ -929,11 +782,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 .first()
             )
             if sync_user:
-                if _upgrade_will_add_seat(
-                    sync_user, will_become_active=bool(sync_user.is_active)
-                ):
-                    enforce_seat_limit_locked(sync_db, seats_needed=1)
-                    seat_added = True
                 sync_user.hashed_password = self.password_helper.hash(
                     user_create.password
                 )
@@ -953,8 +801,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                     "User %s not found in sync session during upgrade to standard; skipping upgrade",
                     user_id,
                 )
-        if seat_added:
-            _invalidate_license_cache_after_seat_change()
 
     async def validate_password(  # ty: ignore[invalid-method-override]
         self, password: str, _: schemas.UC | models.UP
@@ -1031,11 +877,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         # where they belong, so a pinned login (override set) skips provisioning
         # entirely and lets the invite gate below decide whether it admits them.
         override = SESSION_TENANT_OVERRIDE_CONTEXTVAR.get()
-        tenant_id = override or await fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.provisioning",
-            "get_or_provision_tenant",
-            async_return_default_schema,
-        )(
+        tenant_id = override or await async_return_default_schema(
             email=account_email,
             referral_source=referral_source,
             request=request,
@@ -1060,18 +902,11 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             )
 
             if override is not None and enforce_verified_domain:
-                # Current active members are exempt from the domain gate.
-                already_member = fetch_ee_implementation_or_noop(
-                    "onyx.db.user_tenant_mapping", "is_active_member", False
-                )(tenant_id, account_email, oauth_name, account_id)
-                if not already_member and not fetch_ee_implementation_or_noop(
-                    "onyx.db.tenant_sso_domain", "is_email_domain_verified", False
-                )(tenant_id, account_email):
-                    raise OnyxError(
-                        OnyxErrorCode.UNAUTHORIZED,
-                        "This workspace has not verified your email domain for "
-                        "single sign-on.",
-                    )
+                raise OnyxError(
+                    OnyxErrorCode.UNAUTHORIZED,
+                    "This workspace has not verified your email domain for "
+                    "single sign-on.",
+                )
 
             oauth_account_dict = {
                 "oauth_name": oauth_name,
@@ -1157,11 +992,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                         valid_email_domains=effective_valid_email_domains,
                     )
 
-                    # Lock + check on the same session that does the insert.
-                    await self.user_db.session.run_sync(
-                        lambda s: enforce_seat_limit_locked(s, seats_needed=1)
-                    )
-
                     password = self.password_helper.generate()
                     user_dict = {
                         "email": account_email,
@@ -1191,19 +1021,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
             assert user is not None
 
-            if override is not None:
-                # A pinned login skipped the provisioning that records
-                # membership. Record it here, before the link below needs the row.
-                fetch_ee_implementation_or_noop(
-                    "onyx.db.user_tenant_mapping", "ensure_tenant_membership", None
-                )(user.email, tenant_id, oauth_name, account_id)
-
-            # Keyed on the stored email rather than the one the IdP just sent.
-            # The membership row moves onto the new address at the rekey below.
-            fetch_ee_implementation_or_noop(
-                "onyx.db.user_tenant_mapping", "record_oauth_identity", None
-            )(user.email, tenant_id, oauth_name, account_id)
-
             # The provider is authoritative for the address, so adopt it when it
             # moves. Not gated on multi-tenant: single-tenant reaches the same
             # user by subject and so arrives here with a stale email too.
@@ -1220,15 +1037,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 await db_session.commit()
                 user.email = account_email.lower()
                 user.prior_emails = reconciled_prior_emails
-
-            oauth_identities = [
-                (oauth_account.oauth_name, oauth_account.account_id)
-                for oauth_account in user.oauth_accounts
-            ]
-
-            rekey_tenant_mapping_after_login(
-                user.email, tenant_id, oauth_identities, replaced_email
-            )
 
             # NOTE: Most IdPs have very short expiry times, and we don't want to force the user to
             # re-authenticate that frequently, so by default this is disabled
@@ -1251,7 +1059,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 # Runs on this session, which already holds the `"user"` row
                 # lock taken by reconcile_user_email__no_commit above. A second
                 # connection would wait on that lock for the whole callback.
-                seat_added = await db_session.run_sync(
+                await db_session.run_sync(
                     partial(
                         _upgrade_placeholder_to_web_login__no_commit,
                         refreshed_user_id,
@@ -1259,8 +1067,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                     )
                 )
                 await db_session.commit()
-                if seat_added:
-                    _invalidate_license_cache_after_seat_change()
 
                 # Reload so downstream code (e.g. the oidc_expiry check) sees
                 # the upgraded fields.
@@ -1360,11 +1166,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 OnyxErrorCode.SERVICE_UNAVAILABLE,
                 "Email sending has not been configured for this deployment.",
             )
-        tenant_id = await fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.provisioning",
-            "get_or_provision_tenant",
-            async_return_default_schema,
-        )(email=user.email)
+        tenant_id = await async_return_default_schema(email=user.email)
 
         try:
             send_forgot_password_email(user.email, tenant_id=tenant_id, token=token)
@@ -1422,11 +1224,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         # default schema. On multi-tenant that schema owns neither the user rows
         # nor the branding the email is built from, and the audit event reads
         # the tenant off the contextvar, so bind the address's own workspace.
-        tenant_id: str = fetch_ee_implementation_or_noop(
-            "onyx.db.user_tenant_mapping",
-            "get_tenant_id_for_email",
-            POSTGRES_DEFAULT_SCHEMA,
-        )(user.email)
+        tenant_id: str = POSTGRES_DEFAULT_SCHEMA
         contextvar_token: contextvars.Token[str | None] = (
             CURRENT_TENANT_ID_CONTEXTVAR.set(tenant_id)
         )
@@ -1472,13 +1270,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
         tenant_id: str | None = None
         try:
-            tenant_id = fetch_ee_implementation_or_noop(
-                "onyx.db.user_tenant_mapping",
-                "get_tenant_id_for_email",
-                POSTGRES_DEFAULT_SCHEMA,
-            )(
-                email=email,
-            )
+            tenant_id = POSTGRES_DEFAULT_SCHEMA
         except OnyxError:
             # Ambiguous membership is actionable, so it has to reach the caller
             # rather than be flattened into a generic credential failure.
@@ -2861,11 +2653,10 @@ async def complete_login_flow(
     referral_source = state_data.get("referral_source", None)
     # Drives the new_team redirect below. Resolving differently from the login
     # itself would greet a returning user as a brand new signup.
-    tenant_id = (
-        SESSION_TENANT_OVERRIDE_CONTEXTVAR.get()
-        or fetch_ee_implementation_or_noop(
-            "onyx.db.user_tenant_mapping", "resolve_tenant_id", None
-        )(account_email, oauth_client.name, account_id)
+    # Single-tenant logins always land in the default schema, so they are never
+    # a new team.
+    tenant_id = SESSION_TENANT_OVERRIDE_CONTEXTVAR.get() or (
+        None if MULTI_TENANT else POSTGRES_DEFAULT_SCHEMA
     )
 
     request.state.referral_source = referral_source

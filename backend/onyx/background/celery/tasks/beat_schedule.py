@@ -20,7 +20,6 @@ from onyx.document_index.opensearch.constants import (
     RESOURCE_CHECK_INTERVAL_SECONDS,
 )
 from onyx.server.features.build.configs import SANDBOX_IDLE_CLEANUP_INTERVAL_SECONDS
-from onyx.utils.variable_functionality import is_ee_available
 from shared_configs.configs import AUTO_LLM_UPDATE_INTERVAL_SECONDS, MULTI_TENANT
 
 # choosing 15 minutes because it roughly gives us enough time to process many tasks
@@ -305,34 +304,6 @@ beat_task_templates: list[dict] = [
         },
     },
 ]
-
-# These tasks live in the Enterprise Edition code, so only a build that ships it
-# can run them.
-if is_ee_available():
-    beat_task_templates.extend(
-        [
-            {
-                "name": "check-for-doc-permissions-sync",
-                "task": OnyxCeleryTask.CHECK_FOR_DOC_PERMISSIONS_SYNC,
-                "schedule": timedelta(seconds=30),
-                "options": {
-                    "priority": OnyxCeleryPriority.MEDIUM,
-                    "expires": BEAT_EXPIRES_DEFAULT,
-                    "work_gated": True,
-                },
-            },
-            {
-                "name": "check-for-external-group-sync",
-                "task": OnyxCeleryTask.CHECK_FOR_EXTERNAL_GROUP_SYNC,
-                "schedule": timedelta(seconds=20),
-                "options": {
-                    "priority": OnyxCeleryPriority.MEDIUM,
-                    "expires": BEAT_EXPIRES_DEFAULT,
-                    "work_gated": True,
-                },
-            },
-        ]
-    )
 
 # Add the Auto LLM update task if the config URL is set (has a default)
 if AUTO_LLM_CONFIG_URL:

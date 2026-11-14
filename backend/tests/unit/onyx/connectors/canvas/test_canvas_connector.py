@@ -6,23 +6,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ee.onyx.external_permissions.canvas.access import (
-    CanvasCoursePermissionContext,
-    get_announcement_permissions,
-    get_assignment_permissions,
-    get_page_permissions,
-)
-from ee.onyx.external_permissions.canvas.group_sync import (
-    _referenced_group_and_section_ids,
-)
 from onyx.access.models import ExternalAccess
 from onyx.configs.constants import DocumentSource
 from onyx.connectors.canvas.client import CanvasApiClient
 from onyx.connectors.canvas.connector import (
     CanvasAnnouncement,
-    CanvasAnnouncementSection,
     CanvasAssignment,
-    CanvasAssignmentOverride,
     CanvasConnector,
     CanvasConnectorCheckpoint,
     CanvasPage,
@@ -30,10 +19,6 @@ from onyx.connectors.canvas.connector import (
     _in_time_window,
     _parse_canvas_dt,
     _unix_to_canvas_time,
-    canvas_all_users_group_id,
-    canvas_course_group_id,
-    canvas_group_group_id,
-    canvas_section_group_id,
 )
 from onyx.connectors.exceptions import (
     CredentialExpiredError,
@@ -871,7 +856,6 @@ class TestDocumentConversion:
         assert "<p>" not in section_text
 
     def test_convert_assignment_to_document(self) -> None:
-        from onyx.connectors.canvas.connector import CanvasAssignment
 
         assignment = CanvasAssignment(
             id=20,
@@ -896,7 +880,6 @@ class TestDocumentConversion:
         assert expected_due_text in doc.sections[0].text
 
     def test_convert_assignment_without_description(self) -> None:
-        from onyx.connectors.canvas.connector import CanvasAssignment
 
         assignment = CanvasAssignment(
             id=21,
@@ -917,7 +900,6 @@ class TestDocumentConversion:
         assert "Due:" not in section_text
 
     def test_convert_announcement_to_document(self) -> None:
-        from onyx.connectors.canvas.connector import CanvasAnnouncement
 
         announcement = CanvasAnnouncement(
             id=30,
@@ -939,7 +921,6 @@ class TestDocumentConversion:
         assert doc.doc_updated_at == expected_updated_at
 
     def test_convert_announcement_without_posted_at(self) -> None:
-        from onyx.connectors.canvas.connector import CanvasAnnouncement
 
         announcement = CanvasAnnouncement(
             id=31,
@@ -1869,181 +1850,3 @@ class TestRetrieveAllSlimDocsPermSync:
         ):
             with pytest.raises(RuntimeError, match="permission lookup failed"):
                 list(connector.retrieve_all_slim_docs_perm_sync())
-
-
-class TestCanvasGroupSyncHelpers:
-    def test_referenced_ids_fetch_assignments_once(self) -> None:
-        connector = MagicMock(spec=CanvasConnector)
-        connector._list_assignments.return_value = [
-            CanvasAssignment(
-                id=20,
-                name="Group override",
-                html_url=f"{FAKE_BASE_URL}/courses/1/assignments/20",
-                course_id=1,
-                overrides=[CanvasAssignmentOverride(group_id=99)],
-            ),
-            CanvasAssignment(
-                id=21,
-                name="Section override",
-                html_url=f"{FAKE_BASE_URL}/courses/1/assignments/21",
-                course_id=1,
-                overrides=[CanvasAssignmentOverride(course_section_id=10)],
-            ),
-        ]
-        connector._list_announcements.return_value = [
-            CanvasAnnouncement(
-                id=30,
-                title="Section announcement",
-                html_url=f"{FAKE_BASE_URL}/courses/1/discussion_topics/30",
-                course_id=1,
-                is_section_specific=True,
-                sections=[CanvasAnnouncementSection(id=11)],
-            )
-        ]
-
-        indexing_start = datetime(2025, 6, 1, tzinfo=timezone.utc).timestamp()
-        group_ids, section_ids = _referenced_group_and_section_ids(
-            connector,
-            1,
-            indexing_start,
-        )
-
-        assert group_ids == {99}
-        assert section_ids == {10, 11}
-        connector._list_assignments.assert_called_once_with(1)
-        connector._list_announcements.assert_called_once_with(
-            1,
-            start=indexing_start,
-        )
-
-
-class TestCanvasPermissionMapping:
-    def _context(self, is_public: bool = False) -> CanvasCoursePermissionContext:
-        return CanvasCoursePermissionContext(
-            course_id=1,
-            user_id_to_email={
-                100: "teacher@school.edu",
-                200: "student1@school.edu",
-                201: "student2@school.edu",
-            },
-            section_id_to_emails={
-                10: {"student1@school.edu"},
-                11: {"student2@school.edu"},
-            },
-            staff_emails={"teacher@school.edu"},
-            is_public=is_public,
-            can_use_all_users_group=is_public,
-        )
-
-    def test_page_uses_course_group(self) -> None:
-        access = get_page_permissions(self._context())
-
-        assert access == ExternalAccess(
-            external_user_emails=set(),
-            external_user_group_ids={canvas_course_group_id(1)},
-            is_public=False,
-        )
-
-    def test_section_announcement_uses_sections_and_staff(self) -> None:
-        announcement = CanvasAnnouncement(
-            id=30,
-            title="Section announcement",
-            html_url=f"{FAKE_BASE_URL}/courses/1/discussion_topics/30",
-            course_id=1,
-            is_section_specific=True,
-            sections=[CanvasAnnouncementSection(id=10)],
-        )
-
-        access = get_announcement_permissions(self._context(), announcement)
-
-        assert access == ExternalAccess(
-            external_user_emails={"teacher@school.edu"},
-            external_user_group_ids={canvas_section_group_id(10)},
-            is_public=False,
-        )
-
-    def test_public_section_announcement_stays_section_restricted(self) -> None:
-        announcement = CanvasAnnouncement(
-            id=30,
-            title="Section announcement",
-            html_url=f"{FAKE_BASE_URL}/courses/1/discussion_topics/30",
-            course_id=1,
-            is_section_specific=True,
-            sections=[CanvasAnnouncementSection(id=10)],
-        )
-
-        access = get_announcement_permissions(
-            self._context(is_public=True), announcement
-        )
-
-        assert access == ExternalAccess(
-            external_user_emails={"teacher@school.edu"},
-            external_user_group_ids={canvas_section_group_id(10)},
-            is_public=False,
-        )
-
-    def test_student_override_assignment_resolves_emails_and_staff(self) -> None:
-        assignment = CanvasAssignment(
-            id=20,
-            name="Student override",
-            html_url=f"{FAKE_BASE_URL}/courses/1/assignments/20",
-            course_id=1,
-            only_visible_to_overrides=True,
-            overrides=[CanvasAssignmentOverride(student_ids=[201])],
-        )
-
-        access = get_assignment_permissions(self._context(), assignment)
-
-        assert access == ExternalAccess(
-            external_user_emails={"teacher@school.edu", "student2@school.edu"},
-            external_user_group_ids=set(),
-            is_public=False,
-        )
-
-    def test_public_override_assignment_stays_override_restricted(self) -> None:
-        assignment = CanvasAssignment(
-            id=20,
-            name="Student override",
-            html_url=f"{FAKE_BASE_URL}/courses/1/assignments/20",
-            course_id=1,
-            only_visible_to_overrides=True,
-            overrides=[CanvasAssignmentOverride(student_ids=[201])],
-        )
-
-        access = get_assignment_permissions(self._context(is_public=True), assignment)
-
-        assert access == ExternalAccess(
-            external_user_emails={"teacher@school.edu", "student2@school.edu"},
-            external_user_group_ids=set(),
-            is_public=False,
-        )
-
-    def test_group_override_assignment_uses_canvas_group_and_staff(self) -> None:
-        assignment = CanvasAssignment(
-            id=21,
-            name="Group override",
-            html_url=f"{FAKE_BASE_URL}/courses/1/assignments/21",
-            course_id=1,
-            only_visible_to_overrides=True,
-            overrides=[CanvasAssignmentOverride(group_id=99)],
-        )
-
-        access = get_assignment_permissions(self._context(), assignment)
-
-        assert access == ExternalAccess(
-            external_user_emails={"teacher@school.edu"},
-            external_user_group_ids={canvas_group_group_id(99)},
-            is_public=False,
-        )
-
-    def test_public_course_uses_all_users_group_without_is_public(self) -> None:
-        access = get_page_permissions(self._context(is_public=True))
-
-        assert access == ExternalAccess(
-            external_user_emails=set(),
-            external_user_group_ids={
-                canvas_course_group_id(1),
-                canvas_all_users_group_id(),
-            },
-            is_public=False,
-        )

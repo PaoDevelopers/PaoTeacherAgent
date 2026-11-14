@@ -1,7 +1,6 @@
 """The shared Microsoft packages must not depend on their callers.
 
-Connectors import the packages, never the reverse, and the MIT package never
-reaches into Enterprise. Nothing else enforces import direction, and a single
+Connectors import the packages, never the reverse. Nothing else enforces import direction, and a single
 convenience import back into a connector would make a package unusable from
 the next one.
 """
@@ -15,9 +14,6 @@ import pytest
 
 BACKEND_DIR = pathlib.Path(__file__).resolve().parents[5]
 PACKAGE_DIR = BACKEND_DIR / "onyx" / "connectors" / "microsoft_utils"
-EE_PACKAGE_DIR = (
-    BACKEND_DIR / "ee" / "onyx" / "external_permissions" / "microsoft_utils"
-)
 
 # Shared connector infrastructure the packages may use. Everything else under
 # `onyx.connectors` is a sibling connector and is off limits.
@@ -59,19 +55,6 @@ def _module_id(module_path: pathlib.Path) -> str:
 
 
 @pytest.mark.parametrize("module_path", _modules_in(PACKAGE_DIR), ids=_module_id)
-def test_package_does_not_import_enterprise(module_path: pathlib.Path) -> None:
-    offenders = {m for m in _imported_modules(module_path) if m.split(".")[0] == "ee"}
-    assert not offenders, (
-        f"{module_path.name} imports Enterprise code: {sorted(offenders)}. "
-        "The MIT package must stay importable without Enterprise."
-    )
-
-
-@pytest.mark.parametrize(
-    "module_path",
-    _modules_in(PACKAGE_DIR) + _modules_in(EE_PACKAGE_DIR),
-    ids=_module_id,
-)
 def test_package_does_not_import_a_connector(module_path: pathlib.Path) -> None:
     offenders = _connector_imports(module_path)
     assert not offenders, (

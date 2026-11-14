@@ -34,7 +34,6 @@ from onyx.db.index_attempt import (
 from onyx.db.models import ConnectorCredentialPair, IndexAttempt
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 _RESTART_CANCEL_REASON = "Connector configuration changed."
 
@@ -541,7 +540,7 @@ def apply_access_change__no_commit(
     cc_pair_id: int,
     access_type: AccessType,
     data_access_group_ids: set[int],
-    visible_group_ids: set[int] | None,
+    visible_group_ids: set[int] | None,  # noqa: ARG001
 ) -> None:
     """Moves the pair to access_type with these data-access groups. It does
     not run the access gates; the caller runs validate_pairing_access first.
@@ -565,27 +564,9 @@ def apply_access_change__no_commit(
     if access_type.is_perm_synced() and not previous_access_type.is_perm_synced():
         cc_pair.last_time_perm_sync = None
         cc_pair.last_time_external_group_sync = None
-        if fetch_ee_implementation_or_noop(
-            "onyx.external_permissions.sync_params",
-            "source_requires_doc_sync",
-            noop_return_value=False,
-        )(cc_pair.connector.source):
-            cc_pair.perm_sync_pending_since = func.now()
     elif not access_type.is_perm_synced():
         cc_pair.perm_sync_pending_since = None
     db_session.flush()
-
-    fetch_ee_implementation_or_noop(
-        "onyx.db.cc_pair_data_access", "set_cc_pair_data_access_groups__no_commit"
-    )(
-        db_session,
-        cc_pair_id=cc_pair_id,
-        requested_group_ids=data_access_group_ids,
-        visible_group_ids=visible_group_ids if has_data_access else None,
-    )
-    fetch_ee_implementation_or_noop(
-        "onyx.db.cc_pair_data_access", "assert_restricted_cc_pairs_keep_a_group"
-    )(db_session, [cc_pair_id])
 
     if access_type != previous_access_type:
         # Rewrites the chunks' public field and group: entries.

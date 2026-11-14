@@ -1,7 +1,6 @@
 from typing import Any
 
 from fastapi import APIRouter, Depends
-from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -13,7 +12,6 @@ from onyx.db.enums import Permission, SSOProviderType
 from onyx.db.models import SSOProvider, User
 from onyx.db.sso_provider import (
     create_sso_provider,
-    enabled_provider_domains,
     fetch_sso_providers,
     is_valid_email_domain,
     normalize_email_domains,
@@ -41,9 +39,7 @@ from onyx.server.security.store import (
 )
 from onyx.utils.encryption import reject_masked_credentials, restore_masked_credentials
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from shared_configs.configs import MULTI_TENANT
-from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
 
@@ -79,23 +75,6 @@ def _validate_cloud_email_domains(allowed_email_domains: list[str] | None) -> No
         )
 
 
-def _sync_login_domain_routing(db_session: Session) -> None:
-    """Project every enabled provider's domains into the shared catalog, which
-    is the only place the login page can read before a workspace is known.
-    Recomputed from the rows rather than diffed, so a disable or a domain
-    removal stops routing without its own bookkeeping."""
-    # The provider commit is the source of truth, so this whole projection is
-    # best-effort: any failure reprojecting the catalog must not fail a saved
-    # provider, and the next save re-syncs.
-    try:
-        claimed = enabled_provider_domains(db_session)
-        fetch_ee_implementation_or_noop(
-            "onyx.db.tenant_sso_domain", "claim_email_domains", None
-        )(get_current_tenant_id(), sorted(claimed))
-    except Exception:
-        logger.exception("Failed to project SSO login-domain routing")
-
-
 def _reject_unfetchable_idp_url(config: dict[str, Any]) -> None:
     """Fails the write rather than the first login, so an admin who typo'd a
     host hears about it here."""
@@ -109,21 +88,6 @@ def _reject_unfetchable_idp_url(config: dict[str, Any]) -> None:
 
 
 admin_router = APIRouter(prefix="/admin/sso")
-
-
-def _require_business_tier_for_additional_enabled_provider(
-    db_session: Session, exclude_provider_id: int | None = None
-) -> None:
-    """Enabling providers beyond the first requires Business or above. One
-    enabled provider works at every tier, so single-provider setup stays
-    free."""
-    enabled = fetch_sso_providers(db_session, enabled_only=True)
-    if any(provider.id != exclude_provider_id for provider in enabled):
-        fetch_ee_implementation_or_noop(
-            "onyx.utils.tier",
-            "require_business_tier_for_multi_sso",
-            noop_return_value=None,
-        )()
 
 
 def _fetch_sso_provider_or_raise(db_session: Session, provider_id: int) -> SSOProvider:
@@ -165,10 +129,6 @@ def create_sso_provider_endpoint(
     _reject_unsupported_provider_type(request.provider_type)
     _reject_unfetchable_idp_url(request.config)
     _validate_cloud_email_domains(request.allowed_email_domains)
-    # New providers are created enabled, so an existing enabled provider
-    # makes this a multi-SSO create.
-    _require_business_tier_for_additional_enabled_provider(db_session)
-
     try:
         reject_masked_credentials(request.config)
         provider = create_sso_provider(
@@ -188,7 +148,6 @@ def create_sso_provider_endpoint(
     except ValueError as e:
         raise OnyxError(OnyxErrorCode.INVALID_INPUT, str(e)) from e
 
-    _sync_login_domain_routing(db_session)
     invalidate_sso_provider_options_cache()
     return SSOProviderResponse.from_model(provider, WEB_DOMAIN)
 
@@ -228,7 +187,6 @@ def update_sso_provider_endpoint(
     except ValueError as e:
         raise OnyxError(OnyxErrorCode.INVALID_INPUT, str(e)) from e
 
-    _sync_login_domain_routing(db_session)
     invalidate_sso_provider_options_cache()
     return SSOProviderResponse.from_model(updated_provider, WEB_DOMAIN)
 
@@ -246,9 +204,6 @@ def set_sso_provider_enabled_endpoint(
         # Catches a row stored before the bound existed, which the write paths
         # never revisit.
         _validate_cloud_email_domains(provider_to_toggle.allowed_email_domains)
-        _require_business_tier_for_additional_enabled_provider(
-            db_session, exclude_provider_id=provider_id
-        )
         provider = set_sso_provider_enabled(
             db_session=db_session,
             provider_id=provider_id,
@@ -272,60 +227,32 @@ def set_sso_provider_enabled_endpoint(
                 enabled=False,
             )
 
-    _sync_login_domain_routing(db_session)
     invalidate_sso_provider_options_cache()
     return SSOProviderResponse.from_model(provider, WEB_DOMAIN)
 
 
-def _list_login_domains(tenant_id: str) -> list[Any]:
-    return fetch_ee_implementation_or_noop(
-        "onyx.db.tenant_sso_domain", "list_login_domains", lambda _tenant_id: []
-    )(tenant_id)
-
-
 def _build_statuses(
-    tenant_id: str, domains: list[str], verified: set[str], claimed: set[str]
+    domains: list[str], verified: set[str], claimed: set[str]
 ) -> SSOLoginDomainsResponse:
     """Pair each domain with its status. A verified domain routes and needs no
     record. A pending one carries the TXT record to publish."""
-    verification_record = fetch_ee_implementation_or_noop(
-        "onyx.auth.sso_domain_verification",
-        "verification_record",
-        lambda _tenant_id, _domain: (None, None),
-    )
 
     def _status(domain: str) -> SSOLoginDomainStatus:
         if domain in verified:
             return SSOLoginDomainStatus(domain=domain, verified=True, claimed=True)
-        host, value = verification_record(tenant_id, domain)
         return SSOLoginDomainStatus(
-            domain=domain,
-            verified=False,
-            claimed=domain in claimed,
-            record_host=host,
-            record_value=value,
+            domain=domain, verified=False, claimed=domain in claimed
         )
 
     return SSOLoginDomainsResponse(domains=[_status(domain) for domain in domains])
 
 
-def _login_domains_response(tenant_id: str) -> SSOLoginDomainsResponse:
-    records = _list_login_domains(tenant_id)
-    domains = [record.domain for record in records]
-    verified = {record.domain for record in records if record.verified}
-    return _build_statuses(tenant_id, domains, verified, set(domains))
-
-
-def _domain_statuses(tenant_id: str, domains: list[str]) -> SSOLoginDomainsResponse:
+def _domain_statuses(domains: list[str]) -> SSOLoginDomainsResponse:
     """Statuses for a specific set of domains, claimed or not, so verification can
     be shown before the provider is saved. Domains are normalized so a mixed-case
     entry matches the lowercased catalog."""
     normalized = [domain.strip().lower() for domain in domains]
-    records = _list_login_domains(tenant_id)
-    verified = {record.domain for record in records if record.verified}
-    return _build_statuses(
-        tenant_id, normalized, verified, {record.domain for record in records}
-    )
+    return _build_statuses(normalized, set(), set())
 
 
 @admin_router.post("/domain/records")
@@ -337,33 +264,19 @@ def sso_domain_records_endpoint(
     verification can be shown before the provider is saved."""
     if not MULTI_TENANT:
         return SSOLoginDomainsResponse(domains=[])
-    return _domain_statuses(get_current_tenant_id(), payload.domains)
+    return _domain_statuses(payload.domains)
 
 
 @admin_router.post("/domain/verify-dns")
 async def verify_sso_domain_via_dns_endpoint(
-    payload: SSODomainVerifyRequest,
+    payload: SSODomainVerifyRequest,  # noqa: ARG001
     _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
 ) -> SSOLoginDomainsResponse:
     if not MULTI_TENANT:
         raise OnyxError(OnyxErrorCode.SINGLE_TENANT_ONLY)
 
-    tenant_id = get_current_tenant_id()
-    # DNS resolution blocks, so keep it off the event loop.
-    found = await run_in_threadpool(
-        fetch_ee_implementation_or_noop(
-            "onyx.auth.sso_domain_verification",
-            "verify_domain_via_dns",
-            lambda _tenant_id, _domain: False,
-        ),
-        tenant_id,
-        payload.domain,
+    raise OnyxError(
+        OnyxErrorCode.INVALID_INPUT,
+        "We couldn't find the TXT record yet. DNS can take up to an hour to "
+        "update, then check again.",
     )
-    if not found:
-        raise OnyxError(
-            OnyxErrorCode.INVALID_INPUT,
-            "We couldn't find the TXT record yet. DNS can take up to an hour to "
-            "update, then check again.",
-        )
-    invalidate_sso_provider_options_cache()
-    return _login_domains_response(tenant_id)

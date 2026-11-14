@@ -55,7 +55,6 @@ from onyx.server.features.build.configs import (
     SANDBOX_PROXY_SSL_VERIFY_UPSTREAM_TRUSTED_CA,
 )
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import set_is_ee_if_available
 
 _DB_POOL_SIZE = 4
 _DB_MAX_OVERFLOW = 4
@@ -266,7 +265,6 @@ def _build_destination_policy() -> DestinationPolicyConfig:
 
 def main() -> int:
     destination_policy = _build_destination_policy()
-    set_is_ee_if_available()
 
     logger.info(
         "Starting sandbox proxy host=%s listen=%d healthz=%d namespace=%s",

@@ -18,9 +18,6 @@ from onyx.db.persona import mark_persona_as_deleted, upsert_persona
 from onyx.db.tools import get_builtin_tool
 from onyx.tools.tool_implementations.search.search_tool import SearchTool
 from onyx.utils.errors import EERequiredError
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
-)
 
 
 def _build_persona_name(channel_name: str | None) -> str:
@@ -98,18 +95,9 @@ def insert_slack_channel_config(
     enable_auto_filters: bool,
     is_default: bool = False,
 ) -> SlackChannelConfig:
-    versioned_fetch_standard_answer_categories_by_ids = (
-        fetch_versioned_implementation_with_fallback(
-            "onyx.db.standard_answer",
-            "fetch_standard_answer_categories_by_ids",
-            _no_ee_standard_answer_categories,
-        )
-    )
-    existing_standard_answer_categories = (
-        versioned_fetch_standard_answer_categories_by_ids(
-            standard_answer_category_ids=standard_answer_category_ids,
-            db_session=db_session,
-        )
+    existing_standard_answer_categories = _no_ee_standard_answer_categories(
+        standard_answer_category_ids=standard_answer_category_ids,
+        db_session=db_session,
     )
 
     if len(existing_standard_answer_categories) != len(standard_answer_category_ids):
@@ -169,18 +157,9 @@ def update_slack_channel_config(
             f"Unable to find Slack channel config with ID {slack_channel_config_id}"
         )
 
-    versioned_fetch_standard_answer_categories_by_ids = (
-        fetch_versioned_implementation_with_fallback(
-            "onyx.db.standard_answer",
-            "fetch_standard_answer_categories_by_ids",
-            _no_ee_standard_answer_categories,
-        )
-    )
-    existing_standard_answer_categories = (
-        versioned_fetch_standard_answer_categories_by_ids(
-            standard_answer_category_ids=standard_answer_category_ids,
-            db_session=db_session,
-        )
+    existing_standard_answer_categories = _no_ee_standard_answer_categories(
+        standard_answer_category_ids=standard_answer_category_ids,
+        db_session=db_session,
     )
     if len(existing_standard_answer_categories) != len(standard_answer_category_ids):
         raise ValueError(

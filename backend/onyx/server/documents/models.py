@@ -63,7 +63,6 @@ from onyx.db.models import Document as DbDocument
 from onyx.server.federated.models import FederatedConnectorStatus
 from onyx.utils.encryption import mask_credential_dict
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 logger = setup_logger()
 
@@ -918,12 +917,8 @@ class CCPairHierarchyBreakdown(BaseModel):
     config_fields: list[str]
 
 
-def _source_requires_doc_sync(source: DocumentSource) -> bool:
-    return fetch_ee_implementation_or_noop(
-        "onyx.external_permissions.sync_params",
-        "source_requires_doc_sync",
-        noop_return_value=False,
-    )(source)
+def _source_requires_doc_sync(source: DocumentSource) -> bool:  # noqa: ARG001
+    return False
 
 
 class CCPairFullInfo(BaseModel):
@@ -989,14 +984,7 @@ class CCPairFullInfo(BaseModel):
     def _get_last_full_permission_sync(
         cls, cc_pair_model: ConnectorCredentialPair
     ) -> datetime | None:
-        check_if_source_requires_external_group_sync = fetch_ee_implementation_or_noop(
-            "onyx.external_permissions.sync_params",
-            "source_requires_external_group_sync",
-            noop_return_value=False,
-        )
-        needs_group_sync = check_if_source_requires_external_group_sync(
-            cc_pair_model.connector.source
-        )
+        needs_group_sync = False
         needs_doc_sync = _source_requires_doc_sync(cc_pair_model.connector.source)
 
         last_group_sync = (

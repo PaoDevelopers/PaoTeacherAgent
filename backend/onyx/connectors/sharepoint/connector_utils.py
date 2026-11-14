@@ -9,9 +9,6 @@ from onyx.connectors.microsoft_utils.sharepoint_rest import SharepointPermission
 from onyx.connectors.models import ExternalAccess
 from onyx.db.enums import HierarchyNodeType
 from onyx.utils.url import SSRFException, validate_outbound_http_url
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
-)
 
 
 class SharepointGroup(BaseModel):
@@ -53,13 +50,7 @@ def get_sharepoint_external_access(
     if drive_item and not list_id:
         raise ValueError("SharePoint permission lookup requires a list ID")
 
-    get_external_access_func = fetch_versioned_implementation_with_fallback(
-        "onyx.external_permissions.sharepoint.permission_utils",
-        "get_external_access_from_sharepoint",
-        fallback=_noop_external_access,
-    )
-
-    return get_external_access_func(
+    return _noop_external_access(
         reader,
         site_url,
         list_id,
@@ -82,12 +73,7 @@ def get_sharepoint_hierarchy_node_external_access(
     if node_type == HierarchyNodeType.DRIVE and not list_id:
         raise ValueError("SharePoint permission lookup requires a list ID")
 
-    get_external_access_func = fetch_versioned_implementation_with_fallback(
-        "onyx.external_permissions.sharepoint.permission_utils",
-        "get_hierarchy_node_external_access_from_sharepoint",
-        fallback=_noop_external_access,
-    )
-    return get_external_access_func(
+    return _noop_external_access(
         reader,
         site_url,
         node_type,

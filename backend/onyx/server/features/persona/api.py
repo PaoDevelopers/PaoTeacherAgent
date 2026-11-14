@@ -89,7 +89,6 @@ from onyx.server.manage.llm.provider_cache import invalidate_provider_listing_ca
 from onyx.server.models import DisplayPriorityRequest
 from onyx.server.settings.store import load_settings
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 
 logger = setup_logger()
 
@@ -562,11 +561,10 @@ def transfer_persona_ownership_endpoint(
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> None:
-    versioned_transfer = fetch_versioned_implementation(
-        "onyx.db.persona", "transfer_persona_ownership"
-    )
+    from onyx.db.persona import transfer_persona_ownership
+
     try:
-        versioned_transfer(
+        transfer_persona_ownership(
             persona_id=persona_id,
             user=user,
             db_session=db_session,

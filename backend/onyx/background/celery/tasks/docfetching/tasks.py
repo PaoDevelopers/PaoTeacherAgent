@@ -57,7 +57,6 @@ from onyx.redis.redis_connector import RedisConnector
 from onyx.server.metrics.connector_health_metrics import on_index_attempt_status_change
 from onyx.utils.logger import setup_logger
 from onyx.utils.os_reaper import reap_children_before_exit
-from onyx.utils.variable_functionality import global_version
 
 logger = setup_logger()
 
@@ -123,7 +122,6 @@ def docfetching_task(
     index_attempt_id: int,
     cc_pair_id: int,
     search_settings_id: int,
-    is_ee: bool,
     tenant_id: str,
 ) -> None:
     """
@@ -141,7 +139,7 @@ def docfetching_task(
     memory_observer = start_memory_observer(index_attempt_id)
     try:
         _docfetching_task(
-            app, index_attempt_id, cc_pair_id, search_settings_id, is_ee, tenant_id
+            app, index_attempt_id, cc_pair_id, search_settings_id, tenant_id
         )
     finally:
         stop_memory_observer(memory_observer)
@@ -153,7 +151,6 @@ def _docfetching_task(
     index_attempt_id: int,
     cc_pair_id: int,
     search_settings_id: int,
-    is_ee: bool,
     tenant_id: str,
 ) -> None:
     logger.info(
@@ -228,7 +225,6 @@ def _docfetching_task(
             index_attempt_id,
             tenant_id,
             cc_pair_id,
-            is_ee,
             callback=callback,
         )
 
@@ -435,7 +431,6 @@ def docfetching_proxy_task(
         index_attempt_id,
         cc_pair_id,
         search_settings_id,
-        global_version.is_ee_version(),
         tenant_id,
     )
 

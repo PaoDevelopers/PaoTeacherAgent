@@ -24,7 +24,6 @@ from onyx.auth.users import get_anonymous_user
 from onyx.db.enums import Permission, PermissionAuthority
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
-from onyx.utils.variable_functionality import global_version
 
 
 def _request(token_scopes: list[Permission] | None = None) -> Request:
@@ -201,10 +200,9 @@ class TestResolveEffectivePermissions:
 class TestGetEffectivePermissions:
     def setup_method(self) -> None:
         """Ensure EE mode is set so CE ungating does not interfere."""
-        global_version.set_ee()
 
     def teardown_method(self) -> None:
-        global_version.unset_ee()
+        pass
 
     def test_expands_implied_permissions(self) -> None:
         """Column stores only granted; get_effective_permissions expands implied. ADD_AGENTS
@@ -220,34 +218,15 @@ class TestGetEffectivePermissions:
         result = get_effective_permissions(user)
         assert result == set(Permission)
 
-    def test_basic_expands_to_api_surface_scopes(self) -> None:
-        user = MagicMock()
-        user.effective_permissions = ["basic"]
-        result = get_effective_permissions(user)
-        assert result == {
-            Permission.BASIC_ACCESS,
-            Permission.READ_SEARCH,
-            Permission.READ_CHAT,
-            Permission.WRITE_CHAT,
-            Permission.GENERATE_IMAGE,
-            Permission.USE_LLM_GATEWAY,
-        }
-
-    def test_empty_column_in_ee(self) -> None:
-        user = MagicMock()
-        user.effective_permissions = []
-        result = get_effective_permissions(user)
-        assert result == set()
-
 
 class TestCEUngatedPermissions:
     """Verify CE_UNGATED_PERMISSIONS are auto-granted in CE but not in EE."""
 
     def setup_method(self) -> None:
-        global_version.unset_ee()
+        pass
 
     def teardown_method(self) -> None:
-        global_version.unset_ee()
+        pass
 
     def test_basic_user_gets_ungated_permissions_in_ce(self) -> None:
         user = MagicMock()
@@ -263,21 +242,6 @@ class TestCEUngatedPermissions:
         result = get_effective_permissions(user)
         assert Permission.ADD_AGENTS in result
         assert Permission.READ_AGENTS not in result  # ADD_AGENTS doesn't grant see-all
-
-    def test_basic_user_does_not_get_ungated_permissions_in_ee(self) -> None:
-        global_version.set_ee()
-        user = MagicMock()
-        user.effective_permissions = ["basic"]
-        result = get_effective_permissions(user)
-        assert Permission.ADD_AGENTS not in result
-        assert result == {
-            Permission.BASIC_ACCESS,
-            Permission.READ_SEARCH,
-            Permission.READ_CHAT,
-            Permission.WRITE_CHAT,
-            Permission.GENERATE_IMAGE,
-            Permission.USE_LLM_GATEWAY,
-        }
 
     def test_admin_unaffected_by_ce_ungating(self) -> None:
         user = MagicMock()
@@ -296,10 +260,10 @@ class TestCEUngatedPermissions:
 
 class TestRequirePermission:
     def setup_method(self) -> None:
-        global_version.set_ee()
+        pass
 
     def teardown_method(self) -> None:
-        global_version.unset_ee()
+        pass
 
     @pytest.mark.asyncio
     async def test_admin_bypass(self) -> None:
@@ -462,10 +426,10 @@ class TestRequirePermissionScope:
     bundle token, no global grant) while the token cap still applies."""
 
     def setup_method(self) -> None:
-        global_version.set_ee()
+        pass
 
     def teardown_method(self) -> None:
-        global_version.unset_ee()
+        pass
 
     def _manager(self) -> MagicMock:
         user = MagicMock()
@@ -515,10 +479,10 @@ class TestHasPermissionAuthority:
     """has_permission is the single 3-state classifier: GLOBAL / SCOPED / NONE."""
 
     def setup_method(self) -> None:
-        global_version.set_ee()
+        pass
 
     def teardown_method(self) -> None:
-        global_version.unset_ee()
+        pass
 
     def _user(self, perms: list[str], is_manager: bool = False) -> MagicMock:
         user = MagicMock()

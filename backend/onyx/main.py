@@ -173,12 +173,6 @@ from onyx.utils.middleware import (
     add_endpoint_context_middleware,
     request_id_middleware,
 )
-from onyx.utils.variable_functionality import (
-    fetch_ee_implementation_or_noop,
-    fetch_versioned_implementation,
-    global_version,
-    set_is_ee_if_available,
-)
 from shared_configs.configs import (
     CORS_ALLOW_CREDENTIALS,
     CORS_ALLOWED_ORIGIN,
@@ -383,9 +377,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
     )
 
     # Self-hosted license seat + expiry gauges on /metrics (EE-only, no-op on CE)
-    fetch_ee_implementation_or_noop(
-        "onyx.server.metrics.license_metrics", "register_license_metrics"
-    )()
 
     # Warns on stale AUTH_TYPE env values.
     verify_auth_setting()
@@ -800,8 +791,7 @@ def get_application(lifespan_override: Lifespan | None = None) -> FastAPI:
 
 # NOTE: needs to be outside of the `if __name__ == "__main__"` block so that the
 # app is exportable
-set_is_ee_if_available()
-app = fetch_versioned_implementation(module="onyx.main", attribute="get_application")
+app = get_application
 
 
 if __name__ == "__main__":
@@ -811,8 +801,5 @@ if __name__ == "__main__":
         APP_HOST,
         str(APP_PORT),
     )
-
-    if global_version.is_ee_version():
-        logger.notice("Running Enterprise Edition")
 
     uvicorn.run(app, host=APP_HOST, port=APP_PORT)

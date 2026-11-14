@@ -4,16 +4,13 @@ from typing import Any
 
 import pytest
 
-from ee.onyx.connectors import capability_checks as ee_capability_checks
 from onyx.configs.constants import DocumentSource
 from onyx.connectors import source_operations as source_operations_module
 from onyx.connectors.capabilities import CredentialCapability
-from onyx.connectors.capability_checks import registry
 from onyx.connectors.capability_checks.models import (
     CapabilityCheck,
     CapabilityCheckContext,
 )
-from onyx.connectors.capability_checks.registry import get_capability_checks
 from onyx.connectors.source_operations import (
     OperationConsumes,
     SourceOperations,
@@ -234,51 +231,6 @@ def test_mis_shaped_calls_do_not_count_as_coverage(
     assert [(unit.operation, unit.capability) for unit in uncovered] == [
         ("fetch_history", CredentialCapability.INDEXING)
     ]
-
-
-@pytest.mark.usefixtures("enable_ee")
-def test_coverage_pipeline_sees_ee_perm_sync_checks(
-    gateway_class: type[SourceOperations],
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """
-    Verifies the real check-fetch path resolves EE checks under ``enable_ee``:
-    perm-sync-tagged units are coverable only by EE-registered checks, so a
-    coverage run without EE resolution would report them uncovered.
-    """
-    # Precondition.
-    monkeypatch.setitem(
-        registry._INDEXING_CHECKS_BY_SOURCE,
-        gateway_class.source,
-        [
-            _ScriptedCheck(
-                CredentialCapability.INDEXING,
-                "indexing_check",
-                lambda operations: (
-                    operations.list_channels(variant="public"),
-                    operations.list_channels(variant="private"),
-                    operations.fetch_history(),
-                ),
-            )
-        ],
-    )
-    monkeypatch.setitem(
-        ee_capability_checks._DOC_PERMISSION_SYNC_CHECKS_BY_SOURCE,
-        gateway_class.source,
-        [
-            _ScriptedCheck(
-                CredentialCapability.DOC_PERMISSION_SYNC,
-                "perm_sync_check",
-                lambda operations: operations.fetch_history(),
-            )
-        ],
-    )
-
-    # Under test.
-    checks = get_capability_checks(gateway_class.source)
-
-    # Postcondition.
-    assert compute_uncovered_units(gateway_class, checks) == []
 
 
 def test_fence_finder_flags_imports_outside_the_gateway(tmp_path: Path) -> None:

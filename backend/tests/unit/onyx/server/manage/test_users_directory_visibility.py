@@ -114,16 +114,6 @@ def test_me_service_account_skips_tenant_mapping_lookup() -> None:
             "onyx.server.manage.users.get_current_tenant_id",
             return_value="tenant_current",
         ),
-        patch(
-            "onyx.server.manage.users.fetch_ee_implementation_or_noop",
-            side_effect=AssertionError(
-                "tenant mapping consulted for a service account"
-            ),
-        ),
-        patch(
-            "onyx.server.manage.users.fetch_versioned_implementation_with_fallback",
-            return_value=[],
-        ),
         patch("onyx.server.manage.users.get_memories_for_user", return_value=[]),
         patch(
             "onyx.server.manage.users.get_security_settings",

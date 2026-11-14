@@ -10,7 +10,6 @@ its errors."""
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -47,7 +46,6 @@ from onyx.server.documents.models import IndexingRunsResponse
 from tests.external_dependency_unit.conftest import create_test_user
 
 # Group sync scoping asks the EE-only sync_params helpers which sources share a history.
-pytestmark = pytest.mark.usefixtures("enable_ee")
 
 _T0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
 

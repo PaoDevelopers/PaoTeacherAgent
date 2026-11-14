@@ -15,7 +15,6 @@ from unittest.mock import MagicMock, create_autospec
 
 from pydantic import BaseModel, ConfigDict
 
-import ee.onyx.external_permissions
 import onyx.connectors
 from onyx.connectors.capabilities import CredentialCapability
 from onyx.connectors.capability_checks.models import (
@@ -144,9 +143,7 @@ def gateway_fence_paths(
     module_file = sys.modules[gateway_class.__module__].__file__
     assert module_file is not None, "Gateway modules always have a file."
     gateway_file = Path(module_file).resolve()
-    oss_dir = gateway_file.parent
-    ee_dir = Path(ee.onyx.external_permissions.__file__).parent / oss_dir.name
-    return gateway_file, [oss_dir, ee_dir]
+    return gateway_file, [gateway_file.parent]
 
 
 def find_import_fence_violations(

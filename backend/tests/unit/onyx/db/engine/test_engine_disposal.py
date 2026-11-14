@@ -136,13 +136,6 @@ def _stub_lifespan(stack: ExitStack) -> tuple[MagicMock, MagicMock, AsyncMock]:
     stack.enter_context(patch.object(onyx_main, "validate_cache_backend_settings"))
     stack.enter_context(patch.object(onyx_main, "validate_registry"))
     stack.enter_context(patch.object(onyx_main, "verify_user_auth_secret"))
-    stack.enter_context(
-        patch.object(
-            onyx_main,
-            "fetch_versioned_implementation",
-            return_value=lambda: None,
-        )
-    )
     stack.enter_context(patch.object(onyx_main, "setup_tracing"))
     stack.enter_context(patch.object(onyx_main, "warm_up_connections", new=AsyncMock()))
     stack.enter_context(patch.object(onyx_main, "get_session_with_current_tenant"))

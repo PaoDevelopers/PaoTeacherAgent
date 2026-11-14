@@ -23,7 +23,6 @@ from onyx.db.models import (
     ExternalGroupPermissionSyncAttempt,
 )
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 logger = setup_logger()
 
@@ -654,14 +653,9 @@ def get_external_group_sync_retry_after(
     return last_failed_at + request_retry_delay(failure_count)
 
 
-def source_group_sync_is_cc_pair_agnostic(source: DocumentSource) -> bool:
+def source_group_sync_is_cc_pair_agnostic(source: DocumentSource) -> bool:  # noqa: ARG001
     """Whether the source's group sync covers all its pairs in one run."""
-    is_agnostic: bool = fetch_ee_implementation_or_noop(
-        "onyx.external_permissions.sync_params",
-        "source_group_sync_is_cc_pair_agnostic",
-        noop_return_value=False,
-    )(source)
-    return is_agnostic
+    return False
 
 
 def relevant_external_group_sync_attempts_filter(

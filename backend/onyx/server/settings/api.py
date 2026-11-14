@@ -59,10 +59,6 @@ from onyx.utils.audit import (
 )
 from onyx.utils.logger import setup_logger
 from onyx.utils.platform_utils import is_running_in_container
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
-    global_version,
-)
 from shared_configs.configs import MULTI_TENANT
 
 logger = setup_logger()
@@ -180,11 +176,6 @@ def admin_patch_settings(
         return load_settings(raise_on_error=True)
 
 
-def apply_license_status_to_settings(settings: Settings) -> Settings:
-    """MIT version: no-op, returns settings unchanged."""
-    return settings
-
-
 @basic_router.get("")
 def fetch_settings(
     user: User = Depends(
@@ -203,17 +194,8 @@ def fetch_settings(
     except KvKeyNotFoundError:
         needs_reindexing = False
 
-    apply_fn = fetch_versioned_implementation_with_fallback(
-        "onyx.server.settings.api",
-        "apply_license_status_to_settings",
-        apply_license_status_to_settings,
-    )
-    general_settings = apply_fn(general_settings)
-    # The EE apply_fn resolves tier on every path. On CE the stored value is
-    # client-writable, so it never counts.
-    resolved_tier = (
-        general_settings.tier if global_version.is_ee_version() else Tier.COMMUNITY
-    )
+    # The stored tier is client-writable, so it never counts.
+    resolved_tier = Tier.COMMUNITY
 
     # Craft workspace instructions are visible to authenticated users (they
     # appear in sandbox AGENTS.md anyway) but not to anonymous visitors.

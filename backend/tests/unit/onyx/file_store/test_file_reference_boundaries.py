@@ -1,11 +1,8 @@
-from io import BytesIO
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
 import pytest
 
-from ee.onyx.db.usage_export import get_usage_report_data
-from onyx.configs.constants import FileOrigin
 from onyx.connectors.models import (
     DocumentBase,
     ImageSection,
@@ -21,40 +18,6 @@ from onyx.file_store.models import ChatFileType, FileDescriptor
 from onyx.file_store.utils import verify_user_files
 from onyx.server.onyx_api.ingestion import upsert_ingestion_doc
 from onyx.server.onyx_api.models import IngestionDocument
-
-
-@pytest.mark.parametrize(
-    ("origin", "file_type"),
-    [
-        (FileOrigin.USER_FILE, "application/zip"),
-        (FileOrigin.GENERATED_REPORT, "text/plain"),
-    ],
-)
-def test_usage_report_requires_report_origin_and_zip_type(
-    origin: FileOrigin, file_type: str
-) -> None:
-    file_store = MagicMock(spec=FileStore)
-    content = BytesIO(b"report")
-    file_store.read_file.return_value = content
-
-    def has_file(file_id: str, file_origin: FileOrigin, file_type: str) -> bool:
-        return (
-            file_id == "report.zip"
-            and file_origin == record.file_origin
-            and file_type == record.file_type
-        )
-
-    record = FileRecord(file_origin=origin, file_type=file_type)
-    file_store.has_file.side_effect = has_file
-    with patch(
-        "ee.onyx.db.usage_export.get_default_file_store", return_value=file_store
-    ):
-        with pytest.raises(ValueError, match="not found"):
-            get_usage_report_data("report.zip")
-        file_store.read_file.assert_not_called()
-        record.file_origin = FileOrigin.GENERATED_REPORT
-        record.file_type = "application/zip"
-        assert get_usage_report_data("report.zip") is content
 
 
 def test_batch_cleanup_does_not_match_another_connection_prefix() -> None:

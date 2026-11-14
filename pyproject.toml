@@ -328,7 +328,7 @@ extend-immutable-calls = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["onyx", "ee", "tests", "shared_configs", "model_server"]
+known-first-party = ["onyx", "tests", "shared_configs", "model_server"]
 
 [tool.ruff.lint.per-file-ignores]
 # alembic has a folder named `alembic` in backend/ which confuses import sorters.
@@ -338,6 +338,9 @@ known-first-party = ["onyx", "ee", "tests", "shared_configs", "model_server"]
 # Tests use asserts, mock credentials, and lots of patterns the bandit rules
 # flag as suspicious. Disable the full S rule set in tests.
 "backend/tests/**" = ["S"]
+# Permission hooks the connectors call. Without EE they return None, so their
+# arguments go unused by design.
+"backend/onyx/connectors/*/access.py" = ["ARG001"]
 # Ops and developer scripts run by humans (kubectl exec payloads, one-off
 # data dumps, manual tenant cleanup) commonly use `/tmp/...` script payloads,
 # pipe shell commands, and build ad-hoc SQL against trusted internal inputs
@@ -347,11 +350,6 @@ known-first-party = ["onyx", "ee", "tests", "shared_configs", "model_server"]
 # number is the highest complexity in that file at the time. Remove an entry
 # once its functions are simplified. NOTE: the ignore is per file, so it also
 # hides new complex functions added to these files. Tracked in #2403.
-"backend/ee/onyx/background/celery/tasks/doc_permission_syncing/tasks.py" = ["C901"] # 21
-"backend/ee/onyx/external_permissions/google_drive/doc_sync.py" = ["C901"] # 21
-"backend/ee/onyx/server/gateway/anthropic_passthrough.py" = ["C901"] # 23
-"backend/ee/onyx/server/gateway/api.py" = ["C901"] # 27
-"backend/ee/onyx/server/gateway/openai_passthrough.py" = ["C901"] # 32
 "backend/onyx/auth/users.py" = ["C901"] # 30
 "backend/onyx/background/celery/tasks/docfetching/tasks.py" = ["C901"] # 43
 "backend/onyx/background/celery/tasks/docprocessing/tasks.py" = ["C901"] # 24

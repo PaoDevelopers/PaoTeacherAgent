@@ -64,7 +64,6 @@ from onyx.server.features.tool.tool_visibility import (
     should_expose_tool_to_fe,
 )
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 
 logger = setup_logger()
 
@@ -679,11 +678,7 @@ def create_update_persona(
             document_ids=create_persona_request.document_ids,
         )
 
-        versioned_update_persona_access = fetch_versioned_implementation(
-            "onyx.db.persona", "update_persona_access"
-        )
-
-        versioned_update_persona_access(
+        update_persona_access(
             persona_id=persona.id,
             creator_user_id=user.id,
             db_session=db_session,
@@ -762,10 +757,7 @@ def update_persona_shared(
             gid: perm for gid, perm in group_shares.items() if gid != owner_group_id
         }
 
-    versioned_update_persona_access = fetch_versioned_implementation(
-        "onyx.db.persona", "update_persona_access"
-    )
-    versioned_update_persona_access(
+    update_persona_access(
         persona_id=persona_id,
         creator_user_id=user.id,
         db_session=db_session,
@@ -960,8 +952,7 @@ def transfer_persona_ownership(
     new_owner_user_id: UUID | None = None,
     new_owner_group_id: int | None = None,
 ) -> None:
-    """Move ownership to a single user. Group targets are EE-only (versioned
-    override in ee.onyx.db.persona)."""
+    """Move ownership to a single user. Group targets are not supported."""
     if new_owner_group_id is not None:
         raise NotImplementedError("Onyx MIT does not support group ownership")
     _transfer_persona_ownership(

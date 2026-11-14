@@ -24,7 +24,6 @@ from onyx.connectors.google_utils.google_utils import GoogleFields
 from onyx.connectors.interfaces import SecondsSinceUnixEpoch
 from onyx.utils.logger import setup_logger
 from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
     noop_fallback,
 )
 
@@ -196,11 +195,7 @@ def get_external_access_for_folder(
             [GoogleDriveFileType, str, GoogleDriveSourceOperations, str, bool],
             ExternalAccess,
         ],
-        fetch_versioned_implementation_with_fallback(
-            "onyx.external_permissions.google_drive.doc_sync",
-            "get_external_access_for_folder",
-            noop_fallback,
-        ),
+        noop_fallback,
     )
 
     return get_folder_access_fn(folder, google_domain, ops, user_email, add_prefix)
