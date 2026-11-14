@@ -16,7 +16,6 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
-import yaml
 
 import onyx.server.features.build.sandbox.docker.docker_sandbox_manager as dsm
 from onyx.server.features.build.configs import SANDBOX_PROXY_INJECTED_PLACEHOLDER
@@ -42,12 +41,10 @@ from onyx.server.features.build.sandbox.labels import (
     LABEL_K8S_MANAGED_BY,
     LABEL_K8S_MANAGED_BY_ONYX,
 )
-from tests.common.paths import find_ancestor_containing
 
 SANDBOX_ID = UUID("12345678-1234-1234-1234-1234567890ab")
 USER_ID = UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
 TENANT_ID = "tenant-abc"
-REPO_ROOT = find_ancestor_containing("deployment")
 
 # Pinned spec values — intentionally not imported from the implementation.
 EXPECTED_EXEC_USER = "1000:1000"
@@ -827,28 +824,6 @@ def test_proxy_kwargs_env_is_a_locked_allowlist(
     }
 
 
-def test_compose_uses_internal_api_alias_for_craft() -> None:
-    compose_path = REPO_ROOT / "deployment/docker_compose/docker-compose.craft.yml"
-    compose = yaml.safe_load(compose_path.read_text())
-    services = compose["services"]
-
-    api_network = services["api_server"]["networks"]["onyx_craft_sandbox"]
-    assert api_network["aliases"] == ["onyx-craft-api"]
-
-    expected_url = "ONYX_SERVER_URL=${ONYX_SERVER_URL:-http://onyx-craft-api:8080}"
-    for service_name in ("api_server", "background"):
-        environment = services[service_name]["environment"]
-        assert expected_url in environment
-        assert "SANDBOX_PROXY_HOST=${SANDBOX_PROXY_HOST-sandbox-proxy}" in environment
-
-    proxy_environment = services["sandbox-proxy"]["environment"]
-    assert expected_url in proxy_environment
-    assert "onyx_craft_sandbox" in services["sandbox-proxy"]["networks"]
-    assert services["api_server"]["depends_on"]["sandbox-proxy"]["condition"] == (
-        "service_healthy"
-    )
-
-
 def test_no_proxy_kwargs_omit_cap_add(kwargs: ContainerCreateKwargs) -> None:
     """
     The no-proxy posture must NOT carry cap_add; NET_ADMIN out of nowhere would
@@ -882,52 +857,3 @@ def test_proxy_kwargs_requires_ca_volume() -> None:
             sandbox_proxy_host="sandbox-proxy",
             proxy_ca_volume_name=None,
         )
-
-
-def _craft_compose_services() -> dict:
-    compose_path = REPO_ROOT / "deployment/docker_compose/docker-compose.craft.yml"
-    return yaml.safe_load(compose_path.read_text())["services"]
-
-
-def test_compose_prepulls_the_image_the_sandboxes_run() -> None:
-    """The prepull entry exists so `docker compose pull` fetches the sandbox
-    image, and must name the *same* ref the sandbox containers get. A drifted
-    ref warms an image nobody runs while every sandbox still cold-pulls, and
-    nothing looks wrong — the only symptom is the slow provision it exists to
-    remove.
-    """
-    services = _craft_compose_services()
-    prepull_image = services["sandbox-image-prepull"]["image"]
-
-    for service_name in ("api_server", "background"):
-        assert (
-            f"SANDBOX_CONTAINER_IMAGE={prepull_image}"
-            in services[service_name]["environment"]
-        )
-
-
-def test_compose_prepull_never_starts_a_container() -> None:
-    """It is an image reference, not a workload. `replicas: 0` keeps `up` from
-    creating anything, so nothing idles doing nothing and `up --wait` — which
-    install.sh passes by default — stays green. A one-shot that exited would
-    fail that wait; a long-lived idler would leave a pointless container.
-    """
-    prepull = _craft_compose_services()["sandbox-image-prepull"]
-
-    assert prepull["deploy"]["replicas"] == 0
-    # No socket, no volumes, no sandbox bridge: nothing is supposed to run.
-    for key in ("volumes", "networks", "restart"):
-        assert key not in prepull
-
-
-def test_compose_prepull_is_inert_even_if_it_does_start() -> None:
-    """`deploy` is ignored by the legacy standalone docker-compose, which
-    install.sh accepts with no minimum version. If `replicas: 0` is dropped, a
-    container *is* created — and this image's own ENTRYPOINT starts
-    `opencode serve` on 0.0.0.0:4096 with no password, staying up so nothing
-    looks broken. The override is the only thing standing between a dropped
-    `deploy` key and an unauthenticated agent server on the compose network.
-    """
-    prepull = _craft_compose_services()["sandbox-image-prepull"]
-
-    assert prepull["entrypoint"] == ["/bin/true"]

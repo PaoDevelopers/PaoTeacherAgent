@@ -64,7 +64,7 @@ _STRICT_ENV = "MCP_NATIVE_CLIENTS_REQUIRED"
 _URL_PATTERN = re.compile(r"https?://[^\s'\"<>\x00-\x1f]+")
 _REPO_ROOT = Path(__file__).resolve().parents[4]
 _NGINX_IMAGE = os.environ.get("MCP_PROXY_NGINX_IMAGE", "nginx:1.25.5-alpine")
-_MCP_NGINX_TEMPLATE = _REPO_ROOT / "deployment/data/nginx/mcp.conf.inc.template"
+_MCP_NGINX_TEMPLATE = _REPO_ROOT / "deploy/nginx/mcp.conf.inc.template"
 
 
 @dataclass
