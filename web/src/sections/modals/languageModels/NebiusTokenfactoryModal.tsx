@@ -19,7 +19,6 @@ import {
   withFetchedModels,
 } from "@/sections/modals/languageModels/utils";
 import { submitProvider } from "@/sections/modals/languageModels/svc";
-import { LLMProviderConfiguredSource } from "@/lib/analytics/utils";
 import {
   APIBaseField,
   APIKeyField,
@@ -127,7 +126,6 @@ export default function NebiusTokenfactoryModal({
   shouldMarkAsDefault,
   onOpenChange,
   onSuccess,
-  analyticsSource,
 }: LLMProviderFormProps) {
   const t = useTranslations("admin.languageModels.modals");
   const isOnboarding = variant === "onboarding";
@@ -163,11 +161,6 @@ export default function NebiusTokenfactoryModal({
       onSubmit={async (values, { setSubmitting, setStatus }) => {
         await submitProvider({
           t,
-          analyticsSource:
-            analyticsSource ??
-            (isOnboarding
-              ? LLMProviderConfiguredSource.CHAT_ONBOARDING
-              : LLMProviderConfiguredSource.ADMIN_PAGE),
           providerName: LLMProviderName.NEBIUS_TOKENFACTORY,
           values,
           initialValues,

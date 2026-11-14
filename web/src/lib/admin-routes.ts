@@ -45,7 +45,6 @@ export interface FeatureFlags {
   vectorDbEnabled: boolean;
   enableCloud: boolean;
   tier: Tier | undefined;
-  customAnalyticsEnabled: boolean;
   hasSubscription: boolean;
   hooksEnabled: boolean;
   queryHistoryEnabled: boolean;
@@ -194,17 +193,6 @@ export const ADMIN_ROUTES = {
     section: "Craft",
     requiredTier: null,
     visibleWhen: (f: FeatureFlags) => f.craftAvailable,
-  },
-  CUSTOM_ANALYTICS: {
-    path: "/admin/performance/custom-analytics",
-    icon: SvgBarChart,
-    title: "Custom Analytics",
-    sidebarLabel: "Custom Analytics",
-    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
-    section: "",
-    requiredTier: Tier.ENTERPRISE,
-    visibleWhen: (f: FeatureFlags) =>
-      !f.enableCloud && f.customAnalyticsEnabled,
   },
 
   // ── Agents & Actions ──────────────────────────────────────────────

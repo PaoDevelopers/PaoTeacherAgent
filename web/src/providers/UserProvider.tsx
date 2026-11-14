@@ -17,7 +17,6 @@ import {
   Permission,
 } from "@/lib/types";
 import { hasAnyAdminPermission } from "@/lib/permissions/utils";
-import { usePostHog } from "posthog-js/react";
 import { isAuthStatusError } from "@/lib/fetcher";
 import { useSettings } from "@/lib/settings/hooks";
 import { useCurrentUser } from "@/lib/users/hooks";
@@ -99,7 +98,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const { authTypeMetadata, isLoading: authTypeMetadataLoading } =
     useAuthTypeMetadata();
   const updatedSettingsData = useSettings();
-  const posthog = usePostHog();
 
   // For auto_scroll and temperature_override_enabled:
   // - If user has a preference set, use that
@@ -181,22 +179,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       : fetchedUser === undefined
         ? "unavailable"
         : "resolved";
-
-  useEffect(() => {
-    if (!posthog) return;
-
-    if (fetchedUser?.id) {
-      const identifyData: Record<string, any> = {
-        email: fetchedUser.email,
-      };
-      if (fetchedUser.team_name) {
-        identifyData.team_name = fetchedUser.team_name;
-      }
-      posthog.identify(fetchedUser.id, identifyData);
-    } else {
-      posthog.reset();
-    }
-  }, [posthog, fetchedUser]);
 
   // Use the custom token refresh hook — on refresh failure, revalidate via SWR
   // so the result goes through mergeUserPreferences

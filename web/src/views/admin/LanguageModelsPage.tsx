@@ -22,7 +22,7 @@ import {
   Card,
   OnyxLoader,
 } from "@opal/components";
-import { Hoverable, Disabled } from "@opal/core";
+import { Hoverable } from "@opal/core";
 import { SvgArrowExchange, SvgSettings, SvgTrash } from "@opal/icons";
 import { SettingsLayouts } from "@opal/layouts";
 import { ADMIN_ROUTES } from "@/lib/admin-routes";
@@ -51,7 +51,6 @@ import { useCreateModal } from "@opal/components";
 import { LLMProviderName, LLMProviderView } from "@/lib/languageModels/types";
 import { Section } from "@/layouts/general-layouts";
 import { markdown } from "@opal/utils";
-import { usePHFeatureFlag, PHFeatureFlag } from "@/lib/analytics/hooks";
 import CostOverridesPanel from "@/views/admin/CostOverridesPanel";
 
 const route = ADMIN_ROUTES.LLM_MODELS;
@@ -395,10 +394,6 @@ export default function LanguageModelsPage() {
     defaultText,
     modelPaging,
   } = useAdminLanguageModels();
-  const isConfigurationDisabled = usePHFeatureFlag(
-    PHFeatureFlag.LANGUAGE_MODEL_CONFIGURATION_DISABLED
-  );
-
   // Hide the toggle unless the selector would group: several providers, or
   // one aggregator provider whose models span several vendors.
   const hasProviderGrouping = useMemo(
@@ -743,54 +738,44 @@ export default function LanguageModelsPage() {
           </>
         )}
 
-        {/* ── LLM configuration disablement notice ── */}
-        {isConfigurationDisabled && (
-          <MessageCard
-            title={t("configurationDisabled.title")}
-            description={t("configurationDisabled.description")}
-          />
-        )}
-
         {/* ── Add Provider groups (always visible) ── */}
-        <Disabled disabled={isConfigurationDisabled}>
-          <div className="@container/providercards flex flex-col gap-8">
-            {providerGroups.map((group) => (
-              <GeneralLayouts.Section
-                key={group.id}
-                gap={3}
-                height="fit"
-                alignItems="stretch"
-                justifyContent="start"
-              >
-                {group.emphasis ? (
-                  <Content
-                    title={group.title}
-                    description={group.description}
-                    sizePreset="main-content"
-                    variant="section"
-                  />
-                ) : (
-                  <Text font="main-ui-action" color="text-03">
-                    {group.title}
-                  </Text>
-                )}
+        <div className="@container/providercards flex flex-col gap-8">
+          {providerGroups.map((group) => (
+            <GeneralLayouts.Section
+              key={group.id}
+              gap={3}
+              height="fit"
+              alignItems="stretch"
+              justifyContent="start"
+            >
+              {group.emphasis ? (
+                <Content
+                  title={group.title}
+                  description={group.description}
+                  sizePreset="main-content"
+                  variant="section"
+                />
+              ) : (
+                <Text font="main-ui-action" color="text-03">
+                  {group.title}
+                </Text>
+              )}
 
-                <div className="grid grid-cols-1 @xl/providercards:grid-cols-2 gap-2">
-                  {group.providerNames.map((name) => (
-                    <NewProviderCard
-                      key={name}
-                      providerName={name}
-                      isFirstProvider={isFirstProvider}
-                    />
-                  ))}
-                  {group.includeCustom && (
-                    <NewCustomProviderCard isFirstProvider={isFirstProvider} />
-                  )}
-                </div>
-              </GeneralLayouts.Section>
-            ))}
-          </div>
-        </Disabled>
+              <div className="grid grid-cols-1 @xl/providercards:grid-cols-2 gap-2">
+                {group.providerNames.map((name) => (
+                  <NewProviderCard
+                    key={name}
+                    providerName={name}
+                    isFirstProvider={isFirstProvider}
+                  />
+                ))}
+                {group.includeCustom && (
+                  <NewCustomProviderCard isFirstProvider={isFirstProvider} />
+                )}
+              </div>
+            </GeneralLayouts.Section>
+          ))}
+        </div>
 
         <Divider paddingParallel={0} paddingPerpendicular={0} />
 

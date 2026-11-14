@@ -5281,33 +5281,6 @@
         "editTitle": "Edit Credential"
       }
     },
-    "customAnalytics": {
-      "intro": {
-        "description": "This allows you to bring your own analytics tool to {appName}! Copy the Web snippet from your analytics provider into the box below, and we'll start sending usage events."
-      },
-      "notEnabled": {
-        "description": "To set up custom analytics scripts, please work with the team who setup {appName} in your team to set the <i>CUSTOM_ANALYTICS_SECRET_KEY</i> environment variable.",
-        "title": "Custom Analytics is not enabled."
-      },
-      "script": {
-        "description": "Specify the Javascript that should run on page load in order to initialize your custom tracking/analytics.",
-        "instructions": "Do not include the `<script></script>` tags. If you upload a script below but you are not receiving any events in your analytics platform, try removing all extra whitespace before each line of JavaScript.",
-        "label": "Script"
-      },
-      "secretKey": {
-        "description": "For security reasons, you must provide a secret key to update this script. This should be the value of the <i>CUSTOM_ANALYTICS_SECRET_KEY</i> environment variable set when initially setting up {appName}.",
-        "label": "Secret Key"
-      },
-      "updateButton": {
-        "label": "Update"
-      },
-      "updateFailed": {
-        "message": "Failed to update custom analytics script: \"{error}\""
-      },
-      "updateSuccess": {
-        "message": "Custom analytics script updated successfully!"
-      }
-    },
     "discordBot": {
       "botToken": {
         "changeInstructions": {
@@ -7435,10 +7408,6 @@
     "languageModels": {
       "availableProviders": {
         "title": "Available Providers"
-      },
-      "configurationDisabled": {
-        "description": "Existing LLM providers can still be used and updated.",
-        "title": "New LLM configuration temporarily unavailable."
       },
       "defaultModel": {
         "description": "This model will be used by {appName} by default in your chats.",
@@ -16465,9 +16434,6 @@
         },
         "craftPreferences": {
           "label": "Preferences"
-        },
-        "customAnalytics": {
-          "label": "Custom Analytics"
         },
         "discordIntegration": {
           "label": "Discord Integration"

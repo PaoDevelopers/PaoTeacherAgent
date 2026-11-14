@@ -5281,33 +5281,6 @@
         "editTitle": "编辑凭据"
       }
     },
-    "customAnalytics": {
-      "intro": {
-        "description": "这允许您将自己的分析工具接入 {appName}!将分析提供商的 Web 代码片段复制到下面的输入框中,我们就会开始发送使用事件。"
-      },
-      "notEnabled": {
-        "description": "要设置自定义分析脚本,请与团队中负责部署 {appName} 的人员合作,设置环境变量 <i>CUSTOM_ANALYTICS_SECRET_KEY</i>。",
-        "title": "自定义分析未启用。"
-      },
-      "script": {
-        "description": "指定应在页面加载时运行的 Javascript,用于初始化您的自定义跟踪/分析。",
-        "instructions": "请勿包含 `<script></script>` 标签。如果您在下方上传了脚本但分析平台没有收到任何事件,请尝试删除每行 JavaScript 前多余的空白字符。",
-        "label": "脚本"
-      },
-      "secretKey": {
-        "description": "出于安全考虑,您必须提供密钥才能更新此脚本。该值应为初次设置 {appName} 时配置的环境变量 <i>CUSTOM_ANALYTICS_SECRET_KEY</i> 的值。",
-        "label": "密钥"
-      },
-      "updateButton": {
-        "label": "更新"
-      },
-      "updateFailed": {
-        "message": "更新自定义分析脚本失败:\"{error}\""
-      },
-      "updateSuccess": {
-        "message": "自定义分析脚本更新成功!"
-      }
-    },
     "discordBot": {
       "botToken": {
         "changeInstructions": {
@@ -7435,10 +7408,6 @@
     "languageModels": {
       "availableProviders": {
         "title": "可用提供商"
-      },
-      "configurationDisabled": {
-        "description": "现有的 LLM 提供商仍可继续使用和更新。",
-        "title": "暂时无法新增 LLM 配置。"
       },
       "defaultModel": {
         "description": "{appName} 将在您的对话中默认使用此模型。",
@@ -16465,9 +16434,6 @@
         },
         "craftPreferences": {
           "label": "偏好设置"
-        },
-        "customAnalytics": {
-          "label": "自定义分析"
         },
         "discordIntegration": {
           "label": "Discord 集成"

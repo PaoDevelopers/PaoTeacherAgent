@@ -11,7 +11,6 @@ const flags: FeatureFlags = {
   vectorDbEnabled: true,
   enableCloud: false,
   tier: Tier.COMMUNITY,
-  customAnalyticsEnabled: false,
   hasSubscription: false,
   hooksEnabled: false,
   queryHistoryEnabled: false,

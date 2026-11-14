@@ -79,7 +79,6 @@ import {
   useRouter,
   useSearchParams,
 } from "next/navigation";
-import { track, AnalyticsEvent } from "@/lib/analytics/utils";
 import { getExtensionContext } from "@/lib/extension/utils";
 import useChatSessions from "@/hooks/useChatSessions";
 import { usePinnedAgents } from "@/lib/agents/hooks";
@@ -1112,9 +1111,7 @@ export default function useChatController({
           plugins: memberPlugins ?? [],
         });
 
-        // Determine origin for telemetry tracking (also used for frontend PostHog tracking below)
-        const { isExtension, context: extensionContext } =
-          getExtensionContext();
+        const { isExtension } = getExtensionContext();
         const messageOrigin = isExtension ? "chrome_extension" : "webapp";
 
         const stack = new CurrentMessageFIFO();
@@ -1218,16 +1215,6 @@ export default function useChatController({
               newUserMessageId = (packet as MessageResponseIDInfo)
                 .user_message_id;
               userNodeDirty = true;
-
-              // Track extension queries in PostHog (reuses isExtension/extensionContext from above)
-              if (isExtension) {
-                track(AnalyticsEvent.EXTENSION_CHAT_QUERY, {
-                  extension_context: extensionContext,
-                  assistant_id: activeAgent?.id,
-                  has_files: effectiveFileDescriptors.length > 0,
-                  deep_research: deepResearch,
-                });
-              }
             }
 
             if (

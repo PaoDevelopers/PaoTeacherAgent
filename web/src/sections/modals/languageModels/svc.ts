@@ -1,13 +1,8 @@
-import { LLMProviderName, LLMProviderView } from "@/lib/languageModels/types";
+import { LLMProviderView } from "@/lib/languageModels/types";
 import { SWR_KEYS } from "@/lib/swr-keys";
 import { toast } from "@opal/layouts";
 import isEqual from "lodash/isEqual";
 import { parseAzureTargetUri } from "@/lib/azureTargetUri";
-import {
-  track,
-  AnalyticsEvent,
-  LLMProviderConfiguredSource,
-} from "@/lib/analytics/utils";
 import {
   BaseLLMFormValues,
   LlmModalsTranslator,
@@ -113,8 +108,6 @@ export interface SubmitProviderParams<
   onClose: () => void;
   /** Called after successful create/update + set-default. Use for cache refresh, state updates, toasts, etc. */
   onSuccess?: () => void | Promise<void>;
-  /** Analytics source for tracking. @default LLMProviderConfiguredSource.ADMIN_PAGE */
-  analyticsSource?: LLMProviderConfiguredSource;
 }
 
 export async function submitProvider<T extends BaseLLMFormValues>({
@@ -129,7 +122,6 @@ export async function submitProvider<T extends BaseLLMFormValues>({
   setSubmitting,
   onClose,
   onSuccess,
-  analyticsSource = LLMProviderConfiguredSource.ADMIN_PAGE,
 }: SubmitProviderParams<T>): Promise<void> {
   setSubmitting(true);
 
@@ -255,13 +247,6 @@ export async function submitProvider<T extends BaseLLMFormValues>({
   }
 
   // ── Post-success ────────────────────────────────────────────────────
-  const knownProviders = new Set<string>(Object.values(LLMProviderName));
-  track(AnalyticsEvent.CONFIGURED_LLM_PROVIDER, {
-    provider: knownProviders.has(providerName) ? providerName : "custom",
-    is_creation: !existingLlmProvider,
-    source: analyticsSource,
-  });
-
   if (onSuccess) await onSuccess();
 
   setSubmitting(false);

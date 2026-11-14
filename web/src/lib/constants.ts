@@ -35,13 +35,6 @@ export const NEXT_PUBLIC_CUSTOM_REFRESH_URL =
 export const EE_ENABLED =
   process.env.NEXT_PUBLIC_ENABLE_PAID_EE_FEATURES?.toLowerCase() === "true";
 
-export const CUSTOM_ANALYTICS_ENABLED = process.env.CUSTOM_ANALYTICS_SECRET_KEY
-  ? true
-  : false;
-
-export const GTM_ENABLED =
-  process.env.NEXT_PUBLIC_GTM_ENABLED?.toLowerCase() === "true";
-
 export const NEXT_PUBLIC_CLOUD_ENABLED =
   process.env.NEXT_PUBLIC_CLOUD_ENABLED?.toLowerCase() === "true";
 
