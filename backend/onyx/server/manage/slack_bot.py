@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from onyx.auth.permissions import require_permission
-from onyx.configs.constants import MilestoneRecordType
 from onyx.db.constants import SLACK_BOT_PERSONA_PREFIX
 from onyx.db.engine.sql_engine import get_session
 from onyx.db.enums import Permission
@@ -36,8 +35,6 @@ from onyx.server.manage.validate_tokens import (
     validate_user_token,
 )
 from onyx.utils.logger import setup_logger
-from onyx.utils.telemetry import mt_cloud_telemetry
-from shared_configs.contextvars import get_current_tenant_id
 
 SLACK_API_CHANNELS_PER_PAGE = 100
 SLACK_MAX_RETURNED_CHANNELS = 500
@@ -242,7 +239,6 @@ def create_bot(
     db_session: Session = Depends(get_session),
     _: User = Depends(require_permission(Permission.MANAGE_BOTS)),
 ) -> SlackBot:
-    tenant_id = get_current_tenant_id()
 
     validate_app_token(slack_bot_creation_request.app_token)
     validate_bot_token(slack_bot_creation_request.bot_token)
@@ -270,12 +266,6 @@ def create_bot(
         standard_answer_category_ids=[],
         enable_auto_filters=False,
         is_default=True,
-    )
-
-    mt_cloud_telemetry(
-        tenant_id=tenant_id,
-        distinct_id=tenant_id,
-        event=MilestoneRecordType.CREATED_ONYX_BOT,
     )
 
     return SlackBot.from_model(slack_bot_model)

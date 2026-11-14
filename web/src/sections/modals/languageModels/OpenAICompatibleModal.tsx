@@ -17,7 +17,6 @@ import {
   withFetchedModels,
 } from "@/sections/modals/languageModels/utils";
 import { submitProvider } from "@/sections/modals/languageModels/svc";
-import { LLMProviderConfiguredSource } from "@/lib/analytics/utils";
 import {
   APIBaseField,
   APIKeyField,
@@ -106,7 +105,6 @@ export default function OpenAICompatibleModal({
   shouldMarkAsDefault,
   onOpenChange,
   onSuccess,
-  analyticsSource,
 }: LLMProviderFormProps) {
   const t = useTranslations("admin.languageModels.modals");
   const isOnboarding = variant === "onboarding";
@@ -135,11 +133,6 @@ export default function OpenAICompatibleModal({
       onSubmit={async (values, { setSubmitting, setStatus }) => {
         await submitProvider({
           t,
-          analyticsSource:
-            analyticsSource ??
-            (isOnboarding
-              ? LLMProviderConfiguredSource.CHAT_ONBOARDING
-              : LLMProviderConfiguredSource.ADMIN_PAGE),
           providerName: LLMProviderName.OPENAI_COMPATIBLE,
           values,
           initialValues,

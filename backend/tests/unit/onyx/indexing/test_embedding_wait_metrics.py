@@ -22,7 +22,6 @@ def _run_batch(wait_totals: EmbeddingWaitTotals, waits: tuple[float, float]) -> 
     recorded: dict[IndexAttemptStage, int] = {}
     with (
         patch(f"{_PIPELINE}._embed_chunks_to_store", side_effect=embed),
-        patch(f"{_PIPELINE}.emit_stage_counter"),
         patch(
             f"{_PIPELINE}.safe_record_single_event_if_set",
             side_effect=lambda stage, _attempt_id, ms: recorded.__setitem__(stage, ms),

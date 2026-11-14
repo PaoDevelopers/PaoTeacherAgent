@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from onyx.configs.constants import DEV_VERSION_PATTERN, STABLE_VERSION_PATTERN
-from onyx.main import fetch_versioned_implementation
+from onyx.main import get_application
 from onyx.utils.logger import setup_logger
 
 logger = setup_logger()
@@ -15,9 +15,7 @@ logger = setup_logger()
 @pytest.fixture(scope="function")
 def client() -> Generator[TestClient, Any, None]:
     # Initialize TestClient with the FastAPI app
-    app: FastAPI = fetch_versioned_implementation(
-        module="onyx.main", attribute="get_application"
-    )()
+    app: FastAPI = get_application()
     client = TestClient(app)
     yield client
 

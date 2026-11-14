@@ -1,11 +1,8 @@
 """
-Non-EE version of tenant usage limit overrides.
+Tenant usage limit overrides.
 
-In non-EE deployments, there are no tenant-specific overrides - all tenants
-use the default limits from environment variables.
-
-The EE version (ee.onyx.server.tenant_usage_limits) fetches per-tenant
-overrides from the control plane.
+There are no tenant-specific overrides: all tenants use the default limits
+from environment variables.
 """
 
 from enum import Enum

@@ -4,7 +4,6 @@ from collections.abc import Callable, Generator, Iterator
 from contextlib import contextmanager, nullcontext
 from typing import NamedTuple, Protocol
 
-import sentry_sdk
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -118,7 +117,6 @@ from onyx.tracing.flows import LLMFlow
 from onyx.tracing.framework.create import ensure_trace
 from onyx.tracing.framework.traces import TraceContentMode
 from onyx.utils.batching import batch_generator
-from onyx.utils.fleet_telemetry import emit_stage_counter
 from onyx.utils.logger import setup_logger
 from onyx.utils.postgres_sanitization import sanitize_documents_for_postgres
 from onyx.utils.threadpool_concurrency import run_functions_tuples_in_parallel
@@ -376,16 +374,6 @@ def embed_and_stream(
             store=store,
         )
         embed_duration_ms = max(0, int((time.monotonic() - embed_start) * 1000))
-        emit_stage_counter(
-            attempt_id,
-            "embed",
-            {
-                "embed_chunks": len(result.successful_chunk_ids),
-                "embed_errors": len(result.connector_failures),
-            },
-            duration_ms=embed_duration_ms,
-            tenant_id=tenant_id,
-        )
         safe_record_single_event_if_set(
             IndexAttemptStage.EMBEDDING, attempt_id, embed_duration_ms
         )
@@ -549,8 +537,8 @@ def index_doc_batch_with_handler(
             )
             raise e
         except Exception as e:
-            # Below error level so Sentry's logging integration ignores a batch
-            # that may yet succeed per document. _failure_result reports it.
+            # Below error level: the batch may yet succeed per document.
+            # _failure_result reports it.
             logger.warning(
                 "Indexing raised for %s: %s", [doc.id for doc in documents], e
             )
@@ -560,18 +548,11 @@ def index_doc_batch_with_handler(
         documents: list[Document], e: Exception
     ) -> IndexingPipelineResult:
         """The failure of every document in ``documents``. Only a failure that
-        will not be retried reaches here, so this is where Sentry hears of it."""
+        will not be retried reaches here."""
         # don't log the batch directly, it's too much text
         logger.error(
             "Failed to index documents: %s", [doc.id for doc in documents], exc_info=e
         )
-        with sentry_sdk.new_scope() as scope:
-            scope.set_tag("stage", "indexing_pipeline")
-            scope.set_tag("tenant_id", tenant_id)
-            scope.set_tag("batch_size", str(len(documents)))
-            scope.set_extra("document_ids", [doc.id for doc in documents])
-            scope.fingerprint = ["indexing-pipeline-failure", type(e).__name__]
-            sentry_sdk.capture_exception(e)
         return IndexingPipelineResult(
             new_docs=0,
             total_docs=len(documents),
@@ -1699,7 +1680,6 @@ def index_doc_batch(
                 document_index=document_index,
                 make_chunks=_enriched_stream,
                 indexing_metadata=indexing_metadata,
-                tenant_id=tenant_id,
             )
             vector_db_write_ms = max(
                 0, int((time.monotonic() - vector_db_write_start) * 1000)

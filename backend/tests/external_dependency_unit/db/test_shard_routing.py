@@ -50,7 +50,6 @@ from onyx.db.engine.sql_engine import (
 from onyx.db.models import PublicBase, TenantShard
 from tests.external_dependency_unit.db.shard_test_utils import (
     DEFAULT_SHARD,
-    schema_exists,
 )
 
 # SECOND_SHARD is per-suite; DEFAULT_SHARD is shared.
@@ -470,67 +469,6 @@ def test_propagation_window_exceeds_the_poll_interval(
     )
 
 
-def test_schema_creation_follows_the_shard_map(
-    two_shards: dict[str, Any],  # noqa: ARG001
-) -> None:
-    """DDL must land in the same database the tenant's data sessions route to.
-
-    Without this, `setup_tenant` creates the schema on the default shard and then
-    seeds it through a shard-routed session — writing into a schema that does not
-    exist on that database.
-    """
-    from ee.onyx.server.tenants.schema_management import create_schema_if_not_exists
-
-    tenant_id = f"tenant_{uuid4()}"
-    _set_tenant_shard(tenant_id, SECOND_SHARD)
-    invalidate_shard_cache()
-
-    default_engine = shard_registry.get_engine_for_shard(DEFAULT_SHARD)
-    second_engine = shard_registry.get_engine_for_shard(SECOND_SHARD)
-    try:
-        create_schema_if_not_exists(tenant_id)
-
-        assert schema_exists(second_engine, tenant_id)
-        assert not schema_exists(default_engine, tenant_id)
-    finally:
-        with second_engine.connect() as conn:
-            conn.execute(text(f'DROP SCHEMA IF EXISTS "{tenant_id}" CASCADE'))
-            conn.commit()
-        _clear_tenant_shard(tenant_id)
-
-
-def test_drop_schema_follows_the_shard_map(two_shards: dict[str, Any]) -> None:
-    """Dropping must target the shard that actually holds the schema.
-
-    A default-pinned drop would silently no-op, leaving the real schema behind.
-    """
-    from ee.onyx.server.tenants.schema_management import drop_schema
-
-    tenant_b = two_shards["tenant_b"]
-    second_engine = shard_registry.get_engine_for_shard(SECOND_SHARD)
-    assert schema_exists(second_engine, tenant_b)
-
-    drop_schema(tenant_b)
-
-    assert not schema_exists(second_engine, tenant_b)
-
-
-def test_alembic_url_targets_the_tenants_shard(two_shards: dict[str, Any]) -> None:
-    """The migration runner must be pointed at the tenant's database.
-
-    Checked at the URL level because running the full tree per test is far too slow.
-    """
-    from ee.onyx.server.tenants.schema_management import _tenant_connection_string
-
-    url_a = _tenant_connection_string(two_shards["tenant_a"])
-    url_b = _tenant_connection_string(two_shards["tenant_b"])
-
-    assert url_a.endswith(f"/{POSTGRES_DB}")
-    assert url_b.endswith(f"/{two_shards['second_db']}")
-    # Byte-identical to the historical call for the default shard.
-    assert url_a == build_connection_string()
-
-
 def test_catalog_failure_raises_instead_of_routing_to_default(
     two_shards: dict[str, Any], monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -709,53 +647,6 @@ class _CapturedAlembicURL(Exception):
     def __init__(self, url: str) -> None:
         super().__init__(url)
         self.url = url
-
-
-def test_run_alembic_migrations_targets_the_tenants_shard(
-    two_shards: dict[str, Any], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The migration runner must actually connect to the tenant's database.
-
-    Asserting on the generated URL alone is not enough: `alembic/env.py` builds its
-    own engine, and previously ignored the URL the caller configured, so migrations
-    silently ran against the default database while the URL looked correct. This
-    intercepts `create_async_engine` inside the real
-    `run_alembic_migrations` -> alembic -> `env.py` path and aborts once the target
-    is known, so the full 400-migration tree never has to run.
-    """
-    import sqlalchemy.ext.asyncio as sa_asyncio
-
-    from ee.onyx.server.tenants.schema_management import run_alembic_migrations
-
-    def _capture(url: Any, *_: Any, **__: Any) -> Any:
-        raise _CapturedAlembicURL(str(url))
-
-    # env.py does `from sqlalchemy.ext.asyncio import create_async_engine` at import
-    # time, and alembic re-executes env.py per run, so patching the source module
-    # attribute is picked up by the real code path.
-    monkeypatch.setattr(sa_asyncio, "create_async_engine", _capture)
-
-    for tenant_key, expected_db in (
-        ("tenant_a", POSTGRES_DB),
-        ("tenant_b", two_shards["second_db"]),
-    ):
-        captured: str | None = None
-        try:
-            run_alembic_migrations(two_shards[tenant_key])
-        except _CapturedAlembicURL as e:
-            captured = e.url
-        except Exception as e:  # pragma: no cover - surfaces wiring breakage
-            cause = e
-            while cause is not None:
-                if isinstance(cause, _CapturedAlembicURL):
-                    captured = cause.url
-                    break
-                cause = cause.__cause__ or cause.__context__
-
-        assert captured is not None, f"never reached engine creation for {tenant_key}"
-        assert captured.endswith(f"/{expected_db}"), (
-            f"{tenant_key} migrations target {captured}, expected database {expected_db}"
-        )
 
 
 def test_sqlalchemy_url_option_is_still_ignored_by_env_py(

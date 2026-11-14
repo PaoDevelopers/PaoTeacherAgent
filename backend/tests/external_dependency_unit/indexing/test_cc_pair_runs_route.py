@@ -60,7 +60,6 @@ from tests.external_dependency_unit.indexing_helpers import (
 )
 
 # The sync kinds come from the EE-only sync_params helpers.
-pytestmark = pytest.mark.usefixtures("enable_ee")
 
 _T0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
 

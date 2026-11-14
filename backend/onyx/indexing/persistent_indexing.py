@@ -7,9 +7,6 @@ last-resort catch-all; connectors should keep yielding their own targeted
 ConnectorFailure objects with proper context for known error conditions.
 """
 
-import sentry_sdk
-
-from onyx.configs.constants import DocumentSource
 from onyx.connectors.models import (
     ConnectorFailure,
     Document,
@@ -21,9 +18,6 @@ from onyx.db.index_attempt import create_index_attempt_error
 from onyx.utils.logger import setup_logger
 
 logger = setup_logger()
-
-
-GENERIC_FAILURE_SENTRY_FINGERPRINT_PREFIX = "persistent-indexing-generic-failure"
 
 
 def build_generic_connector_failure(
@@ -65,33 +59,12 @@ def build_generic_connector_failure(
 def record_generic_failure(
     index_attempt_id: int,
     cc_pair_id: int,
-    source: DocumentSource,
-    tenant_id: str,
     failure: ConnectorFailure,
 ) -> None:
-    """Tag Sentry, then persist the failure via `create_index_attempt_error`.
+    """Persist the failure via `create_index_attempt_error`.
 
     Swallows DB errors with `logger.exception` so the recovery path itself
     can't kill the attempt."""
-    exc = failure.exception
-    if exc is not None:
-        with sentry_sdk.new_scope() as scope:
-            scope.set_tag("stage", "persistent_indexing_catch_all")
-            scope.set_tag("connector_source", source.value)
-            scope.set_tag("cc_pair_id", str(cc_pair_id))
-            scope.set_tag("index_attempt_id", str(index_attempt_id))
-            scope.set_tag("tenant_id", tenant_id)
-            if failure.failed_document:
-                scope.set_tag("doc_id", failure.failed_document.document_id)
-            if failure.failed_entity:
-                scope.set_tag("entity_id", failure.failed_entity.entity_id)
-            scope.fingerprint = [
-                GENERIC_FAILURE_SENTRY_FINGERPRINT_PREFIX,
-                source.value,
-                type(exc).__name__,
-            ]
-            sentry_sdk.capture_exception(exc)
-
     try:
         with get_session_with_current_tenant() as db_session:
             create_index_attempt_error(

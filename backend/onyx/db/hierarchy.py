@@ -34,7 +34,6 @@ from onyx.db.models import (
 )
 from onyx.utils.batching import batch_generator
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 
 logger = setup_logger()
 
@@ -585,10 +584,7 @@ def get_accessible_hierarchy_nodes_for_source(
 
     EE combines node ACLs with associated connector permissions; MIT returns all.
     """
-    versioned_fn = fetch_versioned_implementation(
-        "onyx.db.hierarchy", "_get_accessible_hierarchy_nodes_for_source"
-    )
-    return versioned_fn(
+    return _get_accessible_hierarchy_nodes_for_source(
         db_session, source, user_email, external_group_ids, user_id=user_id
     )
 
@@ -642,10 +638,7 @@ def search_accessible_hierarchy_nodes(
     MIT version returns all matching nodes; EE version applies permission filtering.
     STUB and SOURCE nodes are always excluded.
     """
-    versioned_fn = fetch_versioned_implementation(
-        "onyx.db.hierarchy", "_search_accessible_hierarchy_nodes"
-    )
-    return versioned_fn(
+    return _search_accessible_hierarchy_nodes(
         db_session,
         query,
         sources,
@@ -679,10 +672,7 @@ def filter_accessible_hierarchy_node_ids(
     MIT passes everything through)."""
     if not node_ids:
         return set()
-    versioned_fn = fetch_versioned_implementation(
-        "onyx.db.hierarchy", "_filter_accessible_hierarchy_node_ids"
-    )
-    return versioned_fn(
+    return _filter_accessible_hierarchy_node_ids(
         db_session, node_ids, user_email, external_group_ids, user_id=user_id
     )
 

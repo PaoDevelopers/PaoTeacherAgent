@@ -64,7 +64,6 @@ from onyx.utils.audit import (
     emit_audit_event,
 )
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 
 logger = setup_logger()
 
@@ -286,10 +285,9 @@ def assert_credential_sharing_allowed(
     update, pass the current state read from the DB, never the client's.
     CREDENTIAL_PERMISSIONS_TO_IGNORE sources (file, web, wiki) carry no real
     secret and skip GATE 2."""
-    validate_group_ids = fetch_versioned_implementation(
-        "onyx.db.credentials", "validate_credential_group_ids"
-    )
-    validate_group_ids(db_session, requested.groups)
+    from onyx.db.credentials import validate_credential_group_ids
+
+    validate_credential_group_ids(db_session, requested.groups)
 
     current_group_ids = current_group_ids or []
     is_curator_public = requested.curator_public or currently_curator_public

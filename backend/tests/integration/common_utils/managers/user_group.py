@@ -1,13 +1,33 @@
 import time
+from typing import Any
 from uuid import uuid4
 
 import httpx
+from pydantic import BaseModel, ConfigDict
 
-from ee.onyx.server.user_group.models import UserGroup
 from onyx.db.enums import ConnectorManageRole
 from tests.integration.common_utils.constants import API_SERVER_URL, MAX_DELAY
 from tests.integration.common_utils.http_client import client
 from tests.integration.common_utils.test_models import DATestUser, DATestUserGroup
+
+
+class _Member(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    id: Any
+
+
+class UserGroup(BaseModel):
+    """The fields of the user-group API response these helpers read."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: int
+    name: str
+    is_default: bool = False
+    is_up_to_date: bool = True
+    users: list[_Member] = []
+    cc_pairs: list[_Member] = []
 
 
 class UserGroupManager:

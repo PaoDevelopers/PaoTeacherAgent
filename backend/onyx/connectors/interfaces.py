@@ -15,7 +15,6 @@ from onyx.connectors.models import (
 )
 from onyx.file_store.staging import RawFileCallback
 from onyx.indexing.indexing_heartbeat import IndexingHeartbeatInterface
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 SecondsSinceUnixEpoch = float
 
@@ -87,12 +86,6 @@ class BaseConnector(abc.ABC, Generic[CT]):
         Don't override this; add a function to perm_sync_valid.py in the ee package
         to do permission sync validation
         """
-        validate_connector_settings_fn = fetch_ee_implementation_or_noop(
-            "onyx.connectors.perm_sync_valid",
-            "validate_perm_sync",
-            noop_return_value=None,
-        )
-        validate_connector_settings_fn(self)
 
     def set_allow_images(self, value: bool) -> None:
         """Implement if the underlying connector wants to skip/allow image downloading

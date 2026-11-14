@@ -73,11 +73,9 @@ function MemberPluginsStory({
       if (path === "/api/settings")
         return jsonResponse({
           tier: "community",
-          ee_features_enabled: false,
           onyx_craft_available: true,
           onyx_craft_enabled: true,
         });
-      if (path === "/api/enterprise-settings") return jsonResponse({});
       if (path === "/api/skills")
         return jsonResponse({ builtins: [], customs: [] });
       if (path === "/api/auth/type")

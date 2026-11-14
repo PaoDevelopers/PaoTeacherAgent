@@ -21,9 +21,6 @@ export default function CraftUpgradePage() {
         <Button prominence="secondary" href="/app">
           {t("backToChat.label")}
         </Button>
-        {isAdmin && (
-          <Button href="/admin/billing">{t("viewPlans.label")}</Button>
-        )}
       </div>
     </div>
   );

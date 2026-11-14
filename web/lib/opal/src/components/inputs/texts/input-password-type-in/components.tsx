@@ -134,11 +134,7 @@ function InputPasswordTypeIn({
   );
 
   return (
-    <div
-      // ph-no-capture is posthog-js's native replay blockClass, so revealed
-      // secrets stay out of session replay without server-side config.
-      className="contents ph-no-capture"
-    >
+    <div className="contents">
       <InputTypeIn
         ref={ref}
         type={isHidden ? "password" : "text"}
@@ -153,7 +149,6 @@ function InputPasswordTypeIn({
         // do it, browsers deliberately ignore autocomplete="off" on password
         // inputs. Login forms should override with "current-password".
         autoComplete="new-password"
-        data-ph-no-capture
         leftChildren={
           isExistingValue ? (
             <>

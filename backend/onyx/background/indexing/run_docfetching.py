@@ -5,7 +5,6 @@ from collections.abc import Generator, Iterable
 from datetime import datetime, timedelta, timezone
 from typing import Any, TypeVar
 
-import sentry_sdk
 from celery import Celery
 from sqlalchemy.orm import Session
 
@@ -103,13 +102,11 @@ from onyx.redis.redis_hierarchy import (
     get_source_node_id_from_cache,
 )
 from onyx.redis.redis_pool import get_redis_client
-from onyx.utils.fleet_telemetry import emit_stage_counter
 from onyx.utils.logger import setup_logger
 from onyx.utils.postgres_sanitization import (
     sanitize_document_for_postgres,
     sanitize_hierarchy_nodes_for_postgres,
 )
-from onyx.utils.variable_functionality import global_version
 from shared_configs.configs import MULTI_TENANT
 from shared_configs.contextvars import INDEX_ATTEMPT_INFO_CONTEXTVAR
 
@@ -282,25 +279,6 @@ _TimedYield = TypeVar("_TimedYield")
 _CONNECTOR_FETCH_FLUSH_EVERY = 8
 
 
-def _emit_fetch_telemetry(
-    index_attempt_id: int, item: object, duration_ms: int
-) -> None:
-    """Count the documents and the failure of one ConnectorRunner batch."""
-    if isinstance(item, tuple) and len(item) == 4:
-        docs, hierarchy, failure, _checkpoint = item
-        if docs is None and hierarchy is None and failure is None:
-            return
-        emit_stage_counter(
-            index_attempt_id,
-            "fetch",
-            {
-                "fetch_docs": len(docs) if isinstance(docs, list) else 0,
-                "fetch_errors": int(failure is not None),
-            },
-            duration_ms=duration_ms,
-        )
-
-
 def _is_fetch_batch(item: object) -> bool:
     if not (isinstance(item, tuple) and len(item) == 4):
         return False
@@ -343,20 +321,12 @@ def _timed_connector_runs(
                     0, int((time.monotonic() - fetch_start) * 1000)
                 )
                 buffer.record(failed_ms)
-                emit_stage_counter(
-                    index_attempt_id,
-                    "fetch",
-                    {"fetch_errors": 1},
-                    duration_ms=failed_ms,
-                )
                 raise
             carried_ms += max(0, int((time.monotonic() - fetch_start) * 1000))
             if not _is_fetch_batch(item):
-                _emit_fetch_telemetry(index_attempt_id, item, 0)
                 yield item
                 continue
             buffer.record(carried_ms)
-            _emit_fetch_telemetry(index_attempt_id, item, carried_ms)
             carried_ms = 0
             if buffer.count >= _CONNECTOR_FETCH_FLUSH_EVERY:
                 buffer.flush()
@@ -479,13 +449,9 @@ def run_docfetching_entrypoint(
     index_attempt_id: int,
     tenant_id: str,
     connector_credential_pair_id: int,
-    is_ee: bool = False,
     callback: IndexingHeartbeatInterface | None = None,
 ) -> None:
     """Don't swallow exceptions here ... propagate them up."""
-
-    if is_ee:
-        global_version.set_ee()
 
     # set the indexing attempt ID so that all log messages from this process
     # will have it added as a prefix
@@ -852,27 +818,6 @@ def connector_document_extraction(
 
                 # save record of any failures at the connector level
                 if failure is not None:
-                    if failure.exception is not None:
-                        with sentry_sdk.new_scope() as scope:
-                            scope.set_tag("stage", "connector_fetch")
-                            scope.set_tag("connector_source", db_connector.source.value)
-                            scope.set_tag("cc_pair_id", str(cc_pair_id))
-                            scope.set_tag("index_attempt_id", str(index_attempt_id))
-                            scope.set_tag("tenant_id", tenant_id)
-                            if failure.failed_document:
-                                scope.set_tag(
-                                    "doc_id", failure.failed_document.document_id
-                                )
-                            if failure.failed_entity:
-                                scope.set_tag(
-                                    "entity_id", failure.failed_entity.entity_id
-                                )
-                            scope.fingerprint = [
-                                "connector-fetch-failure",
-                                db_connector.source.value,
-                                type(failure.exception).__name__,
-                            ]
-                            sentry_sdk.capture_exception(failure.exception)
                     total_failures += 1
                     with get_session_with_current_tenant() as db_session:
                         create_index_attempt_error(

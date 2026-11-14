@@ -12,10 +12,6 @@ from onyx.db.engine.sql_engine import get_session
 from onyx.db.enums import Permission
 from onyx.main import get_application
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation,
-    global_version,
-)
 
 # Opt into the shared @pytest.mark.secrets / test_secrets infrastructure.
 from tests.utils.pytest_secrets import (
@@ -27,11 +23,6 @@ from tests.utils.pytest_secrets import test_secrets as test_secrets
 logger = setup_logger()
 
 load_dotenv()
-
-# Daily tests run without a live backend, so the EE implementations that need
-# Redis or the document index must not resolve. Importing onyx.main loads EE.
-global_version.unset_ee()
-fetch_versioned_implementation.cache_clear()
 
 
 @asynccontextmanager

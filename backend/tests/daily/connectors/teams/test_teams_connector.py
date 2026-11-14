@@ -146,29 +146,3 @@ def test_slim_docs_retrieval_from_teams_connector(
             f"ExternalAccess should always be available, instead got {slim_doc=}"
         )
         readers_of(slim_doc.external_access, readers_by_group)
-
-
-def test_load_from_checkpoint_with_perm_sync(
-    teams_connector: TeamsConnector,
-    enable_ee: None,  # noqa: ARG001
-) -> None:
-    """Test that load_from_checkpoint_with_perm_sync returns documents with external_access.
-
-    This verifies the CheckpointedConnectorWithPermSync interface is properly implemented.
-    """
-    docs = load_all_from_connector(
-        connector=teams_connector,
-        start=0.0,
-        end=time.time(),
-        include_permissions=True,  # Uses load_from_checkpoint_with_perm_sync
-    ).documents
-
-    # We should have at least some documents
-    assert len(docs) > 0, "Expected to find at least one document"
-    readers_by_group = _readers_by_group(teams_connector, for_indexing=True)
-
-    for doc in docs:
-        assert doc.external_access is not None, (
-            f"Document {doc.id} should have external_access when using perm sync"
-        )
-        readers_of(doc.external_access, readers_by_group)

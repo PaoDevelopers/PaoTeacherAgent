@@ -32,20 +32,6 @@ const frameProtectionEnabled =
 const strictCspEnabled =
   process.env.WEB_STRICT_CSP_ENABLED?.toLowerCase() === "true";
 
-// Sentry has no tunnel configured, so the browser SDK POSTs events straight to
-// the host embedded in the DSN. Derive that origin (build-inlined like the SDK
-// itself) so connect-src covers both SaaS (*.ingest.*.sentry.io) and
-// self-hosted instances; empty when Sentry is disabled or the DSN is unparseable.
-const sentryConnectSrc = (() => {
-  const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
-  if (!dsn) return "";
-  try {
-    return new URL(dsn).origin;
-  } catch {
-    return "";
-  }
-})();
-
 // NEXT_PUBLIC_* and NODE_ENV are inlined at build, so this stays build-time —
 // only the frame-ancestors flag above is runtime.
 const upgradeInsecureRequests =
@@ -63,29 +49,19 @@ const CSP_HEADER = [
     : "",
   upgradeInsecureRequests ? "upgrade-insecure-requests;" : "",
   // 'unsafe-inline' is required: the App Router emits inline scripts for
-  // hydration (nonce-based CSP is a deferred follow-up). PostHog is proxied
-  // same-origin via /ph_ingest (next.config.js rewrites), so 'self' covers it.
-  // googletagmanager.com lets the optional GTM bootstrap (NEXT_PUBLIC_GTM_ENABLED)
-  // load gtm.js; GTM-configured downstream tags may need extra origins added.
+  // hydration (nonce-based CSP is a deferred follow-up).
   strictCspEnabled ? "default-src 'self';" : "",
-  strictCspEnabled
-    ? "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com;"
-    : "",
+  strictCspEnabled ? "script-src 'self' 'unsafe-inline';" : "",
   // connect-src blob: for the DOCX preview modal, which fetches the document
-  // back out of a blob: URL to render it. The Sentry origin (when configured) is
-  // derived from the DSN above.
-  strictCspEnabled
-    ? `connect-src 'self' blob:${
-        sentryConnectSrc ? ` ${sentryConnectSrc}` : ""
-      };`
-    : "",
+  // back out of a blob: URL to render it.
+  strictCspEnabled ? "connect-src 'self' blob:;" : "",
   // img-src stays broad: chat markdown and connector content render remote
   // images.
   strictCspEnabled ? "img-src 'self' data: blob: https:;" : "",
   // cdn.onyx.app serves the Craft page's animated background video.
   strictCspEnabled ? "media-src 'self' blob: data: https://cdn.onyx.app;" : "",
-  // worker-src blob: covers pdf.js-style workers and the PostHog session
-  // recorder; frame-src blob: covers in-app PDF preview.
+  // worker-src blob: covers pdf.js-style workers; frame-src blob: covers in-app
+  // PDF preview.
   strictCspEnabled ? "worker-src 'self' blob:;" : "",
   strictCspEnabled ? "frame-src 'self' blob:;" : "",
 ]
@@ -93,27 +69,12 @@ const CSP_HEADER = [
   .join(" ");
 
 // Match every route except Next.js internals and static assets so the CSP rides
-// on all document responses. The auth/EE logic below is pathname-gated, so the
+// on all document responses. The auth logic below is pathname-gated, so the
 // broader match doesn't change its behavior. Matchers must be static strings —
 // no JS runs before `config` is read.
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
-
-// Enterprise Edition specific routes (ONLY these get /ee rewriting)
-const EE_ROUTES = [
-  "/admin/groups",
-  "/admin/performance/usage",
-  "/admin/performance/analytics",
-  "/admin/performance/query-history",
-  "/admin/theme",
-  "/admin/performance/custom-analytics",
-  "/admin/standard-answer",
-  "/admin/export-logs",
-  "/admin/scim",
-  "/admin/service-accounts",
-  "/agents/stats",
-];
 
 function withSecurityHeaders(response: NextResponse): NextResponse {
   response.headers.set("Content-Security-Policy", CSP_HEADER);
@@ -146,15 +107,6 @@ export async function proxy(request: NextRequest) {
       const loginUrl = new URL(loginPath({ next: pathWithQuery }), request.url);
       return withSecurityHeaders(NextResponse.redirect(loginUrl));
     }
-  }
-
-  // Enterprise Edition: Rewrite EE-specific routes to /ee prefix. The /ee
-  // layout turns away a deployment whose license does not cover them.
-  if (EE_ROUTES.some((route) => pathname.startsWith(route))) {
-    const newUrl = new URL(`/ee${pathname}`, request.url);
-    return withSecurityHeaders(
-      NextResponse.rewrite(newUrl, { request: { headers: requestHeaders } })
-    );
   }
 
   return withSecurityHeaders(

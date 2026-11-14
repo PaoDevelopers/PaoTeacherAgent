@@ -138,7 +138,7 @@ function mockNetwork(
       return new Response(JSON.stringify(configuredServer));
     }
     if (url === "/api/settings") {
-      return new Response(JSON.stringify({ ee_features_enabled: false }));
+      return new Response(JSON.stringify({}));
     }
     if (url === "/api/auth/type") {
       return new Response(

@@ -57,13 +57,6 @@ class Settings(BaseModel):
     search_ui_enabled: bool | None = True
     auto_detect_search_filters: bool | None = True
 
-    # Whether EE features are unlocked for use.
-    # Depends on license status: True when the user has a valid license
-    # (ACTIVE, GRACE_PERIOD, PAYMENT_REMINDER), False when there's no license
-    # or the license is expired (GATED_ACCESS).
-    # This controls UI visibility of EE features (user groups, analytics, RBAC, etc.).
-    ee_features_enabled: bool = False
-
     # Resolved per-tenant tier for ENTERPRISE-only feature gating in the FE.
     tier: Tier = Tier.COMMUNITY
 
@@ -181,6 +174,3 @@ class UserSettings(Settings):
     # The frontend uses this to default local-service URLs (e.g. Ollama,
     # LM Studio) to host.docker.internal instead of localhost.
     is_containerized: bool = False
-    # PostHog client key + host for the web app; None = analytics off.
-    posthog_key: str | None = None
-    posthog_host: str | None = None

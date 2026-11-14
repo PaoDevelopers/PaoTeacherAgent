@@ -1,16 +1,8 @@
 import "./globals.css";
 
 import type { Metadata } from "next";
-import { GTM_ENABLED, MODAL_ROOT_ID } from "@/lib/constants";
-import { generateFaviconMetadata } from "@/lib/app/svcSS";
+import { MODAL_ROOT_ID } from "@/lib/constants";
 import AppProvider from "@/providers/AppProvider";
-import { PHProvider } from "./providers";
-import {
-  PostHogPageTracker,
-  PostHogRuntimeInitializer,
-  CustomAnalyticsScript,
-  WebVitals,
-} from "@/lib/analytics/shared";
 import Script from "next/script";
 import localFont from "next/font/local";
 import { ThemeProvider } from "next-themes";
@@ -20,7 +12,6 @@ import { OpenSearchResourcePopup } from "@/sections/banners/OpenSearchResourceWa
 import AppHealthBanner from "@/sections/banners/HealthBanner";
 import BannerQueue from "@/sections/banners/BannerQueue";
 import { AuthenticationShell } from "@/lib/auth/components";
-import ProductGatingWrapper from "@/providers/ProductGatingWrapper";
 import SWRConfigProvider from "@/providers/SWRConfigProvider";
 import { NextIntlClientProvider } from "next-intl";
 import OpalStringsBridge from "@/i18n/OpalStringsBridge";
@@ -103,9 +94,7 @@ const dmMonoLatinExt = localFont({
 // time — many child routes use cookies() which requires dynamic rendering.
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-  return { icons: await generateFaviconMetadata() };
-}
+export const metadata: Metadata = { icons: { icon: "/yk-pao-logo.png" } };
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -184,22 +173,6 @@ export default async function Layout({ children }: LayoutProps) {
             `,
           }}
         />
-
-        {GTM_ENABLED && (
-          <Script
-            id="google-tag-manager"
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: `
-               (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-               new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-               j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-               'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-               })(window,document,'script','dataLayer','GTM-PZXS36NG');
-             `,
-            }}
-          />
-        )}
       </head>
 
       <body className={`relative font-hanken`}>
@@ -216,31 +189,21 @@ export default async function Layout({ children }: LayoutProps) {
               >
                 <div className="text-text min-h-screen bg-background">
                   <TooltipProvider>
-                    <PHProvider>
-                      <SWRConfigProvider>
-                        <AppHealthBanner />
-                        <BannerQueue />
-                        <AuthenticationShell>
-                          <AppProvider>
-                            <OpenSearchResourcePopup />
-                            <PostHogRuntimeInitializer />
-                            <CustomAnalyticsScript />
-                            <PostHogPageTracker />
-                            <div
-                              id={MODAL_ROOT_ID}
-                              className="h-screen w-screen"
-                            >
-                              <ProductGatingWrapper>
-                                {children}
-                              </ProductGatingWrapper>
-                            </div>
-                            <WebVitals />
-                            {process.env.NEXT_PUBLIC_ENABLE_STATS ===
-                              "true" && <StatsOverlayLoader />}
-                          </AppProvider>
-                        </AuthenticationShell>
-                      </SWRConfigProvider>
-                    </PHProvider>
+                    <SWRConfigProvider>
+                      <AppHealthBanner />
+                      <BannerQueue />
+                      <AuthenticationShell>
+                        <AppProvider>
+                          <OpenSearchResourcePopup />
+                          <div id={MODAL_ROOT_ID} className="h-screen w-screen">
+                            {children}
+                          </div>
+                          {process.env.NEXT_PUBLIC_ENABLE_STATS === "true" && (
+                            <StatsOverlayLoader />
+                          )}
+                        </AppProvider>
+                      </AuthenticationShell>
+                    </SWRConfigProvider>
                   </TooltipProvider>
                 </div>
               </ThemeProvider>

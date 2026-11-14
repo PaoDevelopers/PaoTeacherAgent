@@ -1,12 +1,10 @@
 import { IconFunctionComponent } from "@opal/types";
-import { SvgArrowUpCircle } from "@opal/icons";
 import {
   ADMIN_ROUTES,
   AdminRouteEntry,
   FeatureFlags,
 } from "@/lib/admin-routes";
 import { hasPermission } from "@/lib/permissions/utils";
-import { Permission } from "@/lib/types";
 import { Settings } from "@/lib/settings/types";
 import { Tier } from "@/lib/tiers/types";
 import { tierAtLeast } from "@/lib/tiers/utils";
@@ -24,11 +22,9 @@ export type AdminNavItemId =
   | "voice"
   | "codeInterpreter"
   | "chatPreferences"
-  | "llmGateway"
   | "craftAccess"
   | "craftApps"
   | "craftPreferences"
-  | "customAnalytics"
   | "agents"
   | "plugins"
   | "mcpActions"
@@ -37,23 +33,12 @@ export type AdminNavItemId =
   | "connectors"
   | "documentSets"
   | "indexSettings"
-  | "serviceAccounts"
   | "slackIntegration"
   | "discordIntegration"
-  | "hookExtensions"
   | "users"
-  | "groups"
-  | "scim"
-  | "plansAndBilling"
-  | "appearanceAndTheming"
   | "securityAndHardening"
   | "ssoProviders"
-  | "usage"
-  | "analytics"
-  | "queryHistory"
-  | "tracing"
-  | "exportLogs"
-  | "upgradePlan";
+  | "tracing";
 
 /**
  * Stable id of one sidebar section heading. The visible label is the
@@ -82,11 +67,9 @@ export const NAV_ITEM_IDS: Record<
   VOICE: "voice",
   CODE_INTERPRETER: "codeInterpreter",
   CHAT_PREFERENCES: "chatPreferences",
-  LLM_GATEWAY: "llmGateway",
   CRAFT_ACCESS: "craftAccess",
   CRAFT_APPS: null,
   CRAFT_PREFERENCES: "craftPreferences",
-  CUSTOM_ANALYTICS: "customAnalytics",
   AGENTS: "agents",
   PLUGINS: "plugins",
   PLUGINS_EXTERNAL_APP: null,
@@ -99,26 +82,14 @@ export const NAV_ITEM_IDS: Record<
   DOCUMENT_FEEDBACK: null,
   INDEX_SETTINGS: "indexSettings",
   DOCUMENT_PROCESSING: null,
-  API_KEYS: "serviceAccounts",
   SLACK_BOTS: "slackIntegration",
   DISCORD_BOTS: "discordIntegration",
-  HOOKS: "hookExtensions",
   USERS: "users",
-  GROUPS: "groups",
-  SCIM: "scim",
   OAUTH_TEST: null,
-  BILLING: "plansAndBilling",
-  THEME: "appearanceAndTheming",
   SECURITY_HARDENING: "securityAndHardening",
   SSO_PROVIDERS: "ssoProviders",
-  USAGE: "usage",
-  WORKSPACE_ANALYTICS: "analytics",
-  QUERY_HISTORY: "queryHistory",
   TRACING: "tracing",
-  EXPORT_LOGS: "exportLogs",
-  STANDARD_ANSWERS: null,
   DOCUMENTS: null,
-  PERFORMANCE: null,
 };
 
 /** Title id under `sidebar.adminNav.hiddenRoutes` for pages off the sidebar. */
@@ -126,8 +97,7 @@ export type AdminHiddenRouteId =
   | "documentExplorer"
   | "documentFeedback"
   | "documentProcessing"
-  | "oauthTest"
-  | "standardAnswers";
+  | "oauthTest";
 
 const HIDDEN_ROUTE_IDS: Partial<
   Record<keyof typeof ADMIN_ROUTES, AdminHiddenRouteId>
@@ -136,7 +106,6 @@ const HIDDEN_ROUTE_IDS: Partial<
   DOCUMENT_FEEDBACK: "documentFeedback",
   DOCUMENT_PROCESSING: "documentProcessing",
   OAUTH_TEST: "oauthTest",
-  STANDARD_ANSWERS: "standardAnswers",
 };
 
 const ROUTE_KEYS = Object.keys(ADMIN_ROUTES) as (keyof typeof ADMIN_ROUTES)[];
@@ -233,18 +202,6 @@ export function buildItems(
     }
 
     items.push(item);
-  }
-
-  if (
-    userCanAccess(Permission.FULL_ADMIN_PANEL_ACCESS) &&
-    !flags.hasSubscription
-  ) {
-    items.push({
-      sectionId: null,
-      nameId: "upgradePlan",
-      icon: SvgArrowUpCircle,
-      link: ADMIN_ROUTES.BILLING.path,
-    });
   }
 
   return items;

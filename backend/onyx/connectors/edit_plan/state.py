@@ -7,7 +7,6 @@ from onyx.db.credentials import credential_usable_for_source, fetch_credential_b
 from onyx.db.models import Credential, User, UserGroup
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 
 def fetch_current_pair_state(db_session: Session, cc_pair_id: int) -> CurrentPairState:
@@ -25,11 +24,7 @@ def fetch_current_pair_state(db_session: Session, cc_pair_id: int) -> CurrentPai
             OnyxErrorCode.CONNECTOR_NOT_FOUND,
             f"Connector-credential pair {cc_pair_id} does not exist.",
         )
-    data_access_groups: list[UserGroup] = fetch_ee_implementation_or_noop(
-        "onyx.db.cc_pair_data_access",
-        "fetch_data_access_groups_for_cc_pair",
-        noop_return_value=[],
-    )(db_session, cc_pair_id)
+    data_access_groups: list[UserGroup] = []
     connector = cc_pair.connector
     return CurrentPairState(
         cc_pair_id=cc_pair.id,

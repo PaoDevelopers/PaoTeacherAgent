@@ -41,7 +41,6 @@ from tests.external_dependency_unit.conftest import create_test_user, delete_tes
 from tests.external_dependency_unit.indexing_helpers import cleanup_cc_pair
 
 # The perm sync kinds come from the EE-only sync_params helpers.
-pytestmark = pytest.mark.usefixtures("enable_ee")
 
 _T0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
 _NOT_FAILED = [

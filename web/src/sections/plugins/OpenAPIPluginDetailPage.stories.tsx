@@ -75,11 +75,9 @@ function OpenAPIPluginStory({ scenario = "ready" }: OpenAPIPluginStoryProps) {
         window.location.origin
       ).pathname;
       if (!path.startsWith("/api/")) return originalFetch(input, init);
-      if (path === "/api/settings")
-        return json({ ee_features_enabled: false, tier: "community" });
+      if (path === "/api/settings") return json({ tier: "community" });
       if (path === "/api/auth/type")
         return json({ auth_type: "basic", oauth_enabled: true });
-      if (path === "/api/enterprise-settings") return json({});
       if (path === "/api/tool/openapi") {
         if (scenario === "loading") return new Promise<Response>(() => {});
         if (scenario === "error")

@@ -24,7 +24,6 @@ backend/
 └── requirements/                   # Legacy .txt files (for Docker compat)
     ├── default.txt
     ├── dev.txt
-    ├── ee.txt
     ├── model_server.txt
     └── combined.txt
 ```
@@ -48,7 +47,6 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
    - `[project.dependencies]` for **shared** dependencies (used by both backend and model_server)
    - `[dependency-groups.backend]` for backend-only dependencies
    - `[dependency-groups.dev]` for dev tools
-   - `[dependency-groups.ee]` for EE features
    - `[dependency-groups.model_server]` for model_server-only dependencies (ML packages)
 3. Commit your changes - pre-commit hooks will automatically regenerate the lock file and requirements
 
@@ -65,7 +63,6 @@ To manually regenerate:
 uv lock
 uv export --no-emit-project --no-default-groups --group backend -o backend/requirements/default.txt
 uv export --no-emit-project --no-default-groups --group dev -o backend/requirements/dev.txt
-uv export --no-emit-project --no-default-groups --group ee -o backend/requirements/ee.txt
 uv export --no-emit-project --no-default-groups --group model_server -o backend/requirements/model_server.txt
 ```
 

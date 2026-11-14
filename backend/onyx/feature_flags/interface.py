@@ -57,9 +57,9 @@ class FeatureFlagProvider(abc.ABC):
     ) -> str | bool | None:
         """
         Get a multivariate flag's variant for a tenant/deployment as a whole,
-        rather than an individual user. Keys PostHog's distinct_id on
-        tenant_id directly, so every user in the tenant/deployment resolves
-        to the same variant and PostHog release conditions target tenant_id
+        rather than an individual user. Keys the flag on tenant_id directly,
+        so every user in the tenant/deployment resolves to the same variant
+        and release conditions target tenant_id
         instead of a per-user rollout. Returns None if unsupported, unset,
         or on error.
         """
@@ -71,7 +71,7 @@ class NoOpFeatureFlagProvider(FeatureFlagProvider):
     No-operation feature flag provider that always returns False.
 
     Used as a fallback when no real feature flag provider is available
-    (e.g., in MIT version without PostHog).
+    (e.g., in the MIT version).
     """
 
     def feature_enabled(

@@ -2,57 +2,8 @@ import {
   OAuthBaseCallbackResponse,
   OAuthConfluenceFinalizeResponse,
   OAuthConfluencePrepareFinalizationResponse,
-  OAuthPrepareAuthorizationResponse,
   OAuthSlackCallbackResponse,
 } from "@/lib/types";
-
-// server side handler to help initiate the oauth authorization request
-export async function prepareOAuthAuthorizationRequest(
-  connector: string,
-  finalRedirect: string | null,
-  invalidUrlMessage: string
-): Promise<OAuthPrepareAuthorizationResponse> {
-  if (finalRedirect) {
-    const redirect = new URL(finalRedirect, window.location.href);
-    if (redirect.origin !== window.location.origin) {
-      throw new Error(invalidUrlMessage);
-    }
-    if (redirect.pathname.startsWith("//")) {
-      throw new Error(invalidUrlMessage);
-    }
-    finalRedirect = redirect.pathname + redirect.search + redirect.hash;
-  }
-
-  let url = `/api/oauth/prepare-authorization-request?connector=${encodeURIComponent(
-    connector
-  )}`;
-
-  // Conditionally append the `redirect_on_success` parameter
-  if (finalRedirect) {
-    url += `&redirect_on_success=${encodeURIComponent(finalRedirect)}`;
-  }
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      connector: connector,
-      redirect_on_success: finalRedirect,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Failed to prepare OAuth authorization request: ${response.status}`
-    );
-  }
-
-  // Parse the JSON response
-  const data: OAuthPrepareAuthorizationResponse = await response.json();
-  return data;
-}
 
 export async function handleOAuthAuthorizationResponse(
   connector: string,

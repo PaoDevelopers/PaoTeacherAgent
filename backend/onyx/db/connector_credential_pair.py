@@ -48,10 +48,6 @@ from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.server.models import StatusResponse
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import (
-    fetch_ee_implementation_or_noop,
-    fetch_versioned_implementation,
-)
 
 logger = setup_logger()
 
@@ -62,10 +58,7 @@ _CONNECTOR_STATE_QUERY_TIMEOUT = "7s"
 def _build_user_group_cc_pair_access_clause(
     user_id: UUID,  # noqa: ARG001
 ) -> ColumnElement[bool]:
-    """CE has no user groups. The EE version grants pairs where the user is in
-    a data-access group.
-
-    NOTE: EE version in ee.onyx.db.connector_credential_pair."""
+    """CE has no user groups, so group membership grants no pairs."""
     return false()
 
 
@@ -85,14 +78,11 @@ def build_user_cc_pair_access_filter(user_id: UUID) -> ColumnElement[bool]:
         .correlate(ConnectorCredentialPair)
         .exists()
     )
-    group_access_clause_fn = fetch_versioned_implementation(
-        "onyx.db.connector_credential_pair", "_build_user_group_cc_pair_access_clause"
-    )
     return or_(
         ConnectorCredentialPair.access_type == AccessType.PUBLIC,
         and_(
             ConnectorCredentialPair.access_type.notin_(AccessType.perm_synced_types()),
-            or_(credential_owner, group_access_clause_fn(user_id)),
+            or_(credential_owner, _build_user_group_cc_pair_access_clause(user_id)),
         ),
     )
 
@@ -105,14 +95,11 @@ def build_user_acl_cc_pair_filter(user_id: UUID | None) -> ColumnElement[bool]:
     is_sync = ConnectorCredentialPair.access_type == AccessType.SYNC
     if user_id is None:
         return is_sync
-    group_access_clause_fn = fetch_versioned_implementation(
-        "onyx.db.connector_credential_pair", "_build_user_group_cc_pair_access_clause"
-    )
     return or_(
         is_sync,
         and_(
             ConnectorCredentialPair.access_type == AccessType.SYNC_RESTRICTED,
-            group_access_clause_fn(user_id),
+            _build_user_group_cc_pair_access_clause(user_id),
         ),
     )
 
@@ -1236,13 +1223,6 @@ def remove_credential_from_connector(
     )
 
     if association is not None:
-        fetch_ee_implementation_or_noop(
-            "onyx.db.external_perm",
-            "delete_user__ext_group_for_cc_pair__no_commit",
-        )(
-            db_session=db_session,
-            cc_pair_id=association.id,
-        )
         db_session.delete(association)
         db_session.commit()
         return StatusResponse(

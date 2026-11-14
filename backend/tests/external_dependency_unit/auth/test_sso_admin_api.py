@@ -517,56 +517,44 @@ def test_second_enabled_provider_requires_business_tier(
     provider_names.append(first_name)
     first_id = first_response.json()["id"]
 
-    with patch(
-        "onyx.server.manage.sso.api.fetch_ee_implementation_or_noop",
-        _gated_bridge,
-    ):
-        second_name = _new_provider_name()
-        gated_create = client.post(
-            "/admin/sso/provider",
-            json=_build_oidc_request(second_name, "second-secret"),
-        )
-        assert (
-            gated_create.status_code == OnyxErrorCode.FEATURE_NOT_AVAILABLE.status_code
-        )
-        assert (
-            gated_create.json()["error_code"]
-            == OnyxErrorCode.FEATURE_NOT_AVAILABLE.code
-        )
+    second_name = _new_provider_name()
+    gated_create = client.post(
+        "/admin/sso/provider",
+        json=_build_oidc_request(second_name, "second-secret"),
+    )
+    assert gated_create.status_code == OnyxErrorCode.FEATURE_NOT_AVAILABLE.status_code
+    assert gated_create.json()["error_code"] == OnyxErrorCode.FEATURE_NOT_AVAILABLE.code
 
-        disable_first = client.post(
-            f"/admin/sso/provider/{first_id}/enabled",
-            json={"enabled": False},
-        )
-        assert disable_first.status_code == 200
+    disable_first = client.post(
+        f"/admin/sso/provider/{first_id}/enabled",
+        json={"enabled": False},
+    )
+    assert disable_first.status_code == 200
 
-        reenable_first = client.post(
-            f"/admin/sso/provider/{first_id}/enabled",
-            json={"enabled": True},
-        )
-        assert reenable_first.status_code == 200
+    reenable_first = client.post(
+        f"/admin/sso/provider/{first_id}/enabled",
+        json={"enabled": True},
+    )
+    assert reenable_first.status_code == 200
 
-        disable_again = client.post(
-            f"/admin/sso/provider/{first_id}/enabled",
-            json={"enabled": False},
-        )
-        assert disable_again.status_code == 200
+    disable_again = client.post(
+        f"/admin/sso/provider/{first_id}/enabled",
+        json={"enabled": False},
+    )
+    assert disable_again.status_code == 200
 
-        allowed_create = client.post(
-            "/admin/sso/provider",
-            json=_build_oidc_request(second_name, "second-secret"),
-        )
-        assert allowed_create.status_code == 200
-        provider_names.append(second_name)
+    allowed_create = client.post(
+        "/admin/sso/provider",
+        json=_build_oidc_request(second_name, "second-secret"),
+    )
+    assert allowed_create.status_code == 200
+    provider_names.append(second_name)
 
-        gated_reenable = client.post(
-            f"/admin/sso/provider/{first_id}/enabled",
-            json={"enabled": True},
-        )
-        assert (
-            gated_reenable.status_code
-            == OnyxErrorCode.FEATURE_NOT_AVAILABLE.status_code
-        )
+    gated_reenable = client.post(
+        f"/admin/sso/provider/{first_id}/enabled",
+        json={"enabled": True},
+    )
+    assert gated_reenable.status_code == OnyxErrorCode.FEATURE_NOT_AVAILABLE.status_code
 
 
 @patch("onyx.db.sso_provider.MULTI_TENANT", True)

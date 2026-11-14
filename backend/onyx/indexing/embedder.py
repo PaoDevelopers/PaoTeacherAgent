@@ -2,8 +2,6 @@ import time
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
-import sentry_sdk
-
 from onyx.connectors.models import (
     ConnectorFailure,
     ConnectorStopSignal,
@@ -245,7 +243,6 @@ def embed_chunks_with_failure_handling(
         raise e
     except EmbeddingWaitTimeoutError as e:
         logger.error("Embedding rate limit wait timed out; failing the batch: %s", e)
-        sentry_sdk.capture_exception(e)
         wait_timeout = e
     except Exception:
         logger.exception("Failed to embed chunk batch. Trying individual docs.")
@@ -273,17 +270,9 @@ def embed_chunks_with_failure_handling(
             logger.error(
                 "Embedding rate limit wait timed out; failing the batch: %s", e
             )
-            sentry_sdk.capture_exception(e)
             wait_timeout = e
             failures.append(_document_failure(doc_id, chunks_for_doc, e))
         except Exception as e:
-            with sentry_sdk.new_scope() as scope:
-                scope.set_tag("stage", "embedding")
-                scope.set_tag("doc_id", doc_id)
-                if tenant_id:
-                    scope.set_tag("tenant_id", tenant_id)
-                scope.fingerprint = ["embedding-failure", type(e).__name__]
-                sentry_sdk.capture_exception(e)
             logger.exception("Failed to embed chunks for document '%s'", doc_id)
             failures.append(_document_failure(doc_id, chunks_for_doc, e))
 

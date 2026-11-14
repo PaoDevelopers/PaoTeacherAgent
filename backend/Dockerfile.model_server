@@ -106,9 +106,7 @@ COPY --chown=1001:1001 ./onyx/utils/platform_utils.py /app/onyx/utils/platform_u
 COPY --chown=1001:1001 ./onyx/utils/middleware.py /app/onyx/utils/middleware.py
 COPY --chown=1001:1001 ./onyx/utils/tenant.py /app/onyx/utils/tenant.py
 
-# Sentry configuration (used when SENTRY_DSN is set)
 COPY --chown=1001:1001 ./onyx/configs/__init__.py /app/onyx/configs/__init__.py
-COPY --chown=1001:1001 ./onyx/configs/sentry.py /app/onyx/configs/sentry.py
 
 # Place to fetch version information
 COPY --chown=1001:1001 ./onyx/__init__.py /app/onyx/__init__.py

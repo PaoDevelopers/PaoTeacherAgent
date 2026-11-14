@@ -80,10 +80,6 @@ from onyx.server.metrics.deletion_metrics import (
     inc_deletion_started,
     observe_deletion_taskset_duration,
 )
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
-    noop_fallback,
-)
 
 
 class TaskDependencyError(RuntimeError):
@@ -571,17 +567,6 @@ def monitor_connector_deletion_taskset(
                 credential_id=cc_pair.credential_id,
             )
 
-            # user groups
-            cleanup_user_groups = fetch_versioned_implementation_with_fallback(
-                "onyx.db.user_group",
-                "delete_user_group_cc_pair_relationship__no_commit",
-                noop_fallback,
-            )
-            cleanup_user_groups(
-                cc_pair_id=cc_pair_id,
-                db_session=db_session,
-            )
-
             # best-effort bounded orphan tag cleanup; a full drain would balloon
             # this transaction, remaining orphans are swept by the pruning monitor
             delete_orphan_tags__no_commit(db_session)
@@ -634,13 +619,6 @@ def monitor_connector_deletion_taskset(
                 )
                 db_session.delete(connector)
             db_session.commit()
-
-            # The pair's doc permission sync checkpoint is a file, not a row
-            fetch_versioned_implementation_with_fallback(
-                "onyx.background.celery.tasks.doc_permission_syncing.checkpointer",
-                "delete_doc_sync_checkpoint",
-                noop_fallback,
-            )(cc_pair_id)
 
             if deleted_raw_ids or reparented_nodes:
                 for attempt in range(3):

@@ -62,7 +62,6 @@ from onyx.file_processing.image_utils import (
 from onyx.file_store.staging import RawFileCallback
 from onyx.utils.logger import setup_logger
 from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
     noop_fallback,
 )
 
@@ -569,11 +568,7 @@ def _get_external_access_for_raw_gdrive_file(
             ],
             ExternalAccess,
         ],
-        fetch_versioned_implementation_with_fallback(
-            "onyx.external_permissions.google_drive.doc_sync",
-            "get_external_access_for_raw_gdrive_file",
-            fallback=noop_fallback,
-        ),
+        noop_fallback,
     )
     return external_access_fn(
         file,

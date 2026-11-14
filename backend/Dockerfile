@@ -35,14 +35,12 @@ RUN apt-get update && \
 
 # Install Python dependencies
 COPY ./requirements/default.txt /tmp/requirements.txt
-COPY ./requirements/ee.txt /tmp/ee-requirements.txt
 # requirements/*.txt are a complete, pre-resolved lock export, so --no-deps installs them as-is
 # without re-resolving. It is also required, not just an optimization: mitmproxy pins tight
 # transitive caps (e.g. hyperframe<=6.0.1) that are only loosened by [tool.uv] override-dependencies
 # in pyproject.toml, which is absent from this build context — a resolving install would fail.
 RUN uv pip install --system --no-cache-dir --no-deps --require-hashes \
-        -r /tmp/requirements.txt \
-        -r /tmp/ee-requirements.txt && \
+        -r /tmp/requirements.txt && \
     # https://github.com/tornadoweb/tornado/issues/3107
     rm -f /usr/local/lib/python3.13/site-packages/tornado/test/test.key && \
     rm -rf ~/.cache/uv /tmp/*.txt
@@ -99,11 +97,7 @@ RUN --mount=type=bind,source=requirements/default.txt,target=/requirements.txt \
 FROM os AS runtime
 
 LABEL com.danswer.maintainer="founders@onyx.app"
-LABEL com.danswer.description="This image is the web/frontend container of Onyx which \
-contains code for both the Community and Enterprise editions of Onyx. If you do not \
-have a contract or agreement with DanswerAI, you are not permitted to use the Enterprise \
-Edition features outside of personal development or testing purposes. Please reach out to \
-founders@onyx.app for more information. Please visit https://github.com/onyx-dot-app/onyx"
+LABEL com.danswer.description="This image is the backend container of Onyx Community Edition."
 
 # DO_NOT_TRACK is used to disable telemetry for Unstructured
 ENV ONYX_RUNNING_IN_DOCKER="true" \
@@ -151,8 +145,6 @@ tiktoken.get_encoding('cl100k_base')"
 # Set up application files
 WORKDIR /app
 
-# Enterprise Version Files
-COPY --chown=onyx:onyx ./ee /app/ee
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Set up application files
@@ -171,7 +163,6 @@ COPY --chown=onyx:onyx ./scripts/force_delete_connector_by_id.py /app/scripts/fo
 COPY --chown=onyx:onyx ./scripts/supervisord_entrypoint.sh /app/scripts/supervisord_entrypoint.sh
 COPY --chown=onyx:onyx ./scripts/reencrypt_secrets.py /app/scripts/reencrypt_secrets.py
 COPY --chown=onyx:onyx ./scripts/rotate_llm_provider_keys.py /app/scripts/rotate_llm_provider_keys.py
-COPY --chown=onyx:onyx ./scripts/seed_dev_license.py /app/scripts/seed_dev_license.py
 RUN chmod +x /app/scripts/supervisord_entrypoint.sh
 
 # Put logo in assets

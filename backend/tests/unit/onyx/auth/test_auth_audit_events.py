@@ -10,16 +10,13 @@ import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi.security import OAuth2PasswordRequestForm
 
 from onyx.auth.users import UserManager
 from tests.utils.audit import audit_events
 
 
 @pytest.mark.asyncio
-@patch("onyx.auth.users.mt_cloud_identify_user")
 async def test_on_after_login_emits_login_success(
-    _mock_identify: MagicMock,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     user = MagicMock(id="u-1", email="user@example.com")
@@ -33,50 +30,6 @@ async def test_on_after_login_emits_login_success(
     assert events[0]["action"] == "auth.login"
     assert events[0]["outcome"] == "success"
     assert events[0]["actor"]["email"] == "user@example.com"
-
-
-@pytest.mark.asyncio
-@patch("onyx.auth.users.fetch_ee_implementation_or_noop")
-async def test_authenticate_unknown_user_emits_login_failure(
-    mock_fetch: MagicMock,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    # No tenant mapping -> authenticate() returns None on the unknown-user path.
-    mock_fetch.return_value = lambda **_kw: None
-    manager = UserManager(MagicMock())
-    creds = OAuth2PasswordRequestForm(username="user@example.com", password="wrong")
-
-    with caplog.at_level(logging.INFO, logger="onyx.audit"):
-        result = await manager.authenticate(creds)
-
-    assert result is None
-    events = audit_events(caplog)
-    assert len(events) == 1
-    assert events[0]["action"] == "auth.login_failure"
-    assert events[0]["outcome"] == "failure"
-    assert events[0]["actor"]["email"] == "user@example.com"
-
-
-@pytest.mark.asyncio
-@patch("onyx.auth.users.send_forgot_password_email")
-@patch("onyx.auth.users.fetch_ee_implementation_or_noop")
-@patch("onyx.auth.users.EMAIL_CONFIGURED", True)
-async def test_on_after_forgot_password_emits_event(
-    mock_fetch: MagicMock,
-    _mock_send: MagicMock,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    mock_fetch.return_value = AsyncMock(return_value="tenant_1")
-    user = MagicMock(id="u-1", email="user@example.com")
-    manager = UserManager(MagicMock())
-
-    with caplog.at_level(logging.INFO, logger="onyx.audit"):
-        await manager.on_after_forgot_password(user, token="tok", request=None)
-
-    events = audit_events(caplog)
-    assert len(events) == 1
-    assert events[0]["action"] == "auth.password_forgot"
-    assert events[0]["outcome"] == "success"
 
 
 @pytest.mark.asyncio

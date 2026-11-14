@@ -43,15 +43,11 @@ import { MinimalOnyxDocument } from "@/lib/search/types";
 import DocumentsSidebar from "@/sections/document-sidebar/DocumentsSidebar";
 import PreviewModal from "@/sections/modals/PreviewModal";
 import { useQueryController } from "@/providers/QueryControllerProvider";
-import { paidTierGated } from "@/ce";
-import EESearchUI from "@/ee/sections/SearchUI";
 import useMultiModelChat from "@/hooks/useMultiModelChat";
 import MultiModelSelector from "@/sections/model-selector/MultiModelSelector";
 import { Section } from "@/layouts/general-layouts";
 import { useTranslations } from "next-intl";
 import { useSettings } from "@/lib/settings/hooks";
-
-const SearchUI = paidTierGated(EESearchUI);
 
 interface NRFPageProps {
   isSidePanel?: boolean;
@@ -206,12 +202,7 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
   const autoScrollEnabled = user?.preferences?.auto_scroll !== false;
   const isStreaming = currentChatState === "streaming";
 
-  // Query controller for search/chat classification (EE feature)
-  const { submit: submitQuery, state } = useQueryController();
-
-  // Check if we're in search mode
-  const isSearch =
-    state.phase === "searching" || state.phase === "search-results";
+  const { submit: submitQuery } = useQueryController();
 
   // Anchor for scroll positioning (matches ChatPage pattern)
   const anchorMessage = messageHistory.at(-2) ?? messageHistory[0];
@@ -367,9 +358,6 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
         });
       };
 
-      // Use submitQuery which will classify the query and either:
-      // - Route to search (sets phase to "searching"/"search-results" and shows SearchUI)
-      // - Route to chat (calls onChat callback)
       await submitQuery(submittedMessage, onChat);
     },
     [
@@ -439,12 +427,6 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
       getPanelOrigin()
     );
   }, [tabReadingEnabled]);
-
-  // Handle search result document click
-  const handleSearchDocumentClick = useCallback(
-    (doc: MinimalOnyxDocument) => setPresentingDocument(doc),
-    []
-  );
 
   return (
     <div
@@ -524,8 +506,8 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
               </>
             )}
 
-            {/* Welcome message - centered when no messages and not in search mode */}
-            {!hasMessages && !isSearch && (
+            {/* Welcome message - centered when no messages */}
+            {!hasMessages && (
               <div className="relative w-full flex-1 flex flex-col items-center justify-end">
                 <Section
                   flexDirection="row"
@@ -548,9 +530,6 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
                 <Spacer rem={1.5} />
               </div>
             )}
-
-            {/* Keeps the input bar below the absolute settings button when pinned to the top */}
-            {!hasMessages && isSearch && !isSidePanel && <Spacer rem={4} />}
 
             {/* AppInputBar container - in normal flex flow like AppPage */}
             <div
@@ -597,22 +576,8 @@ export default function NRFPage({ isSidePanel = false }: NRFPageProps) {
               <Spacer rem={isSidePanel ? 1 : 0.5} />
             </div>
 
-            {/* Search results - shown when query is classified as search */}
-            {isSearch && (
-              <div
-                className={cn(
-                  "flex-1 w-full max-w-(--app-page-main-content-width) px-4 min-h-0 overflow-hidden flex flex-col",
-                  !isSidePanel &&
-                    "pb-[calc(var(--nrf-footer-height,0px)_+_0.5rem)]"
-                )}
-              >
-                <Spacer rem={0.75} />
-                <SearchUI onDocumentClick={handleSearchDocumentClick} />
-              </div>
-            )}
-
             {/* Spacer to push content up when showing welcome message */}
-            {!hasMessages && !isSearch && <div className="flex-1 w-full" />}
+            {!hasMessages && <div className="flex-1 w-full" />}
           </div>
         )}
       </Dropzone>

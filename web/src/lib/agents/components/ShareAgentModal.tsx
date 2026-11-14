@@ -21,6 +21,8 @@ import { hasPermission } from "@/lib/permissions/utils";
 import { can } from "@/lib/permissions/resource-actions";
 import { useUser } from "@/providers/UserProvider";
 import { useSettings } from "@/lib/settings/hooks";
+import { Tier } from "@/lib/tiers/types";
+import { tierAtLeast } from "@/lib/tiers/utils";
 import { Modal } from "@opal/components";
 import { Button, Divider, Text } from "@opal/components";
 import {
@@ -162,7 +164,7 @@ export function ShareAgentModal({
     Permission.MANAGE_AGENTS
   );
   const isPaidEnterpriseFeaturesEnabled =
-    !settings.isLoading && settings.enterprise !== null;
+    !settings.isLoading && tierAtLeast(settings.tier, Tier.BUSINESS);
 
   const initialValues = useMemo(
     () =>

@@ -33,7 +33,6 @@ import useChatSessions from "@/hooks/useChatSessions";
 import useCCPairs from "@/hooks/useCCPairs";
 import { useDocumentSets } from "@/lib/hooks/useDocumentSets";
 import { useAgents } from "@/lib/agents/hooks";
-import { AppPopup } from "@/app/app/components/AppPopup";
 import { useUser } from "@/providers/UserProvider";
 import { useCurrentUser } from "@/lib/users/hooks";
 import { NoAgentModal } from "@/lib/agents/components";
@@ -96,9 +95,6 @@ import WelcomeMessage from "@/app/app/components/WelcomeMessage";
 import OnboardingCard from "@/app/app/components/OnboardingCard";
 import ChatUI from "@/sections/chat/ChatUI";
 import { useFullWidthChat } from "@/providers/FullWidthChatProvider";
-import { paidTierGated } from "@/ce";
-import EESearchUI from "@/ee/sections/SearchUI";
-const SearchUI = paidTierGated(EESearchUI);
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslations } from "next-intl";
 
@@ -638,34 +634,7 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
       finishOnboarding,
     ]
   );
-  const { submit: submitQuery, state, setAppMode } = useQueryController();
-
-  const defaultAppMode =
-    (user?.preferences?.default_app_mode?.toLowerCase() as "chat" | "search") ??
-    "chat";
-
-  const isNewSession = appPosition.isNewSession();
-
-  const isSearch =
-    state.phase === "searching" || state.phase === "search-results";
-
-  // 1. Reset the app-mode back to the user's default when navigating back to the "New Sessions" tab.
-  // 2. If we're navigating away from the "New Session" tab after performing a search, we reset the app-input-bar.
-  useEffect(() => {
-    if (isNewSession) setAppMode(defaultAppMode);
-    if (!isNewSession && isSearch) resetInputBar();
-  }, [isNewSession, defaultAppMode, isSearch, resetInputBar, setAppMode]);
-
-  // Declared after the default-mode reset so incognito wins the same commit:
-  // search mode has its own persistence and no incognito safeguards.
-  useEffect(() => {
-    if (incognitoEnabled) setAppMode("chat");
-  }, [incognitoEnabled, setAppMode]);
-
-  const handleSearchDocumentClick = useCallback(
-    (doc: MinimalOnyxDocument) => setPresentingDocument(doc),
-    []
-  );
+  const { submit: submitQuery, state } = useQueryController();
 
   const handleAppInputBarSubmit = useCallback(
     async (message: string) => {
@@ -785,21 +754,17 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
     // (scrolls), bottom row absorbs slack. Centered when short, pinned when tall.
     gridTemplateRows: onboardingVisible
       ? "minmax(min-content, 1fr) minmax(0, max-content) minmax(0, 1fr)"
-      : isSearch
-        ? "0fr auto 1fr"
-        : appPosition.isChat()
-          ? "1fr auto 0fr"
-          : appPosition.isProject()
-            ? "auto auto 1fr"
-            : "1fr auto 1fr",
+      : appPosition.isChat()
+        ? "1fr auto 0fr"
+        : appPosition.isProject()
+          ? "auto auto 1fr"
+          : "1fr auto 1fr",
   };
 
   if (!isReady) return <OnyxInitializingLoader />;
 
   return (
     <>
-      <AppPopup />
-
       {presentingDocument && (
         <PreviewModal
           presentingDocument={presentingDocument}
@@ -985,21 +950,16 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
                         agent={activeAgent}
                         isDefaultAgent={isPlainChat}
                       />
-                      {!isSearch &&
-                        !(
-                          state.phase === "idle" && state.appMode === "search"
-                        ) &&
-                        activeAgent &&
-                        llmManager.hasAnyProvider && (
-                          <MultiModelSelector
-                            selectedModels={multiModel.selectedModels}
-                            onAdd={multiModel.addModel}
-                            onRemove={multiModel.removeModel}
-                            onReplace={multiModel.replaceModel}
-                            temperatureManager={llmManager}
-                            reasoningManager={llmManager}
-                          />
-                        )}
+                      {activeAgent && llmManager.hasAnyProvider && (
+                        <MultiModelSelector
+                          selectedModels={multiModel.selectedModels}
+                          onAdd={multiModel.addModel}
+                          onRemove={multiModel.removeModel}
+                          onReplace={multiModel.replaceModel}
+                          temperatureManager={llmManager}
+                          reasoningManager={llmManager}
+                        />
+                      )}
                     </Section>
                     {activeAgent && !isPlainChat && <OnboardingCard />}
                     <Spacer rem={1.5} />
@@ -1066,12 +1026,6 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
                       top padding during chat to compensate for this extra space.
                     */}
                     <div className={cn(onboardingVisible && "shrink-0 pt-6")}>
-                      <div
-                        className={cn(
-                          "transition-all duration-150 ease-in-out overflow-hidden",
-                          isSearch ? "h-[14px]" : "h-0"
-                        )}
-                      />
                       {appPosition.isChat() && activeAgent && (
                         <div className="pb-1">
                           <MultiModelSelector
@@ -1153,15 +1107,6 @@ export default function AppPage({ firstMessage }: ChatPageProps) {
                   >
                     <Spacer rem={0.5} />
                     <Suggestions onSubmit={onSubmit} />
-                  </Fade>
-
-                  {/* SearchUI */}
-                  <Fade
-                    show={isSearch}
-                    className="h-full flex-1 w-full max-w-(--app-page-main-content-width) px-1 flex flex-col"
-                  >
-                    <Spacer rem={0.75} />
-                    <SearchUI onDocumentClick={handleSearchDocumentClick} />
                   </Fade>
                 </div>
               </div>

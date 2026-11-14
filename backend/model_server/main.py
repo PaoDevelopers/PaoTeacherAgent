@@ -10,8 +10,6 @@ import torch
 import uvicorn
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
-from sentry_sdk.integrations.fastapi import FastApiIntegration
-from sentry_sdk.integrations.starlette import StarletteIntegration
 from transformers import logging as transformer_logging
 
 from model_server.ca_certs import configure_trusted_ca_bundle
@@ -28,8 +26,6 @@ from shared_configs.configs import (
     INDEXING_ONLY,
     MIN_THREADS_ML_MODELS,
     MODEL_SERVER_PORT,
-    SENTRY_DSN,
-    SENTRY_TRACES_SAMPLE_RATE,
 )
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -121,23 +117,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
 def get_model_app() -> FastAPI:
     # Point the TLS trust store at any operator-supplied CA roots before the app
-    # (or Sentry, or the first outbound request) is created. Runs on every startup
+    # (or the first outbound request) is created. Runs on every startup
     # path since `app = get_model_app()` executes on import.
     configure_trusted_ca_bundle()
 
     application = FastAPI(
         title="Onyx Model Server", version=__version__, lifespan=lifespan
     )
-    if SENTRY_DSN:
-        from onyx.configs.sentry import init_sentry
-
-        init_sentry(
-            traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
-            integrations=[StarletteIntegration(), FastApiIntegration()],
-        )
-    else:
-        logger.debug("Sentry DSN not provided, skipping Sentry initialization")
-
     application.include_router(management_router)
     application.include_router(encoders_router)
 

@@ -24,7 +24,6 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import NotificationsPopover from "@/sections/sidebar/NotificationsPopover";
 import {
   SvgBell,
-  SvgExternalLink,
   SvgLogOut,
   SvgSliders,
   SvgUser,
@@ -52,7 +51,6 @@ function useSettingsItems({
   const t = useTranslations("accountPopover");
   const { user, userResolution } = useUser();
   const settings = useSettings();
-  const enterpriseSettings = settings.enterprise;
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -140,20 +138,6 @@ function useSettingsItems({
             />
           ),
         },
-        ...(enterpriseSettings?.custom_help_link_url
-          ? [
-              {
-                kind: "action" as const,
-                id: "custom-help-link",
-                icon: SvgExternalLink,
-                title:
-                  enterpriseSettings.custom_help_link_label ||
-                  enterpriseSettings.custom_help_link_url,
-                href: enterpriseSettings.custom_help_link_url,
-                target: "_blank",
-              },
-            ]
-          : []),
         ...(showLogin
           ? [
               {

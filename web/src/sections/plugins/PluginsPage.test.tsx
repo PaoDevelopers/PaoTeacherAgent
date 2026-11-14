@@ -141,7 +141,7 @@ function mockNetwork({
 } = {}) {
   return jest.spyOn(global, "fetch").mockImplementation(async (input) => {
     const url = String(input);
-    if (url === "/api/settings" || url === "/api/enterprise-settings")
+    if (url === "/api/settings")
       return new Response(
         JSON.stringify({ onyx_craft_available: mockCraftAvailable })
       );
@@ -279,7 +279,6 @@ test("lists native records with colliding IDs and permission-aware detail links"
   ).toHaveAttribute("href", "/admin/plugins/openapi/7");
   expect(network.mock.calls.map(([url]) => String(url)).sort()).toEqual([
     "/api/admin/mcp/servers",
-    "/api/enterprise-settings",
     "/api/settings",
     "/api/tool/openapi",
   ]);
@@ -584,7 +583,6 @@ test.each(SUGGESTED_MCP_PLUGINS)(
     );
     expect(network.mock.calls.map(([url]) => String(url)).sort()).toEqual([
       "/api/admin/mcp/servers",
-      "/api/enterprise-settings",
       "/api/settings",
       "/api/tool/openapi",
     ]);

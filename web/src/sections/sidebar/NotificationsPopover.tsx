@@ -11,7 +11,6 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { track, AnalyticsEvent } from "@/lib/analytics/utils";
 import type { Notification as NotificationData } from "@/lib/notifications/interfaces";
 import { NotificationType } from "@/lib/notifications/interfaces";
 import {
@@ -184,12 +183,6 @@ export default function NotificationsPopover({
 
       const link = notification.additional_data?.link;
       if (!link) return;
-
-      if (notification.notif_type === NotificationType.RELEASE_NOTES) {
-        track(AnalyticsEvent.RELEASE_NOTIFICATION_CLICKED, {
-          version: notification.additional_data?.version,
-        });
-      }
 
       if (!notification.dismissed) {
         handleDismiss(notification.id);

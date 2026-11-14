@@ -12,7 +12,6 @@ from onyx.auth.users import (
     current_user_with_expired_token,
 )
 from onyx.configs.app_configs import APP_API_PREFIX
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 PUBLIC_ENDPOINT_SPECS = [
     # Built-in API docs / schema. These routes only exist when ENABLE_PUBLIC_DOCS
@@ -149,16 +148,6 @@ def check_router_auth(
     (2) are explicitly marked as a public endpoint
     """
 
-    control_plane_dep = fetch_ee_implementation_or_noop(
-        "onyx.server.tenants.access", "control_plane_dep"
-    )
-    current_cloud_superuser = fetch_ee_implementation_or_noop(
-        "onyx.auth.users", "current_cloud_superuser"
-    )
-    verify_scim_token = fetch_ee_implementation_or_noop(
-        "onyx.server.scim.auth", "verify_scim_token"
-    )
-
     for route in application.routes:
         # explicitly marked as public
         if is_route_in_spec_list(route, public_endpoint_specs):
@@ -178,9 +167,6 @@ def check_router_auth(
                     or depends_fn == current_user_with_expired_token
                     or depends_fn == current_chat_accessible_user
                     or depends_fn == current_user_from_websocket
-                    or depends_fn == control_plane_dep
-                    or depends_fn == current_cloud_superuser
-                    or depends_fn == verify_scim_token
                     or _is_require_permission_dependency(depends_fn)
                     or _is_websocket_auth_dependency(depends_fn)
                 ):

@@ -558,34 +558,6 @@ def test_credential_swap_moves_the_documents(
     assert applied.audit.new_credential_id == other_credential.id
 
 
-def test_access_change_is_applied(
-    db_session: Session,
-    slack_pair: ConnectorCredentialPair,
-    group: UserGroup,
-    admin: User,
-    validation: _Validation,  # noqa: ARG001
-    enable_ee: None,  # noqa: ARG001
-) -> None:
-    stored = _plan(
-        db_session,
-        slack_pair,
-        admin,
-        access_type=AccessType.PRIVATE,
-        data_access_group_ids=[group.id],
-    )
-    assert [step.kind for step in stored.plan.steps] == [EditStepKind.ACCESS_TYPE]
-
-    applied = _apply(db_session, stored, admin)
-
-    _reload(db_session, slack_pair)
-    assert slack_pair.access_type == AccessType.PRIVATE
-    state = fetch_current_pair_state(db_session, slack_pair.id)
-    assert state.data_access_group_ids == [group.id]
-    assert applied.audit.old_access_type == AccessType.PUBLIC
-    assert applied.audit.new_access_type == AccessType.PRIVATE
-    assert applied.audit.new_data_access_group_ids == [group.id]
-
-
 def test_plan_is_private_and_single_use(
     db_session: Session,
     slack_pair: ConnectorCredentialPair,

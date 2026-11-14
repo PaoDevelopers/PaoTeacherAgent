@@ -361,8 +361,7 @@ describe("authentication save retries", () => {
       let failRefresh = false;
       jest.spyOn(global, "fetch").mockImplementation(async (input, init) => {
         const path = String(input);
-        if (path === "/api/settings" || path === "/api/enterprise-settings")
-          return new Response("{}");
+        if (path === "/api/settings") return new Response("{}");
         if (path === "/api/auth/type")
           return new Response(JSON.stringify({ oauth_enabled: true }));
         if (path === "/api/tool/openapi") {

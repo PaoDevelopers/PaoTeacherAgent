@@ -179,10 +179,6 @@ from onyx.utils.encryption import (
 )
 from onyx.utils.logger import setup_logger
 from onyx.utils.url import BLOCKED_HOSTNAMES, SSRFException
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation,
-    global_version,
-)
 from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
@@ -1888,7 +1884,7 @@ def _apply_mcp_server_access(
     the public flag, and reconcile the user/group access rows (EE write). Public
     servers clear any existing grants."""
     is_public = mcp_server.is_public if is_public is None else is_public
-    if not is_public and not global_version.is_ee_version():
+    if not is_public:
         raise OnyxError(
             OnyxErrorCode.EE_REQUIRED,
             "Restricting MCP servers to specific users or groups requires "
@@ -1908,7 +1904,9 @@ def _apply_mcp_server_access(
         is_non_public=not is_public,
     )
     mcp_server.is_public = is_public
-    fetch_versioned_implementation("onyx.db.mcp", "make_mcp_server_private")(
+    from onyx.db.mcp import make_mcp_server_private
+
+    make_mcp_server_private(
         server_id=mcp_server.id,
         user_ids=[] if is_public else user_ids,
         group_ids=[] if is_public else group_ids,
@@ -3006,7 +3004,7 @@ def _validate_mcp_setup(request: MCPSetupRequest, user: User, db: Session) -> No
             "Only a full action manager can configure pass-through OAuth",
         )
     is_public = request.is_public is not False
-    if not is_public and not global_version.is_ee_version():
+    if not is_public:
         raise OnyxError(
             OnyxErrorCode.EE_REQUIRED,
             "Restricted MCP servers require Enterprise Edition",
