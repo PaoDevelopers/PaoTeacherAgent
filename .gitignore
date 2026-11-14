@@ -35,9 +35,6 @@ jira_test_env
 settings.json
 
 # others
-/deploy/nginx/app.conf
-/deploy/nginx/mcp.conf.inc
-/deploy/nginx/mcp_upstream.conf.inc
 *.sw?
 /backend/tests/regression/answer_quality/search_test_config.yaml
 *.egg-info
@@ -63,4 +60,4 @@ plans
 
 /test-results/
 
-/.data/
+/data/

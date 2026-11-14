@@ -8,7 +8,7 @@ on:
     paths:
       - "backend/onyx/**"
       - "web/**"
-      - "deploy/backend.Dockerfile*"
+      - "Dockerfile"
       - ".github/workflows/build-images.yml"
   workflow_dispatch:
 
@@ -48,8 +48,8 @@ jobs:
 
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: ${{ matrix.image == 'web' && 'web' || '.' }}
-          file: ${{ matrix.image == 'web' && 'web/Dockerfile' || 'deploy/backend.Dockerfile' }}
+          context: ${{ matrix.image == 'web' && 'web' || 'backend' }}
+          file: ${{ matrix.image == 'web' && 'web/Dockerfile' || 'Dockerfile' }}
           platforms: linux/${{ matrix.arch }}
           build-args: |
             NODE_OPTIONS=--max-old-space-size=4096
