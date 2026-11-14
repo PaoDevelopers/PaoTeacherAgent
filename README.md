@@ -55,7 +55,7 @@ The assistants inform teachers. They never make disciplinary decisions. Both put
 You need Docker with Docker Compose.
 
 ```bash
-cp .env.example .env      # then fill in .env (see Settings)
+cp .env.example .env      # then fill in .env (see Settings, and Database)
 docker compose pull
 docker compose up -d
 ```
@@ -100,8 +100,8 @@ All settings are in `.env`.
 
 | Setting | Purpose |
 |---|---|
-| `POSTGRES_PASSWORD` | Password of the bundled Postgres. Postgres reads it only when `data/postgres/` is empty. |
-| `POSTGRES_URL` | `postgresql://<user>:<password>@<host>:<port>/<database>`. Use the same password as `POSTGRES_PASSWORD`. For your own Postgres server, point it there and remove `relational_db` from `compose.yaml`. |
+| `POSTGRES_URL` | Your Postgres database: `postgresql://<user>:<password>@<host>:<port>/<database>` |
+| `POSTGRES_PASSWORD` | Only for the bundled Postgres (see below). Postgres reads it only when `data/postgres/` is empty. |
 | `USER_AUTH_SECRET`, `ENCRYPTION_KEY_SECRET` | Make each with `openssl rand -hex 32`. `ENCRYPTION_KEY_SECRET` encrypts the stored LLM key and SSO secret. |
 | `DEEPSEEK_API_KEY` | Adds the DeepSeek provider on first start. Onyx then keeps the key, encrypted, in its database. |
 | `WEB_DOMAIN` | `http://localhost` locally, `https://<domain>` in production. Must agree with the Entra redirect URI. |
@@ -110,6 +110,11 @@ All settings are in `.env`.
 | `DISABLE_TELEMETRY` | `true`: no usage telemetry to Onyx |
 
 The app does not start while a secret is still `changeme`.
+
+**Database.** By default the stack uses the Postgres server in `POSTGRES_URL`. To run Postgres in the stack instead, with its data in `data/postgres/`:
+
+1. In `compose.yaml`, uncomment the `relational_db` service and the `relational_db` entry under `api_server` → `depends_on`.
+2. In `.env`, set `POSTGRES_PASSWORD` and use it in `POSTGRES_URL=postgresql://postgres:<password>@relational_db:5432/postgres`.
 
 ## LLM provider (DeepSeek)
 
