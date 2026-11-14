@@ -3,7 +3,7 @@
 Base: upstream Onyx **v5.0.1** (tag `v5.0.1`). GitHub Actions builds the backend and web images from this
 fork and pushes them to GHCR; `compose.yaml` names them. Other images are upstream's.
 
-No file under `backend/ee`, `web/src/app/ee` or `web/src/ee` is changed.
+Onyx's telemetry and its Enterprise Edition (EE) are removed. See "Telemetry and Enterprise Edition removed" below.
 
 Our own files (no merge conflicts possible): `compose.yaml`, `Dockerfile`, `.env.example`, `.github/workflows/build-images.yml` (builds our images and pushes them to GHCR), `CUSTOMIZATIONS.md`,
 `backend/onyx/seeding/pao_agents.py`, `backend/onyx/seeding/pao_prompts/`, `backend/onyx/db/pao.py`,
@@ -79,9 +79,48 @@ Admin-only translation strings that mention "Onyx" (connectors, licensing, Onyx 
 are left as upstream: they describe the platform, and editing the locale files would make every
 merge conflict.
 
+## Telemetry and Enterprise Edition removed
+
+Nothing reports to Onyx, PostHog, Sentry or Google Tag Manager, and no EE code ships. Upstream's
+EE code is not covered by the MIT license, and the school has no Onyx license.
+
+- **Backend telemetry:** deleted `onyx/utils/telemetry.py`, the `fleet_*telemetry*` modules, `onyx/db/fleet_*.py`,
+  `onyx/configs/sentry.py`, the Sentry setup in the API server, Celery and the model server, the PostHog cookie
+  code in `auth/users.py`, the PostHog feature-flag provider, the fleet telemetry Celery task and poller,
+  `SENTRY_*` and `DISABLE_TELEMETRY` settings, and the `sentry-sdk`/`posthog` packages (with the `ee`
+  dependency group and `requirements/ee.txt`).
+- **Backend EE:** deleted `backend/ee` and its tests. Every `fetch_versioned_implementation` /
+  `fetch_ee_implementation_or_noop` call now imports the CE code directly, and the EE switch
+  (`global_version`, `set_is_ee_if_available`) is gone. `get_current_tier()` always returns Community.
+  License and seat checks are removed. User-group and other EE tables stay in `onyx/db/models.py` and the migrations,
+  because existing databases have them.
+- **Secret encryption:** `onyx/utils/encryption.py` encrypts with AES-CBC under `ENCRYPTION_KEY_SECRET`. That is the
+  same stored format the EE code used. The old image loaded EE automatically, so every stored secret is in
+  that format. Plain CE would store secrets unencrypted and could not read them. `tests/unit/onyx/utils/test_encryption.py`
+  pins the format.
+- **`Dockerfile`:** the base image ships upstream's code (EE included), and `COPY` only adds files. So the
+  Dockerfile deletes `/app/ee`, `onyx`, `shared_configs`, `alembic`, `alembic_tenants`, `alembic.ini` and
+  `scripts`, uninstalls `sentry-sdk` and `posthog`, and copies this repo's versions in.
+- **Web telemetry:** removed `@sentry/nextjs`, `posthog-js`, the Sentry config and instrumentation files,
+  `src/lib/analytics/`, `src/app/providers.tsx`, Google Tag Manager, admin custom analytics scripts, every tracking call,
+  and the PostHog/Sentry build arguments in `web/Dockerfile`. `NEXT_TELEMETRY_DISABLED=1` stays.
+- **Web EE:** deleted `web/src/app/ee`, `web/src/ee`, and the pages that only work with EE or a paid
+  plan: billing, groups, SCIM, hooks, LLM gateway, service accounts, token rate limits, theme,
+  usage/analytics/query history, export logs, standard answers, agent stats and the license lockout screen.
+  Their sidebar entries, the "Upgrade Plan" entry, search mode and the payment banner are gone.
+  Agent knowledge search returns folders only, because document search was EE. Tier checks that render
+  nothing on Community are left as upstream to keep merges small.
+
+After an upstream merge, check that none of it came back. These commands should print nothing:
+
+```
+git grep -n -E 'from ee\b|import ee\b|fetch_versioned_implementation|fetch_ee_implementation_or_noop|sentry_sdk|posthog|fleet_telemetry' -- backend ':!backend/alembic/versions'
+git grep -n -i -E 'posthog-js|@sentry/|googletagmanager|@/app/ee|@/ee/' -- web
+```
+
 ## Re-applying after an upstream merge
 
-1. `git merge v<new tag>`; conflicts can only be in the files above.
+1. `git merge v<new tag>`; conflicts can only be in the files above. `git rm` any EE or telemetry file upstream changed, then re-run the checks above.
 2. If upstream renamed or moved a logo component, re-point the change to the new component.
 3. Bump `IMAGE_TAG` in `Dockerfile`; the image names stay on `:latest`. Compare `compose.yaml` with upstream `docker-compose.yml` and `docker-compose.onyx-lite.yml` for new settings. Merging into `main` makes GitHub Actions build the new images. To test first, run `docker compose build`.
 4. Check `pao_agents.py` still matches the Onyx functions it calls (`upsert_persona`,

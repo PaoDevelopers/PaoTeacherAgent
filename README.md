@@ -43,7 +43,7 @@ The assistants inform teachers. They never make disciplinary decisions. Both put
 | Path | What it is |
 |---|---|
 | `compose.yaml` | The stack |
-| `Dockerfile` | Our backend image: the upstream Onyx image (`IMAGE_TAG`) plus our `backend/onyx` code |
+| `Dockerfile` | Our backend image: the upstream Onyx image (`IMAGE_TAG`), with its code replaced by ours (no Enterprise Edition, no telemetry) |
 | `.env.example` | The settings. Copy it to `.env`. |
 | `data/` | All data: `data/postgres/` (the database) and `data/knowledge/` (the agents' documents). Git ignores it. |
 | `.github/workflows/build-images.yml` | Builds our backend and web images on each push to `main` and pushes them to GHCR |
@@ -107,7 +107,6 @@ All settings are in `.env`.
 | `WEB_DOMAIN` | `http://localhost` locally, `https://<domain>` in production. Must agree with the Entra redirect URI. |
 | `VALID_EMAIL_DOMAINS` | Email domains that can sign in. Empty allows all. |
 | `OIDC_PKCE_ENABLED` | Turns on PKCE for SSO sign-in |
-| `DISABLE_TELEMETRY` | `true`: no usage telemetry to Onyx |
 
 The app does not start while a secret is still `changeme`.
 
@@ -223,7 +222,7 @@ Start a new chat to see a prompt change. The next start overwrites edits to thes
 - **Who can read them:** each teacher sees only their own chats in the app. Community Edition has no admin screen to see other people's chats (query history is a paid Onyx feature). But anyone with access to the server or database can read all chats.
 - **Retention:** chats are kept forever. Automatic deletion after N days is a paid (Enterprise) Onyx feature. Teachers can delete their own chats.
 - **Memory:** Onyx can remember facts about a teacher (role, year groups) across chats. The prompts tell it never to store information about students. Teachers can see, delete or turn off memory in **Settings → Personalization**.
-- **What leaves the server:** chat content goes only to DeepSeek. Telemetry is off (`DISABLE_TELEMETRY=true`). Onyx also gets public model lists from GitHub, which contain no chat content. The code sandbox and the MCP server are off.
+- **What leaves the server:** chat content goes only to DeepSeek. The telemetry code (Onyx usage reports, PostHog, Sentry) is removed. Onyx also gets public model lists from GitHub, which contain no chat content. The code sandbox and the MCP server are off.
 - **Student data:** the agents never ask for student names and do not repeat them. But the app stores everything a teacher types with the chat, and sends it to DeepSeek.
 
 ## Backups
