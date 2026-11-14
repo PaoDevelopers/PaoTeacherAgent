@@ -14,8 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from httpx_oauth.clients.google import GoogleOAuth2
-from sentry_sdk.integrations.fastapi import FastApiIntegration
-from sentry_sdk.integrations.starlette import StarletteIntegration
 from starlette.types import Lifespan
 
 from onyx import __version__
@@ -170,7 +168,6 @@ from onyx.server.utils import BasicAuthenticationError
 from onyx.setup import setup_multitenant_onyx, setup_onyx
 from onyx.tracing.setup import setup_tracing
 from onyx.utils.client_ip import ClientIPMiddleware
-from onyx.utils.fleet_telemetry import start_telemetry
 from onyx.utils.logger import setup_logger, setup_uvicorn_logger
 from onyx.utils.middleware import (
     add_endpoint_context_middleware,
@@ -187,8 +184,6 @@ from shared_configs.configs import (
     CORS_ALLOWED_ORIGIN,
     MULTI_TENANT,
     POSTGRES_DEFAULT_SCHEMA,
-    SENTRY_DSN,
-    SENTRY_TRACES_SAMPLE_RATE,
 )
 from shared_configs.contextvars import CURRENT_TENANT_ID_CONTEXTVAR
 
@@ -430,8 +425,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
     else:
         setup_multitenant_onyx()
 
-    start_telemetry("api")
-
     if RATE_LIMITING_ENABLED:
         await setup_auth_limiter()
 
@@ -542,16 +535,6 @@ def get_application(lifespan_override: Lifespan | None = None) -> FastAPI:
         redoc_url="/redoc" if ENABLE_PUBLIC_DOCS else None,
         lifespan=lifespan_override or lifespan,
     )
-    if SENTRY_DSN:
-        from onyx.configs.sentry import init_sentry
-
-        init_sentry(
-            traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
-            integrations=[StarletteIntegration(), FastApiIntegration()],
-        )
-    else:
-        logger.debug("Sentry DSN not provided, skipping Sentry initialization")
-
     application.add_exception_handler(status.HTTP_400_BAD_REQUEST, log_http_error)
     application.add_exception_handler(status.HTTP_401_UNAUTHORIZED, log_http_error)
     application.add_exception_handler(status.HTTP_403_FORBIDDEN, log_http_error)

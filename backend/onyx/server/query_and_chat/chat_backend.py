@@ -57,7 +57,6 @@ from onyx.configs.chat_configs import (
 from onyx.configs.constants import (
     PUBLIC_API_TAGS,
     MessageType,
-    MilestoneRecordType,
 )
 from onyx.configs.model_configs import LITELLM_PASS_THROUGH_HEADERS
 from onyx.configs.tool_configs import CUSTOM_TOOL_PASS_THROUGH_HEADERS
@@ -157,7 +156,6 @@ from onyx.server.utils import get_json_line
 from onyx.tracing.framework.create import ChatTraceMetadata, ensure_trace
 from onyx.utils.headers import get_relevant_headers
 from onyx.utils.logger import setup_logger
-from onyx.utils.telemetry import mt_cloud_telemetry
 from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
@@ -828,11 +826,6 @@ def handle_send_chat_message(
     )
 
     tenant_id = get_current_tenant_id()
-    mt_cloud_telemetry(
-        tenant_id=tenant_id,
-        distinct_id=tenant_id if user.is_anonymous else str(user.id),
-        event=MilestoneRecordType.RAN_QUERY,
-    )
 
     # Override origin to API when authenticated via API key or PAT
     # to prevent clients from polluting telemetry data

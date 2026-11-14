@@ -2,14 +2,14 @@
 
 nginx-ingress forwards the real client address in ``X-Forwarded-For`` while
 ``request.client.host`` is the in-cluster proxy address. Callers use this for
-rate limiting, PostHog ``$ip`` enrichment (drives GeoIP), and abuse attribution.
+rate limiting and abuse attribution.
 
 Only globally-routable addresses are returned so private/loopback/link-local
 values (pod-to-pod hops, localhost) never leak into downstream systems as
 though they were the client.
 
 ``ClientIPMiddleware`` stashes the per-request IP into a ``ContextVar`` so
-deep-stack telemetry / audit-log calls can read it via ``current_client_ip()``
+deep-stack audit-log calls can read it via ``current_client_ip()``
 without threading a ``Request`` through every call site. The contextvar is
 request-scoped (token reset in a ``finally`` block) and copies cleanly into
 threadpool handoffs that use ``contextvars.copy_context()``.

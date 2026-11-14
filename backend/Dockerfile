@@ -35,14 +35,12 @@ RUN apt-get update && \
 
 # Install Python dependencies
 COPY ./requirements/default.txt /tmp/requirements.txt
-COPY ./requirements/ee.txt /tmp/ee-requirements.txt
 # requirements/*.txt are a complete, pre-resolved lock export, so --no-deps installs them as-is
 # without re-resolving. It is also required, not just an optimization: mitmproxy pins tight
 # transitive caps (e.g. hyperframe<=6.0.1) that are only loosened by [tool.uv] override-dependencies
 # in pyproject.toml, which is absent from this build context — a resolving install would fail.
 RUN uv pip install --system --no-cache-dir --no-deps --require-hashes \
-        -r /tmp/requirements.txt \
-        -r /tmp/ee-requirements.txt && \
+        -r /tmp/requirements.txt && \
     # https://github.com/tornadoweb/tornado/issues/3107
     rm -f /usr/local/lib/python3.13/site-packages/tornado/test/test.key && \
     rm -rf ~/.cache/uv /tmp/*.txt

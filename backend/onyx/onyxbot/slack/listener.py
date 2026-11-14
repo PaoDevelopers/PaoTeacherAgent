@@ -93,7 +93,6 @@ from onyx.onyxbot.slack.utils import (
 from onyx.redis.redis_pool import get_redis_client
 from onyx.server.manage.models import SlackBotTokens
 from onyx.tracing.setup import setup_tracing
-from onyx.utils.fleet_telemetry import start_telemetry
 from onyx.utils.logger import setup_logger
 from onyx.utils.variable_functionality import (
     fetch_ee_implementation_or_noop,
@@ -646,8 +645,7 @@ class SlackbotHandler:
 
         # Establish a WebSocket connection to the Socket Mode servers.
         # connect() internally calls apps.connections.open; on auth failure
-        # slack_sdk's socket_mode client logs its own error (shipped to
-        # Sentry as ONYX-BACKEND-4) and re-raises. The common case is
+        # slack_sdk's socket_mode client logs its own error and re-raises. The common case is
         # caught above by the auth_test guard — this wrapper covers the
         # rarer path where bot_token is valid but app_token is not.
         try:
@@ -1388,9 +1386,6 @@ def _get_socket_client(
 if __name__ == "__main__":
     # Initialize the SqlEngine
     SqlEngine.init_engine(pool_size=20, max_overflow=5)
-
-    # Start telemetry before the handler starts message-processing threads.
-    start_telemetry("slack")
 
     # Initialize the tenant handler which will manage tenant connections
     logger.info("Starting SlackbotHandler")

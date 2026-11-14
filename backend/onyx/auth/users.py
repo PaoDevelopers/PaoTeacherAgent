@@ -117,7 +117,6 @@ from onyx.configs.constants import (
     FASTAPI_USERS_AUTH_COOKIE_NAME,
     PASSWORD_SPECIAL_CHARS,
     UNNAMED_KEY_PLACEHOLDER,
-    MilestoneRecordType,
     OnyxRedisLocks,
 )
 from onyx.db.api_key import fetch_api_key_auth_result, is_api_key_email_address
@@ -170,10 +169,6 @@ from onyx.server.settings.store import load_settings
 from onyx.server.utils import BasicAuthenticationError
 from onyx.utils.audit import AuditAction, AuditActor, AuditOutcome, emit_audit_event
 from onyx.utils.logger import setup_logger
-from onyx.utils.telemetry import (
-    mt_cloud_identify_user,
-    mt_cloud_telemetry,
-)
 from onyx.utils.timing import log_function_time
 from onyx.utils.url import add_url_params, sanitize_next_url
 from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
@@ -1302,12 +1297,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         except Exception:
             logger.exception("Error deleting anonymous user cookie")
 
-        mt_cloud_identify_user(
-            distinct_id=str(user.id),
-            email=user.email,
-            request=request,
-        )
-
         emit_audit_event(
             AuditAction.LOGIN,
             AuditOutcome.SUCCESS,
@@ -1326,26 +1315,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             user_count = await get_user_count()
             logger.debug("Current tenant user count: %s", user_count)
 
-            mt_cloud_identify_user(
-                distinct_id=str(user.id),
-                email=user.email,
-                request=request,
-                tenant_id=tenant_id,
-            )
-
-            mt_cloud_telemetry(
-                tenant_id=tenant_id,
-                distinct_id=str(user.id),
-                event=MilestoneRecordType.USER_SIGNED_UP,
-            )
-
-            if user_count == 1:
-                mt_cloud_telemetry(
-                    tenant_id=tenant_id,
-                    distinct_id=str(user.id),
-                    event=MilestoneRecordType.TENANT_CREATED,
-                )
-
             # Assign user to the appropriate default group (Admin or Basic).
             # Must happen inside the try block while tenant context is active,
             # otherwise get_session_with_current_tenant() targets the wrong schema.
@@ -1358,60 +1327,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
 
         finally:
             CURRENT_TENANT_ID_CONTEXTVAR.reset(token)
-
-        # Fetch EE PostHog functions if available
-        get_marketing_posthog_cookie_name = fetch_ee_implementation_or_noop(
-            module="onyx.utils.posthog_client",
-            attribute="get_marketing_posthog_cookie_name",
-            noop_return_value=None,
-        )
-        parse_posthog_cookie = fetch_ee_implementation_or_noop(
-            module="onyx.utils.posthog_client",
-            attribute="parse_posthog_cookie",
-            noop_return_value=None,
-        )
-        capture_and_sync_with_alternate_posthog = fetch_ee_implementation_or_noop(
-            module="onyx.utils.posthog_client",
-            attribute="capture_and_sync_with_alternate_posthog",
-            noop_return_value=None,
-        )
-
-        if (
-            request
-            and user_count is not None
-            and (marketing_cookie_name := get_marketing_posthog_cookie_name())
-            and (marketing_cookie_value := request.cookies.get(marketing_cookie_name))
-            and (parsed_cookie := parse_posthog_cookie(marketing_cookie_value))
-        ):
-            marketing_anonymous_id = parsed_cookie["distinct_id"]
-
-            # Technically, USER_SIGNED_UP is only fired from the cloud site when
-            # it is the first user in a tenant. However, it is semantically correct
-            # for the marketing site and should probably be refactored for the cloud site
-            # to also be semantically correct.
-            properties = {
-                "email": user.email,
-                "onyx_cloud_user_id": str(user.id),
-                "tenant_id": str(tenant_id) if tenant_id else None,
-                "account_type": user.account_type.value,
-                "is_first_user": user_count == 1,
-                "source": "marketing_site_signup",
-                "conversion_timestamp": datetime.now(timezone.utc).isoformat(),
-            }
-
-            # Add all other values from the marketing cookie (featureFlags, etc.)
-            for (
-                key,
-                value,
-            ) in parsed_cookie.items():
-                if key != "distinct_id":
-                    properties.setdefault(key, value)
-
-            capture_and_sync_with_alternate_posthog(
-                alternate_distinct_id=marketing_anonymous_id,
-                event=MilestoneRecordType.USER_SIGNED_UP,
-                properties=properties,
-            )
 
         logger.debug("User %s has registered.", user.id)
 

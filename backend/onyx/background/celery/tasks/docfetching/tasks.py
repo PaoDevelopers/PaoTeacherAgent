@@ -55,11 +55,9 @@ from onyx.db.index_attempt import (
 from onyx.db.indexing_coordination import IndexingCoordination
 from onyx.redis.redis_connector import RedisConnector
 from onyx.server.metrics.connector_health_metrics import on_index_attempt_status_change
-from onyx.utils.fleet_telemetry import EXIT_FLUSH_SECONDS, stop_telemetry
 from onyx.utils.logger import setup_logger
 from onyx.utils.os_reaper import reap_children_before_exit
 from onyx.utils.variable_functionality import global_version
-from shared_configs.configs import SENTRY_CELERY_TRACES_SAMPLE_RATE, SENTRY_DSN
 
 logger = setup_logger()
 
@@ -158,15 +156,6 @@ def _docfetching_task(
     is_ee: bool,
     tenant_id: str,
 ) -> None:
-    # Since connector_indexing_proxy_task spawns a new process using this function as
-    # the entrypoint, we init Sentry here.
-    if SENTRY_DSN:
-        from onyx.configs.sentry import init_sentry
-
-        init_sentry(traces_sample_rate=SENTRY_CELERY_TRACES_SAMPLE_RATE)
-    else:
-        logger.debug("Sentry DSN not provided, skipping Sentry initialization")
-
     logger.info(
         "Indexing spawned task starting: attempt=%s tenant=%s cc_pair=%s search_settings=%s",
         index_attempt_id,
@@ -270,10 +259,8 @@ def _docfetching_task(
         cc_pair_id,
         search_settings_id,
     )
-    # os._exit bypasses the drain and telemetry flush in _initializer's finally,
-    # so do both here. The flush wait is bounded.
+    # os._exit bypasses the drain in _initializer's finally, so do it here.
     reap_children_before_exit()
-    stop_telemetry(flush_timeout=EXIT_FLUSH_SECONDS)
     os._exit(0)  # ensure process exits cleanly
 
 

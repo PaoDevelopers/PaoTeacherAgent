@@ -12,8 +12,6 @@ from onyx.configs.app_configs import (
     DISABLE_VECTOR_DB,
     HIDE_ONYX_BRANDING,
     MAX_ALLOWED_UPLOAD_SIZE_MB,
-    POSTHOG_API_KEY,
-    POSTHOG_HOST,
 )
 from onyx.configs.constants import KV_REINDEX_KEY, NotificationType
 from onyx.db.engine.sql_engine import get_session
@@ -268,8 +266,6 @@ def fetch_settings(
             else DEFAULT_FILE_TOKEN_COUNT_THRESHOLD_K_VECTOR_DB
         ),
         is_containerized=is_running_in_container(),
-        posthog_key=POSTHOG_API_KEY,
-        posthog_host=POSTHOG_HOST,
     )
 
 

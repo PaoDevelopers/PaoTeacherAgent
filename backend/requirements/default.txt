@@ -464,7 +464,6 @@ certifi==2026.10.19 \
     #   mitmproxy
     #   opensearch-py
     #   requests
-    #   sentry-sdk
     #   trafilatura
 cffi==2.0.0 \
     --hash=sha256:00bdf7acc5f795150faa6957054fbbca2439db2f775ce831222b66f192f03beb \
@@ -2819,10 +2818,6 @@ secretstorage==3.5.0 ; sys_platform == 'linux' \
 sendgrid==6.12.5 \
     --hash=sha256:96f92cc91634bf552fdb766b904bbb53968018da7ae41fdac4d1090dc0311ca8 \
     --hash=sha256:ea9aae30cd55c332e266bccd11185159482edfc07c149b6cd15cf08869fabdb7
-sentry-sdk==2.14.0 \
-    --hash=sha256:1e0e2eaf6dad918c7d1e0edac868a7bf20017b177f242cefe2a6bcd47955961d \
-    --hash=sha256:b8bc3dc51d06590df1291b7519b85c75e2ced4f28d9ea655b6d54033503b5bf4
-    # via onyx
 service-identity==24.2.0 \
     --hash=sha256:6b047fbd8a84fd0bb0d55ebce4031e400562b9196e1e0d3e0fe2b8a59f6d4a85 \
     --hash=sha256:b8683ba13f0d39c6cd5d625d2c5f65421d6d707b013b375c355751557cbe8e09
@@ -3124,7 +3119,6 @@ urllib3==2.8.0 \
     #   pyairtable
     #   pygithub
     #   requests
-    #   sentry-sdk
     #   trafilatura
     #   types-requests
 urwid==2.6.16 \

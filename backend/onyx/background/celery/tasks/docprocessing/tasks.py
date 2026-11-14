@@ -58,8 +58,6 @@ from onyx.configs.app_configs import (
 from onyx.configs.constants import (
     CELERY_GENERIC_BEAT_LOCK_TIMEOUT,
     CELERY_INDEXING_LOCK_TIMEOUT,
-    DocumentSource,
-    MilestoneRecordType,
     NotificationType,
     OnyxCeleryPriority,
     OnyxCeleryQueues,
@@ -152,7 +150,6 @@ from onyx.server.metrics.connector_health_metrics import (
 from onyx.server.runtime.onyx_runtime import OnyxRuntime
 from onyx.utils.logger import setup_logger
 from onyx.utils.middleware import make_randomized_onyx_request_id
-from onyx.utils.telemetry import mt_cloud_telemetry
 from shared_configs.configs import (
     INDEXING_MODEL_SERVER_HOST,
     INDEXING_MODEL_SERVER_PORT,
@@ -639,12 +636,6 @@ def check_indexing_completion(
                 # NOTE: _run_indexing doesn't update connectors if the index attempt is the future embedding model
                 cc_pair.status = ConnectorCredentialPairStatus.ACTIVE
                 db_session.commit()
-
-            mt_cloud_telemetry(
-                tenant_id=tenant_id,
-                distinct_id=tenant_id,
-                event=MilestoneRecordType.CONNECTOR_SUCCEEDED,
-            )
 
             on_connector_indexing_success(
                 tenant_id=tenant_id,
@@ -1808,7 +1799,6 @@ def _record_docprocessing_failure_persistent(
     exc: BaseException,
     index_attempt_id: int,
     cc_pair_id: int,
-    tenant_id: str,
     batch_num: int,
     documents: list[Document] | None,
     cross_batch_db_lock: RedisLock | None,
@@ -1834,37 +1824,17 @@ def _record_docprocessing_failure_persistent(
         batch_num,
     )
 
-    # Source lookup is best-effort; only used for Sentry tagging.
-    source: DocumentSource = DocumentSource.NOT_APPLICABLE
-    try:
-        with get_session_with_current_tenant() as db_session:
-            cc_pair = get_connector_credential_pair_from_id(
-                db_session, cc_pair_id, eager_load_connector=True
-            )
-            if cc_pair is not None:
-                source = cc_pair.connector.source
-    except Exception:
-        task_logger.exception(
-            "Failed to look up source for cc_pair %s during persistent indexing "
-            "recovery; falling back to NOT_APPLICABLE",
-            cc_pair_id,
-        )
-
     if documents:
         for doc in documents:
             record_generic_failure(
                 index_attempt_id=index_attempt_id,
                 cc_pair_id=cc_pair_id,
-                source=source,
-                tenant_id=tenant_id,
                 failure=build_generic_connector_failure(exc=exc, document=doc),
             )
     else:
         record_generic_failure(
             index_attempt_id=index_attempt_id,
             cc_pair_id=cc_pair_id,
-            source=source,
-            tenant_id=tenant_id,
             failure=build_generic_connector_failure(
                 exc=exc,
                 entity_id=(
@@ -2293,7 +2263,6 @@ def _docprocessing_task(
             exc=e,
             index_attempt_id=index_attempt_id,
             cc_pair_id=cc_pair_id,
-            tenant_id=tenant_id,
             batch_num=batch_num,
             documents=documents,
             cross_batch_db_lock=cross_batch_db_lock,

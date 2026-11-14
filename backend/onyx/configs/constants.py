@@ -696,7 +696,6 @@ class OnyxCeleryTask:
     MONITOR_OPENSEARCH_RESOURCES = "monitor_opensearch_resources"
     MONITOR_PROCESS_MEMORY = "monitor_process_memory"
     CELERY_BEAT_HEARTBEAT = "celery_beat_heartbeat"
-    COLLECT_FLEET_TELEMETRY = "collect_fleet_telemetry"
 
     CONNECTOR_PERMISSION_SYNC_GENERATOR_TASK = (
         "connector_permission_sync_generator_task"

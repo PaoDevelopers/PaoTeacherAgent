@@ -17,9 +17,7 @@ from tests.utils.audit import audit_events
 
 
 @pytest.mark.asyncio
-@patch("onyx.auth.users.mt_cloud_identify_user")
 async def test_on_after_login_emits_login_success(
-    _mock_identify: MagicMock,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     user = MagicMock(id="u-1", email="user@example.com")

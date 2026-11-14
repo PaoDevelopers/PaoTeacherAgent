@@ -8,7 +8,7 @@ and the api server hung.
 
 These tests exercise each disposal function directly. A higher-level
 integration check would re-run the FastAPI lifespan, but the lifespan touches
-auth, telemetry, OpenSearch, and the file store — far more scaffolding than the
+auth, OpenSearch, and the file store — far more scaffolding than the
 behavior we care about here, which is that ``dispose()`` is in fact called and
 the cached engine references are released.
 """
@@ -148,7 +148,6 @@ def _stub_lifespan(stack: ExitStack) -> tuple[MagicMock, MagicMock, AsyncMock]:
     stack.enter_context(patch.object(onyx_main, "get_session_with_current_tenant"))
     stack.enter_context(patch.object(onyx_main, "setup_onyx"))
     stack.enter_context(patch.object(onyx_main, "get_default_file_store"))
-    stack.enter_context(patch.object(onyx_main, "start_telemetry"))
     stack.enter_context(patch.object(onyx_main, "MULTI_TENANT", False))
     stack.enter_context(patch.object(onyx_main, "RATE_LIMITING_ENABLED", False))
     stack.enter_context(patch.object(onyx_main, "DISABLE_VECTOR_DB", False))

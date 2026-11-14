@@ -45,7 +45,6 @@ from onyx.configs.constants import (
     PUBLIC_API_TAGS,
     DocumentSource,
     FileOrigin,
-    MilestoneRecordType,
     OnyxCeleryPriority,
     OnyxCeleryTask,
 )
@@ -199,7 +198,6 @@ from onyx.utils.audit import (
     emit_audit_event,
 )
 from onyx.utils.logger import setup_logger
-from onyx.utils.telemetry import mt_cloud_telemetry
 from onyx.utils.threadpool_concurrency import (
     CallableProtocol,
     run_functions_tuples_in_parallel,
@@ -1128,8 +1126,6 @@ def get_connector_indexing_status(
     ),
     db_session: Session = Depends(get_session),
 ) -> list[ConnectorIndexingStatusLiteResponse]:
-    tenant_id = get_current_tenant_id()
-
     # NOTE: If the connector is deleting behind the scenes,
     # accessing cc_pairs can be inconsistent and members like
     # connector or credential may be None.
@@ -1418,13 +1414,6 @@ def get_connector_indexing_status(
                 source
             ].total_docs_indexed += connector_status.docs_indexed
 
-    # Track admin page visit for analytics
-    mt_cloud_telemetry(
-        tenant_id=tenant_id,
-        distinct_id=str(user.id),
-        event=MilestoneRecordType.VISITED_ADMIN_PAGE,
-    )
-
     # Group statuses by source for pagination
     source_to_all_statuses: dict[
         DocumentSource, list[ConnectorIndexingStatusLite | FederatedConnectorStatus]
@@ -1637,7 +1626,6 @@ def create_connector_from_model(
 ) -> ObjectCreationIdResponse:
     # No GATE 2: creates only the Connector row (no cc_pair, no group/access
     # binding yet). Scope is enforced at credential association.
-    tenant_id = get_current_tenant_id()
 
     try:
         _validate_connector_request(connector_data)
@@ -1646,12 +1634,6 @@ def create_connector_from_model(
         connector_response = create_connector(
             db_session=db_session,
             connector_data=connector_base,
-        )
-
-        mt_cloud_telemetry(
-            tenant_id=tenant_id,
-            distinct_id=str(user.id),
-            event=MilestoneRecordType.CREATED_CONNECTOR,
         )
 
         emit_audit_event(
@@ -1771,11 +1753,6 @@ def create_connector_with_mock_credential(
                 response.data,
             )
 
-        mt_cloud_telemetry(
-            tenant_id=tenant_id,
-            distinct_id=str(user.id),
-            event=MilestoneRecordType.CREATED_CONNECTOR,
-        )
         return response
 
     except ValidationError as e:
@@ -1905,11 +1882,6 @@ def create_connector_with_credential(
         priority=OnyxCeleryPriority.HIGH,
         kwargs={"tenant_id": tenant_id},
         expires=BEAT_EXPIRES_DEFAULT,
-    )
-    mt_cloud_telemetry(
-        tenant_id=tenant_id,
-        distinct_id=str(user.id),
-        event=MilestoneRecordType.CREATED_CONNECTOR,
     )
     actor = actor_from_user(user)
     emit_audit_event(
@@ -2313,7 +2285,7 @@ def submit_connector_request(
 ) -> StatusResponse:
     """
     Submit a connector request for Cloud deployments.
-    Tracks via PostHog telemetry and sends email to hello@onyx.app.
+    Sends email to hello@onyx.app.
     """
     tenant_id = get_current_tenant_id()
     connector_name = request_data.connector_name.strip()
@@ -2322,20 +2294,6 @@ def submit_connector_request(
         raise HTTPException(status_code=400, detail="Connector name cannot be empty")
 
     user_email = user.email
-
-    # Track connector request via PostHog telemetry (Cloud only)
-    from shared_configs.configs import MULTI_TENANT
-
-    if MULTI_TENANT:
-        mt_cloud_telemetry(
-            tenant_id=tenant_id,
-            distinct_id=str(user.id),
-            event=MilestoneRecordType.REQUESTED_CONNECTOR,
-            properties={
-                "connector_name": connector_name,
-                "user_email": user.email,
-            },
-        )
 
     # Send email notification (if email is configured)
     if EMAIL_CONFIGURED:
