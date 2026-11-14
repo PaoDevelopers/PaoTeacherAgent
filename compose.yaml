@@ -1,11 +1,128 @@
-# PaoTeacherAgent stack: upstream compose + Onyx Lite overlay + our overlay.
-# From the repo root: docker compose build api_server web_server && docker compose up -d --wait
+
 name: onyx
 
-include:
-  - path:
-      - deployment/docker_compose/docker-compose.yml
-      - deployment/docker_compose/docker-compose.onyx-lite.yml
-      - deploy/docker-compose.override.yml
-    project_directory: deployment/docker_compose
-    env_file: deploy/.env
+services:
+  api_server:
+    image: ghcr.io/paodevelopers/paoteacheragent-backend:latest
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    command: /bin/sh -c "alembic upgrade head && uvicorn onyx.main:app --host 0.0.0.0 --port 8080"
+    environment:
+      POSTGRES_URL: postgresql://postgres:changeme@relational_db:5432/postgres
+      USER_AUTH_SECRET: changeme
+      ENCRYPTION_KEY_SECRET: changeme
+      DEEPSEEK_API_KEY: changeme
+      WEB_DOMAIN: http://localhost
+      VALID_EMAIL_DOMAINS: ""
+      OIDC_PKCE_ENABLED: "true"
+      DISABLE_TELEMETRY: "true"
+      DISABLE_VECTOR_DB: "true"
+      FILE_STORE_BACKEND: postgres
+      CACHE_BACKEND: postgres
+      AUTH_BACKEND: postgres
+      REDIS_HOST: cache
+    volumes:
+      - ./deploy/knowledge:/app/pao_knowledge:ro
+    depends_on:
+      relational_db:
+        condition: service_healthy
+      cache:
+        condition: service_started
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 600s
+
+  web_server:
+    image: ghcr.io/paodevelopers/paoteacheragent-web:latest
+    build:
+      context: web
+      args:
+        NODE_OPTIONS: --max-old-space-size=4096
+    environment:
+      INTERNAL_URL: http://api_server:8080
+      WEB_DOMAIN: http://localhost
+    depends_on:
+      - api_server
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/', (r) => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  relational_db:
+    image: postgres:15.2-alpine
+    shm_size: 1g
+    command: -c 'max_connections=250'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: changeme
+    volumes:
+      - ./.data/postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  cache:
+    image: redis:7.4-alpine
+    command: redis-server --save "" --appendonly no
+    tmpfs:
+      - /data
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+
+  nginx:
+    image: nginx:1.25.5-alpine
+    environment:
+      DOMAIN: localhost
+    ports:
+      - "80:80"
+      - "3000:80"
+    volumes:
+      - ./deploy/nginx:/nginx-templates:ro
+    command: /bin/sh -c "rm -f /etc/nginx/conf.d/default.conf && cp -a /nginx-templates/. /etc/nginx/conf.d/ && sh /etc/nginx/conf.d/run-nginx.sh app.conf.template"
+    depends_on:
+      api_server:
+        condition: service_healthy
+      web_server:
+        condition: service_healthy
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "6"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/nginx-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s

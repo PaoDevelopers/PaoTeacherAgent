@@ -12,7 +12,7 @@ The assistants inform teachers. They never make disciplinary decisions. Both put
 - [How it works](#how-it-works)
 - [Run locally](#run-locally)
 - [Deploy with Docker Compose](#deploy-with-docker-compose)
-- [Environment variables](#environment-variables)
+- [Settings](#settings)
 - [LLM provider (DeepSeek)](#llm-provider-deepseek)
 - [Microsoft Entra sign-in](#microsoft-entra-sign-in)
 - [Documents](#documents)
@@ -43,12 +43,10 @@ The assistants inform teachers. They never make disciplinary decisions. Both put
 | Path | What it is |
 |---|---|
 | `.github/workflows/build-images.yml` | Builds our images and pushes them to GHCR, tagged `latest` and `sha-<commit>` |
-| `compose.yaml` | The stack: includes the upstream compose file, the Lite overlay and our overlay, and reads `deploy/.env`. Run `docker compose` from the repo root. |
-| `deploy/docker-compose.override.yml` | Our overlay: loads `deploy/.env`, sets how to build our backend image locally, mounts the knowledge folders, runs Redis, turns off the code sandbox |
-| `deploy/backend.Dockerfile` | Our backend image: the upstream image plus our `backend/onyx` code |
-| `deploy/.env.example` | Template for `deploy/.env`. Never commit `deploy/.env`. |
-| `deploy/knowledge/policies/`, `deploy/knowledge/behaviour/` | The agents' documents. Git ignores them. Set `PAO_KNOWLEDGE_HOST_DIR` to use a different folder. |
-| `deployment/docker_compose/`, `deployment/data/nginx/` | Upstream compose files and nginx config. Do not edit them. |
+| `compose.yaml` | The whole stack and all its settings. Run `docker compose` from the repo root. |
+| `deploy/backend.Dockerfile` | Our backend image: the upstream image plus our `backend/onyx` code. Sets the upstream release (`IMAGE_TAG`). |
+| `deploy/knowledge/policies/`, `deploy/knowledge/behaviour/` | The agents' documents. Git ignores them. |
+| `deploy/nginx/` | Upstream nginx config. Do not edit it. |
 | `backend/onyx/seeding/pao_agents.py` | The built-in agents: names, descriptions, starter questions, folder sync |
 | `backend/onyx/seeding/pao_prompts/` | The agent system prompts |
 
@@ -56,12 +54,9 @@ The assistants inform teachers. They never make disciplinary decisions. Both put
 
 You need Docker with a recent Docker Compose (tested with 5.5). On a Mac, use Docker Desktop or OrbStack. Run all `docker compose` commands from the repo root.
 
-```bash
-cp deploy/.env.example deploy/.env
-# Set USER_AUTH_SECRET, ENCRYPTION_KEY_SECRET and POSTGRES_PASSWORD, each from:
-openssl rand -hex 32
-# Set DEEPSEEK_API_KEY.
+Edit `compose.yaml` and replace each `changeme` (see [Settings](#settings)). Then start the stack:
 
+```bash
 docker compose pull
 docker compose up -d --wait
 ```
@@ -96,18 +91,15 @@ Production uses the same compose stack as local development, on one server.
 ```bash
 git clone https://github.com/PaoDevelopers/PaoTeacherAgent.git
 cd PaoTeacherAgent
-cp deploy/.env.example deploy/.env
 ```
 
-Edit `deploy/.env`:
+Edit `compose.yaml` (see [Settings](#settings)):
 
-- Set `USER_AUTH_SECRET`, `ENCRYPTION_KEY_SECRET` and `POSTGRES_PASSWORD`. Make each with `openssl rand -hex 32`.
-- Set `WEB_DOMAIN=https://<your domain>`.
+- Replace each `changeme`. Use the same Postgres password in `POSTGRES_URL` and in `relational_db`.
+- Set `WEB_DOMAIN` to `https://<your domain>` in `api_server` and in `web_server`.
 - Set `VALID_EMAIL_DOMAINS` to the school email domain.
-- Set `DEEPSEEK_API_KEY`.
-- Optional: set `PAO_KNOWLEDGE_HOST_DIR` to a folder outside the repo, for example `/srv/paoteacheragent/knowledge`.
 
-Keep a copy of `deploy/.env` in a safe place. Without `ENCRYPTION_KEY_SECRET`, Onyx cannot decrypt the stored DeepSeek key and SSO secret.
+The repo is public. Never commit or push the server's `compose.yaml`. Keep a copy of it in a safe place. Without `ENCRYPTION_KEY_SECRET`, Onyx cannot decrypt the stored DeepSeek key and SSO secret.
 
 ### 3. Add the documents
 
@@ -130,9 +122,9 @@ The stack serves HTTP on port 80 (and on port 3000). Put a TLS reverse proxy in 
 - Send all traffic for the domain to `http://<server>:80`.
 - Pass the `Host` and `X-Forwarded-*` headers. Caddy does this by default.
 - Allow long requests and streamed responses. Answers stream for up to a few minutes.
-- If the proxy is on the same server and needs port 80, move the stack: set `HOST_PORT_80` (and `HOST_PORT`) in `deploy/.env`, for example `HOST_PORT_80=8081`.
+- If the proxy is on the same server and needs port 80, move the stack: in `compose.yaml`, change the `nginx` ports `"80:80"` to `"8081:80"`.
 
-Example `Caddyfile` for a proxy on the same server, with `HOST_PORT_80=8081`:
+Example `Caddyfile` for a proxy on the same server, with nginx on port 8081:
 
 ```
 teacheragent.example.org {
@@ -153,7 +145,7 @@ Caddy gets and renews the certificate itself.
 Merge the change into `main`. Wait until the **Build images** workflow finishes (about 15 min for a web change). Then, on the server:
 
 ```bash
-git pull                        # compose files and deploy/.env.example
+git pull --autostash            # keeps your edits to compose.yaml
 docker compose pull
 docker compose up -d --wait     # database migrations run automatically
 docker compose restart nginx    # nginx must find the new containers
@@ -168,23 +160,25 @@ docker compose logs -f api_server
 docker compose logs api_server | grep PaoTeacherAgent    # agent and document sync
 ```
 
-## Environment variables
+## Settings
 
-All variables are in `deploy/.env`. You can also add any variable from `deployment/docker_compose/env.template`.
+All settings are in `compose.yaml`, under `environment:` of each service.
 
-| Variable | Purpose |
-|---|---|
-| `IMAGE_TAG` | The upstream Onyx release this fork uses |
-| `ONYX_BACKEND_IMAGE`, `ONYX_WEB_SERVER_IMAGE` | Our images on GHCR. `:latest` is the newest build of `main`. To fix a deployment to one build, use the `:sha-<commit>` tag. |
-| `USER_AUTH_SECRET`, `ENCRYPTION_KEY_SECRET`, `POSTGRES_PASSWORD` | Secrets. `ENCRYPTION_KEY_SECRET` encrypts the stored LLM key and SSO secret. If you lose it, you must enter them again. |
-| `WEB_DOMAIN` | `http://localhost` locally, `https://<domain>` in production. Must agree with the Entra redirect URI. |
-| `VALID_EMAIL_DOMAINS` | Email domains that can sign in, for example the school domain |
-| `OIDC_PKCE_ENABLED` | Turns on PKCE for SSO sign-in |
-| `DISABLE_TELEMETRY` | `true`: no usage telemetry to Onyx |
-| `MCP_SERVER_ENABLED` | `false`: no access for external AI clients |
-| `DEEPSEEK_API_KEY` | Adds the DeepSeek provider on first start, if no chat model exists. Onyx then keeps the key, encrypted, in its database. |
-| `PAO_KNOWLEDGE_HOST_DIR` | Folder that holds `policies/` and `behaviour/`. Default: `deploy/knowledge`. |
-| `HOST_PORT_80`, `HOST_PORT` | Host ports for nginx. Defaults: `80` and `3000`. |
+| Setting | Service | Purpose |
+|---|---|---|
+| `POSTGRES_URL` | `api_server` | `postgresql://<user>:<password>@<host>:<port>/<database>`. Its password must match `POSTGRES_PASSWORD` in `relational_db`. To use your own Postgres server, point the URL at it, and remove `relational_db` and its `depends_on` entry. |
+| `POSTGRES_PASSWORD` | `relational_db` | Password of the bundled Postgres. Postgres reads it only when the database is new. To change it later, change it in Postgres too. |
+| `USER_AUTH_SECRET`, `ENCRYPTION_KEY_SECRET` | `api_server` | Secrets. Make each with `openssl rand -hex 32`. `ENCRYPTION_KEY_SECRET` encrypts the stored LLM key and SSO secret. If you lose it, you must enter them again. |
+| `DEEPSEEK_API_KEY` | `api_server` | Adds the DeepSeek provider on first start, if no chat model exists. Onyx then keeps the key, encrypted, in its database. |
+| `WEB_DOMAIN` | `api_server`, `web_server` | `http://localhost` locally, `https://<domain>` in production. Must agree with the Entra redirect URI. |
+| `VALID_EMAIL_DOMAINS` | `api_server` | Email domains that can sign in, for example the school domain |
+| `OIDC_PKCE_ENABLED` | `api_server` | Turns on PKCE for SSO sign-in |
+| `DISABLE_TELEMETRY` | `api_server` | `true`: no usage telemetry to Onyx |
+| `image:` | `api_server`, `web_server` | Our images on GHCR. `:latest` is the newest build of `main`. To fix a deployment to one build, use the `:sha-<commit>` tag. |
+| `volumes:` `./deploy/knowledge` | `api_server` | Folder that holds `policies/` and `behaviour/`. Change the left side to use another folder, for example `/srv/paoteacheragent/knowledge:/app/pao_knowledge:ro`. |
+| `ports:` | `nginx` | Host ports. Defaults: `80` and `3000`. |
+
+You can add other Onyx settings under `api_server`. The Onyx docs list them.
 
 ## LLM provider (DeepSeek)
 
@@ -290,7 +284,7 @@ Start a new chat to see a prompt change. The next start overwrites edits to thes
 
 ## Chat retention and privacy
 
-- **Where chats are stored:** in the Postgres database on our server (Docker volume `onyx_db_volume`), with the users, agents and uploaded files.
+- **Where chats are stored:** in the Postgres database on our server (the `.data/postgres/` folder in the repo), with the users, agents and uploaded files.
 - **Who can read them:** each teacher sees only their own chats in the app. Community Edition has no admin screen to see other people's chats (query history is a paid Onyx feature). But anyone with access to the server or database can read all chats.
 - **Retention:** chats are kept forever. Automatic deletion after N days is a paid (Enterprise) Onyx feature. Teachers can delete their own chats.
 - **Memory:** Onyx can remember facts about a teacher (role, year groups) across chats. The prompts tell it never to store information about students. Teachers can see, delete or turn off memory in **Settings → Personalization**.
@@ -299,16 +293,16 @@ Start a new chat to see a prompt change. The next start overwrites edits to thes
 
 ## Backups
 
-In Lite mode, all data is in Postgres: chats, users, agents, settings and the uploaded documents. One dump contains all of it.
+In Lite mode, all data is in Postgres: chats, users, agents, settings and the uploaded documents. Postgres keeps its files in `.data/postgres/`, which git ignores. One dump contains all of it. Do not copy `.data/` while the stack runs; use `pg_dump`.
 
-Also back up the knowledge folders (`deploy/knowledge/` or `PAO_KNOWLEDGE_HOST_DIR`). They are the source of truth for the agents' documents.
+Also back up the knowledge folders (`deploy/knowledge/` or the folder you set in `compose.yaml`). They are the source of truth for the agents' documents.
 
 ```bash
-# Backup. Also keep a copy of deploy/.env: without ENCRYPTION_KEY_SECRET,
+# Backup. Also keep a copy of compose.yaml: without ENCRYPTION_KEY_SECRET,
 # Onyx cannot decrypt the stored DeepSeek key and SSO secret.
 docker exec onyx-relational_db-1 pg_dump -U postgres -Fc postgres > paoteacheragent-$(date +%F).dump
 
-# Restore into a new deployment that uses the same deploy/.env
+# Restore into a new deployment that uses the same compose.yaml
 docker compose up -d relational_db
 docker exec -i onyx-relational_db-1 pg_restore -U postgres -d postgres --clean --if-exists < paoteacheragent-YYYY-MM-DD.dump
 docker compose up -d --wait
@@ -318,7 +312,7 @@ Run the backup on a schedule (for example, a nightly cron job) and keep copies o
 
 ## Upgrading Onyx
 
-This repo is a fork of Onyx at a fixed release tag (see `IMAGE_TAG`). To move to a new release:
+This repo is a fork of Onyx at a fixed release tag (see `IMAGE_TAG` in `deploy/backend.Dockerfile`). To move to a new release:
 
 ```bash
 # 0. Make a backup first (see Backups)
@@ -326,8 +320,7 @@ git fetch upstream tag vX.Y.Z --no-tags
 git merge vX.Y.Z
 #    Conflicts can occur only in the files in CUSTOMIZATIONS.md. Apply each change
 #    again. For README.md, keep ours. Delete again the upstream files we removed.
-# 1. Set IMAGE_TAG=vX.Y.Z in deploy/.env.example (the workflow reads it)
-#    and in deploy/.env
+# 1. Set IMAGE_TAG=vX.Y.Z in deploy/backend.Dockerfile
 # 2. Test locally
 docker compose build api_server web_server
 docker compose up -d --wait   # database migrations run automatically
