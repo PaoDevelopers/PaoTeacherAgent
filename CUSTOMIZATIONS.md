@@ -50,6 +50,11 @@ The school runs Docker Compose only, so these upstream files are deleted. After 
 
 | Path | What it was |
 |---|---|
+| `mobile/`, `desktop/`, `cli/`, `widget/`, `extensions/` | Mobile app, macOS desktop app, terminal client, embeddable chat widget, Chrome extension. We ship the website only. |
+| `terraform-provider-onyx/` | Terraform provider that sets Onyx config through the admin API |
+| `examples/`, `integrations/` | Code samples (widget, assistants API) and the Salesforce integration |
+| `tools/ods/`, `tools/ods-audit/`, `tools/loadtest/`, `tools/profiling/`, `tools/requirements/` | Onyx dev CLI source, load tests, profiling scripts, build pins for the Go CLIs. The `ods` pre-commit hooks still work: they install `onyx-devtools` from PyPI. |
+| `package.json`, `bun.lock` (repo root) | Bun workspace for `widget/`, `examples/widget/` and `desktop/`. `web/` has its own. |
 | `.github/` (all upstream files) | Onyx CI workflows, actions, CODEOWNERS and Dependabot config. Our `build-images.yml` is the only workflow. |
 | `deployment/helm/`, `deployment/terraform/`, `deployment/aws_ecs_fargate/`, `deployment/tests/`, `deployment/README.md`, `deployment/fleet-telemetry.md` | Kubernetes, Terraform and AWS deployment, and their tests |
 | `deployment/docker_compose/`: `docker-compose.{airgap-test,airgap-tls-test,mcp-api-key-test,mcp-ci,mcp-oauth-test,mcp-per-user-key-test,mock-llm-test,multitenant,resources,search-testing}.yml`, `install.sh`, `install.ps1`, `init-letsencrypt.sh`, `mcp-ci-web.conf` | CI and test overlays, multi-tenant overlay, Onyx guided installer, Let's Encrypt setup script |
@@ -63,7 +68,7 @@ Kept in `deployment/docker_compose/`: the files the root `compose.yaml` includes
 `.dev.yml`, `.craft.yml`, `.prod*.yml`, the env templates and `README.md`, because `ods generate-compose`
 and the dev stack read them.
 
-Upstream files changed for the removal: `.pre-commit-config.yaml` (Helm, Terraform and feature-map hooks and the `init-letsencrypt.sh` shellcheck exclude removed),
+Upstream files changed for the removal: `pyproject.toml` and `uv.lock` (no `tools/ods` workspace member, no `loadtest` group), `AGENTS.md` and `web/AGENTS.md` (no mobile or desktop sections), `.pre-commit-config.yaml` (mobile, desktop, widget, Go, build-constraints, Helm, Terraform and feature-map hooks and the `init-letsencrypt.sh` shellcheck exclude removed),
 `.gitignore` (ignores the editor and AI-agent folders),
 `backend/scripts/env_inventory_baseline.txt` (regenerated without the Helm values).
 

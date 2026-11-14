@@ -931,14 +931,3 @@ def test_compose_prepull_is_inert_even_if_it_does_start() -> None:
     prepull = _craft_compose_services()["sandbox-image-prepull"]
 
     assert prepull["entrypoint"] == ["/bin/true"]
-
-
-def test_embedded_craft_compose_copy_is_in_sync() -> None:
-    """onyx-cli go:embeds a byte-identical copy (go:embed can't reach outside
-    the cli module). See tools/ods/internal/deployfilessync."""
-    source = REPO_ROOT / "deployment/docker_compose/docker-compose.craft.yml"
-    embedded = (
-        REPO_ROOT
-        / "cli/internal/deploy/deployfiles/embedded/docker_compose/docker-compose.craft.yml"
-    )
-    assert embedded.read_text() == source.read_text()

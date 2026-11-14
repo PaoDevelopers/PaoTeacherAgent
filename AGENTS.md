@@ -61,9 +61,7 @@ there:
 - `backend/` — FastAPI app + Celery workers. `onyx/` is the Community Edition core, `ee/` mirrors its
   layout for Enterprise features, `alembic/` holds migrations, `tests/` the test suites. Standards
   (Celery, migrations, testing, error handling, LLM tracing): `backend/AGENTS.md`.
-- `web/` — Next.js frontend. Standards (also cover `desktop/`, the Tauri shell): `web/AGENTS.md`.
-- `mobile/` — React Native + Expo app. Standards: `mobile/AGENTS.md`. Mobile differs from web on
-  several points (no DOM, NativeWind, expo-router), so do **not** assume the web rules apply there.
+- `web/` — Next.js frontend. Standards: `web/AGENTS.md`.
 
 Explore the tree with `ls` rather than relying on docs for the full package list.
 
