@@ -51,6 +51,9 @@ The school runs Docker Compose only, so these upstream files are deleted. After 
 
 | Path | What it was |
 |---|---|
+| `CONTRIBUTING.md`, `SECURITY.md` | Upstream contributor guide and security contact |
+| `AGENTS.md`, `CLAUDE.md` (root, `backend/`, `web/`) | AI-agent instructions. Not deleted: git ignores them, so each developer keeps a local copy. |
+| `.oxfmtrc.json` (root), `tools/i18n/` | Moved to `web/.oxfmtrc.json` and `web/scripts/i18n/` |
 | `mobile/`, `desktop/`, `cli/`, `widget/`, `extensions/` | Mobile app, macOS desktop app, terminal client, embeddable chat widget, Chrome extension. We ship the website only. |
 | `terraform-provider-onyx/` | Terraform provider that sets Onyx config through the admin API |
 | `examples/`, `integrations/` | Code samples (widget, assistants API) and the Salesforce integration |
@@ -68,7 +71,7 @@ The school runs Docker Compose only, so these upstream files are deleted. After 
 
 `backend/scripts/restart_containers.sh` and the upstream dev stack do not work without `deployment/`. We do not use them.
 
-Upstream files changed for the removal: `pyproject.toml` and `uv.lock` (no `tools/ods` workspace member, no `loadtest` group), `AGENTS.md` and `web/AGENTS.md` (no mobile or desktop sections), `.pre-commit-config.yaml` (mobile, desktop, widget, Go, build-constraints, docker-compose-sync, Helm, Terraform and feature-map hooks and the `init-letsencrypt.sh` shellcheck exclude removed),
+Upstream files changed for the removal: `pyproject.toml` and `uv.lock` (no `tools/ods` workspace member, no `loadtest` group), `.pre-commit-config.yaml` (mobile, desktop, widget, Go, build-constraints, docker-compose-sync, Helm, Terraform and feature-map hooks and the `init-letsencrypt.sh` shellcheck exclude removed),
 `.gitignore` (ignores the editor and AI-agent folders, and `data/`),
 `backend/scripts/env_inventory_baseline.txt` (regenerated without the Helm values).
 
