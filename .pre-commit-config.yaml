@@ -177,7 +177,7 @@ repos:
       - id: i18n-copy-changes
         name: translation updates for English copy changes
         language: system
-        entry: python3 tools/i18n/check_copy_changes.py
+        entry: python3 web/scripts/i18n/check_copy_changes.py
         pass_filenames: false
         stages: [pre-commit]
         files: ^web/src/i18n/messages/.*\.json$
