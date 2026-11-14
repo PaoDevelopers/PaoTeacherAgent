@@ -580,16 +580,36 @@ DOCUMENT_INDEX_NUM_ATTEMPTS_ON_STARTUP = int(
 # Number of documents in a batch during indexing (further batching done by chunks before passing to bi-encoder)
 INDEX_BATCH_SIZE = int(os.environ.get("INDEX_BATCH_SIZE") or 16)
 
+
+def parse_postgres_url(url: str) -> dict[str, str]:
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme not in ("postgresql", "postgres"):
+        raise ValueError("POSTGRES_URL must start with postgresql://")
+    values = {
+        "POSTGRES_USER": urllib.parse.unquote(parts.username or ""),
+        "POSTGRES_PASSWORD": urllib.parse.unquote(parts.password or ""),
+        "POSTGRES_HOST": parts.hostname or "",
+        "POSTGRES_PORT": str(parts.port or ""),
+        "POSTGRES_DB": urllib.parse.unquote(parts.path.lstrip("/")),
+    }
+    return {key: value for key, value in values.items() if value}
+
+
+_POSTGRES_ENV = {
+    **os.environ,
+    **parse_postgres_url(os.environ.get("POSTGRES_URL") or "postgresql://"),
+}
+
 # Below are intended to match the env variables names used by the official postgres docker image
 # https://hub.docker.com/_/postgres
-POSTGRES_USER = os.environ.get("POSTGRES_USER") or "postgres"
+POSTGRES_USER = _POSTGRES_ENV.get("POSTGRES_USER") or "postgres"
 # URL-encode the password for asyncpg to avoid issues with special characters on some machines.
 POSTGRES_PASSWORD = urllib.parse.quote_plus(
-    os.environ.get("POSTGRES_PASSWORD") or "password"
+    _POSTGRES_ENV.get("POSTGRES_PASSWORD") or "password"
 )
-POSTGRES_HOST = os.environ.get("POSTGRES_HOST") or "127.0.0.1"
-POSTGRES_PORT = os.environ.get("POSTGRES_PORT") or "5432"
-POSTGRES_DB = os.environ.get("POSTGRES_DB") or "postgres"
+POSTGRES_HOST = _POSTGRES_ENV.get("POSTGRES_HOST") or "127.0.0.1"
+POSTGRES_PORT = _POSTGRES_ENV.get("POSTGRES_PORT") or "5432"
+POSTGRES_DB = _POSTGRES_ENV.get("POSTGRES_DB") or "postgres"
 AWS_REGION_NAME = os.environ.get("AWS_REGION_NAME") or "us-east-2"
 
 # --- Tenant sharding (multi-database) ---------------------------------------

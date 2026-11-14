@@ -1,6 +1,6 @@
 # Frontend Standards
 
-Standards for `web/` and `desktop/`. Every Opal component and layout has a `README.md` beside it.
+Standards for `web/`. Every Opal component and layout has a `README.md` beside it.
 Read that README instead of guessing props.
 
 ## Where components come from
