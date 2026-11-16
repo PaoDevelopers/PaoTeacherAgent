@@ -37,7 +37,6 @@ from onyx.db.models import User
 from onyx.server.runtime.onyx_runtime import OnyxRuntime
 from onyx.utils.logger import setup_logger
 from onyx.utils.url import add_url_params
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 from shared_configs.configs import MULTI_TENANT
 
 logger = setup_logger()
@@ -323,14 +322,7 @@ def send_subscription_cancellation_email(user_email: str) -> None:
     """This is templated but isn't meaningful for whitelabeling."""
 
     # Example usage of the reusable HTML
-    try:
-        load_runtime_settings_fn = fetch_versioned_implementation(
-            "onyx.server.enterprise_settings.store", "load_runtime_settings"
-        )
-        settings = load_runtime_settings_fn()
-        application_name = settings.application_name
-    except ModuleNotFoundError:
-        application_name = ONYX_DEFAULT_APPLICATION_NAME
+    application_name = ONYX_DEFAULT_APPLICATION_NAME
 
     onyx_file = OnyxRuntime.get_emailable_logo()
 
@@ -403,14 +395,7 @@ def build_user_email_invite(
 
 
 def send_user_email_invite(user_email: str, current_user: User) -> None:
-    try:
-        load_runtime_settings_fn = fetch_versioned_implementation(
-            "onyx.server.enterprise_settings.store", "load_runtime_settings"
-        )
-        settings = load_runtime_settings_fn()
-        application_name = settings.application_name
-    except ModuleNotFoundError:
-        application_name = ONYX_DEFAULT_APPLICATION_NAME
+    application_name = ONYX_DEFAULT_APPLICATION_NAME
 
     onyx_file = OnyxRuntime.get_emailable_logo()
 
@@ -436,14 +421,7 @@ def send_forgot_password_email(
     mail_from: str = EMAIL_FROM,
 ) -> None:
     # Builds a forgot password email with or without fancy HTML
-    try:
-        load_runtime_settings_fn = fetch_versioned_implementation(
-            "onyx.server.enterprise_settings.store", "load_runtime_settings"
-        )
-        settings = load_runtime_settings_fn()
-        application_name = settings.application_name
-    except ModuleNotFoundError:
-        application_name = ONYX_DEFAULT_APPLICATION_NAME
+    application_name = ONYX_DEFAULT_APPLICATION_NAME
 
     onyx_file = OnyxRuntime.get_emailable_logo()
 
@@ -481,14 +459,7 @@ def send_user_verification_email(
     mail_from: str = EMAIL_FROM,
 ) -> None:
     # Builds a verification email
-    try:
-        load_runtime_settings_fn = fetch_versioned_implementation(
-            "onyx.server.enterprise_settings.store", "load_runtime_settings"
-        )
-        settings = load_runtime_settings_fn()
-        application_name = settings.application_name
-    except ModuleNotFoundError:
-        application_name = ONYX_DEFAULT_APPLICATION_NAME
+    application_name = ONYX_DEFAULT_APPLICATION_NAME
 
     onyx_file = OnyxRuntime.get_emailable_logo()
 

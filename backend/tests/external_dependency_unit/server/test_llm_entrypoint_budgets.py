@@ -19,8 +19,6 @@ from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 import onyx.server.query_and_chat.token_limit as token_limit
-from ee.onyx.server.query_and_chat.models import SendSearchQueryRequest
-from ee.onyx.server.query_and_chat.search_backend import handle_send_search_message
 from onyx.configs.constants import TokenRateLimitScope
 from onyx.db.llm_usage import LLMUsageRecord
 from onyx.db.models import TokenRateLimit, User, UserUsage
@@ -43,7 +41,6 @@ from tests.external_dependency_unit.conftest import create_test_user, delete_tes
 pytestmark = pytest.mark.usefixtures("tenant_context")
 
 _HANDLE_REGULAR_ANSWER = "onyx.onyxbot.slack.handlers.handle_regular_answer"
-_SEARCH_BACKEND = "ee.onyx.server.query_and_chat.search_backend"
 _BUDGET_MESSAGE = "You've reached the usage budget for your organization."
 
 
@@ -126,45 +123,6 @@ def test_search_checks_budget_before_counting_api_call(
     assert exc_info.value.error_code is OnyxErrorCode.RATE_LIMITED
     assert exc_info.value.extra is not None
     assert exc_info.value.extra["scope"] == TokenRateLimitScope.GLOBAL.value
-
-
-def test_search_ui_refuses_over_budget_llm_search(
-    db_session: Session, over_budget_user: User
-) -> None:
-    with (
-        patch(f"{_SEARCH_BACKEND}.get_default_llm", side_effect=_fail_llm_resolution),
-        patch(
-            f"{_SEARCH_BACKEND}.stream_search_query", side_effect=_fail_llm_resolution
-        ),
-        pytest.raises(OnyxError) as exc_info,
-    ):
-        handle_send_search_message(
-            request=SendSearchQueryRequest(
-                search_query="quarterly revenue", run_query_expansion=True
-            ),
-            user=over_budget_user,
-            db_session=db_session,
-        )
-
-    assert exc_info.value.error_code is OnyxErrorCode.RATE_LIMITED
-
-
-def test_search_ui_skips_budget_for_keyword_only_search(
-    db_session: Session, over_budget_user: User
-) -> None:
-    with (
-        patch(f"{_SEARCH_BACKEND}.get_default_llm", side_effect=_fail_llm_resolution),
-        patch(f"{_SEARCH_BACKEND}.stream_search_query") as mock_stream,
-        patch(f"{_SEARCH_BACKEND}.gather_search_stream") as mock_gather,
-    ):
-        response = handle_send_search_message(
-            request=SendSearchQueryRequest(search_query="quarterly revenue"),
-            user=over_budget_user,
-            db_session=db_session,
-        )
-
-    mock_stream.assert_called_once()
-    assert response is mock_gather.return_value
 
 
 @pytest.mark.parametrize("reply_fails", [False, True])

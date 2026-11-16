@@ -9,10 +9,6 @@ import { SvgSliders } from "@opal/icons";
 import { useUser } from "@/providers/UserProvider";
 import { useIsMultiTenant } from "@/lib/auth/hooks";
 import { Section } from "@/layouts/general-layouts";
-import { useTierAtLeast } from "@/lib/tiers/hooks";
-import { LLM_GATEWAY_MIN_TIER } from "@/lib/tiers/utils";
-import { useLanguageModels } from "@/lib/languageModels/hooks";
-import { hasVisibleLLMModel } from "@/lib/languageModels/utils";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -29,13 +25,10 @@ export default function Layout({ children }: LayoutProps) {
   const router = useRouter();
   const { user } = useUser();
   const isMultiTenant = useIsMultiTenant();
-  const gatewayTier = useTierAtLeast(LLM_GATEWAY_MIN_TIER);
-  const { llmProviders } = useLanguageModels();
 
   const showPasswordSection = Boolean(user?.password_configured);
   const showTokensSection = isMultiTenant !== null;
   const showAccountsAccessTab = showPasswordSection || showTokensSection;
-  const showGatewayTab = gatewayTier && hasVisibleLLMModel(llmProviders);
 
   const tabs: SettingsTab[] = [
     { href: "/app/settings/general", label: t("tabs.general.label") },
@@ -48,14 +41,6 @@ export default function Layout({ children }: LayoutProps) {
           {
             href: "/app/settings/accounts-access",
             label: t("tabs.accountsAccess.label"),
-          },
-        ]
-      : []),
-    ...(showGatewayTab
-      ? [
-          {
-            href: "/app/settings/llm-gateway",
-            label: t("tabs.llmGateway.label"),
           },
         ]
       : []),

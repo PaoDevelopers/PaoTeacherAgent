@@ -28,7 +28,6 @@ from onyx.db.user_usage import (
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
@@ -46,10 +45,7 @@ def check_token_rate_limits(
     if not any_rate_limit_exists():
         return
 
-    versioned_rate_limit_strategy = fetch_versioned_implementation(
-        "onyx.server.query_and_chat.token_limit", _check_token_rate_limits.__name__
-    )
-    return versioned_rate_limit_strategy(user)
+    return _check_token_rate_limits(user)
 
 
 def _check_token_rate_limits(_: User) -> None:

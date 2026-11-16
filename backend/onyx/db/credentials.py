@@ -36,7 +36,6 @@ from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.server.documents.models import CredentialBase
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 
 logger = setup_logger()
 
@@ -65,9 +64,7 @@ class CredentialAccessLevel(str, Enum):
 def _build_credential_group_access_clause(
     user: User,  # noqa: ARG001
 ) -> ColumnElement[bool]:
-    """CE has no user groups, so group sharing grants nothing.
-
-    NOTE: EE version in ee.onyx.db.credentials."""
+    """CE has no user groups, so group sharing grants nothing."""
     return false()
 
 
@@ -108,10 +105,7 @@ def _add_user_filters(
         access_level is CredentialAccessLevel.USE
         and authority is not PermissionAuthority.NONE
     ):
-        group_access_clause_fn = fetch_versioned_implementation(
-            "onyx.db.credentials", "_build_credential_group_access_clause"
-        )
-        access_clauses.append(group_access_clause_fn(user))
+        access_clauses.append(_build_credential_group_access_clause(user))
     return stmt.where(or_(*access_clauses))
 
 
@@ -119,9 +113,7 @@ def validate_credential_group_ids(
     db_session: Session,  # noqa: ARG001
     group_ids: Collection[int],
 ) -> None:
-    """CE has no user groups, so a credential cannot be shared with one.
-
-    NOTE: EE version in ee.onyx.db.credentials."""
+    """CE has no user groups, so a credential cannot be shared with one."""
     if group_ids:
         raise OnyxError(
             OnyxErrorCode.FEATURE_NOT_AVAILABLE,

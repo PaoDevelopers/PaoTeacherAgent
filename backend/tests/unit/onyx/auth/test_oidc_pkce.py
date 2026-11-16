@@ -311,15 +311,11 @@ def test_oidc_callback_uses_code_verifier_when_pkce_enabled() -> None:
     authorize_response = client.get("/auth/oidc/authorize")
     state = _extract_state_from_authorize_response(authorize_response)
 
-    with patch(
-        "onyx.auth.users.fetch_ee_implementation_or_noop",
-        return_value=lambda *_identity: "tenant_1",
-    ):
-        response = client.get(
-            "/auth/oidc/callback",
-            params={"code": "abc123", "state": state},
-            follow_redirects=False,
-        )
+    response = client.get(
+        "/auth/oidc/callback",
+        params={"code": "abc123", "state": state},
+        follow_redirects=False,
+    )
 
     assert response.status_code == 302
     assert response.headers.get("location") == "/"
@@ -333,15 +329,11 @@ def test_oidc_callback_works_without_pkce_when_flag_disabled() -> None:
     authorize_response = client.get("/auth/oidc/authorize")
     state = _extract_state_from_authorize_response(authorize_response)
 
-    with patch(
-        "onyx.auth.users.fetch_ee_implementation_or_noop",
-        return_value=lambda *_identity: "tenant_1",
-    ):
-        response = client.get(
-            "/auth/oidc/callback",
-            params={"code": "abc123", "state": state},
-            follow_redirects=False,
-        )
+    response = client.get(
+        "/auth/oidc/callback",
+        params={"code": "abc123", "state": state},
+        follow_redirects=False,
+    )
 
     assert response.status_code == 302
     assert oauth_client.access_token_calls[0]["code_verifier"] is None
@@ -358,15 +350,11 @@ def test_oidc_callback_pkce_preserves_redirect_when_backend_login_is_non_redirec
     authorize_response = client.get("/auth/oidc/authorize")
     state = _extract_state_from_authorize_response(authorize_response)
 
-    with patch(
-        "onyx.auth.users.fetch_ee_implementation_or_noop",
-        return_value=lambda *_identity: "tenant_1",
-    ):
-        response = client.get(
-            "/auth/oidc/callback",
-            params={"code": "abc123", "state": state},
-            follow_redirects=False,
-        )
+    response = client.get(
+        "/auth/oidc/callback",
+        params={"code": "abc123", "state": state},
+        follow_redirects=False,
+    )
 
     assert response.status_code == 302
     assert response.headers.get("location") == "/"

@@ -2,8 +2,8 @@
 
 `is_craft_enabled_for_user` decides whether a user sees Craft. The decision
 collapses two inputs: the `ENABLE_CRAFT` env var (used when no real feature
-flag provider is configured) and the PostHog `onyx-craft-enabled` flag
-(used otherwise). These tests pin the precedence: PostHog wins when present,
+flag provider is configured) and the `onyx-craft-enabled` flag
+(used otherwise). These tests pin the precedence: the provider wins when present,
 env is the fallback when no provider is wired up.
 """
 
@@ -22,12 +22,12 @@ from onyx.server.features.build.utils import is_craft_enabled_for_user
 from onyx.server.settings.models import Settings, Tier
 
 
-class _StubPostHogProvider(FeatureFlagProvider):
+class _StubFlagProvider(FeatureFlagProvider):
     """A non-NoOp provider that returns a fixed answer for the craft flag.
 
     Inherits the base `feature_enabled_for_user_tenant`, which is the method the
     gate calls — so `calls` captures the `user_properties` (including
-    `tenant_id`) that get forwarded to PostHog.
+    `tenant_id`) that get forwarded to the provider.
     """
 
     def __init__(self, enabled: bool) -> None:
@@ -63,7 +63,7 @@ def _make_user() -> MagicMock:
 def test_disabled_when_env_and_flag_both_false(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No PostHog provider and ENABLE_CRAFT=False -> Craft is disabled."""
+    """No real provider and ENABLE_CRAFT=False -> Craft is disabled."""
     monkeypatch.setattr(build_utils, "ENABLE_CRAFT", False)
     monkeypatch.setattr(
         build_utils,
@@ -77,7 +77,7 @@ def test_disabled_when_env_and_flag_both_false(
 def test_enabled_via_env_when_no_flag_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No PostHog provider and ENABLE_CRAFT=True -> Craft is enabled via env."""
+    """No real provider and ENABLE_CRAFT=True -> Craft is enabled via env."""
     monkeypatch.setattr(build_utils, "ENABLE_CRAFT", True)
     monkeypatch.setattr(
         build_utils,
@@ -191,11 +191,11 @@ def test_admin_disabled_user_short_circuits(
     assert is_craft_enabled_for_user(user) is False
 
 
-def test_posthog_flag_overrides_env(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_provider_flag_overrides_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """A real provider's verdict wins regardless of ENABLE_CRAFT."""
     monkeypatch.setattr(build_utils, "ENABLE_CRAFT", False)
     monkeypatch.setattr(build_utils, "get_current_tenant_id", lambda: "tenant_dev")
-    provider = _StubPostHogProvider(enabled=True)
+    provider = _StubFlagProvider(enabled=True)
     monkeypatch.setattr(
         build_utils, "get_default_feature_flag_provider", lambda: provider
     )
@@ -212,11 +212,11 @@ def test_posthog_flag_overrides_env(monkeypatch: pytest.MonkeyPatch) -> None:
     ]
 
 
-def test_posthog_flag_disables_when_false(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_provider_flag_disables_when_false(monkeypatch: pytest.MonkeyPatch) -> None:
     """A real provider returning False disables Craft even if ENABLE_CRAFT=True."""
     monkeypatch.setattr(build_utils, "ENABLE_CRAFT", True)
     monkeypatch.setattr(build_utils, "get_current_tenant_id", lambda: "tenant_other")
-    provider = _StubPostHogProvider(enabled=False)
+    provider = _StubFlagProvider(enabled=False)
     monkeypatch.setattr(
         build_utils, "get_default_feature_flag_provider", lambda: provider
     )

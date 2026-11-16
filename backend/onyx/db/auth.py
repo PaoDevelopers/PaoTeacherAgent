@@ -1,4 +1,4 @@
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator
 from typing import Any, TypeVar
 from uuid import UUID
 
@@ -18,9 +18,6 @@ from onyx.db.engine.async_sql_engine import (
 )
 from onyx.db.enums import AccountType, Permission
 from onyx.db.models import AccessToken, OAuthAccount, User
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation_with_fallback,
-)
 
 T = TypeVar("T", bound=tuple[Any, ...])
 
@@ -33,12 +30,9 @@ async def reload_user_oidc_expiry(db_session: AsyncSession, user: User) -> None:
 def get_default_admin_user_emails() -> list[str]:
     """Returns a list of emails who should default to Admin role.
     Only used in the EE version. For MIT, just return empty list."""
-    get_default_admin_user_emails_fn: Callable[[], list[str]] = (
-        fetch_versioned_implementation_with_fallback(
-            "onyx.auth.users", "get_default_admin_user_emails_", lambda: list[str]()
-        )
-    )
-    return get_default_admin_user_emails_fn()
+    from onyx.auth.users import get_default_admin_user_emails_
+
+    return get_default_admin_user_emails_()
 
 
 def _add_live_user_count_where_clause(

@@ -4,7 +4,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ee.onyx.server.scim.auth import generate_scim_token
 from onyx.auth.api_key import generate_api_key, get_hashed_api_key_from_request
 from onyx.auth.constants import (
     API_KEY_LENGTH,
@@ -45,28 +44,7 @@ _TOKEN_BUILDERS: dict[str, Callable[[], str]] = {
     ),
     "pat": lambda: generate_pat(),
     "pat_tenant": lambda: generate_pat(WORST_CASE_TENANT),
-    "scim": lambda: generate_scim_token()[0],
-    "scim_tenant": lambda: generate_scim_token(WORST_CASE_TENANT)[0],
 }
-
-
-@pytest.mark.parametrize("kind", list(_TOKEN_BUILDERS))
-def test_real_tokens_are_hashed(kind: str) -> None:
-    with (
-        patch("onyx.auth.api_key.MULTI_TENANT", True),
-        patch("onyx.auth.pat.MULTI_TENANT", True),
-        patch("ee.onyx.server.scim.auth.MULTI_TENANT", True),
-    ):
-        token = _TOKEN_BUILDERS[kind]()
-    assert len(token) <= MAX_BEARER_TOKEN_LENGTH
-    hash_fn = MagicMock(return_value="hashed")
-
-    result = get_hashed_bearer_token_from_request(
-        _request(f"Bearer {token}"), ALL_PREFIXES, hash_fn
-    )
-
-    assert result == "hashed"
-    hash_fn.assert_called_once_with(token)
 
 
 @pytest.mark.parametrize("bearer", [True, False])

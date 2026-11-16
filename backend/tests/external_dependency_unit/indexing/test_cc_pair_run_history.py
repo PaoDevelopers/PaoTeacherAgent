@@ -74,7 +74,6 @@ from onyx.server.documents.models import (
 from tests.external_dependency_unit.conftest import create_test_user
 
 # The sync kinds come from the EE-only sync_params helpers.
-pytestmark = pytest.mark.usefixtures("enable_ee")
 
 _T0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
 # A source with named checks, so its pairs run them.

@@ -13,14 +13,13 @@ from onyx.document_index.opensearch.cc_pair_ids_backfill import (
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.server.security.store import get_security_settings
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 
 def validate_pairing_access(
     db_session: Session,
     *,
     user: User,
-    source: DocumentSource,
+    source: DocumentSource,  # noqa: ARG001
     access_type: AccessType,
     data_access_group_ids: list[int] | None,
     current_access_type: AccessType | None = None,
@@ -83,17 +82,3 @@ def validate_pairing_access(
 
     if not access_type.is_perm_synced():
         return
-    fetch_ee_implementation_or_noop(
-        "onyx.utils.tier",
-        "require_business_tier_for_sync_access",
-        noop_return_value=None,
-    )(access_type)
-    if not fetch_ee_implementation_or_noop(
-        "onyx.external_permissions.sync_params",
-        "check_if_valid_sync_source",
-        noop_return_value=True,
-    )(source):
-        raise OnyxError(
-            OnyxErrorCode.INVALID_INPUT,
-            f"Connector of type {source} does not support permission sync",
-        )

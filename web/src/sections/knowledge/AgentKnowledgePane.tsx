@@ -23,7 +23,6 @@ import type {
 import type { ProjectFile } from "@/lib/projects/types";
 import type { DocumentSetSummary } from "@/lib/types";
 import type { ValidSources } from "@/lib/connectors/types/source";
-import { searchDocuments } from "@/ee/lib/search/svc";
 import { Disabled } from "@opal/core";
 import { Card, InputSwitch } from "@opal/components";
 import { Content, InputHorizontal, Section } from "@opal/layouts";
@@ -230,20 +229,11 @@ export default function AgentKnowledgePane({
       setIsSearching(true);
       setSearchError(false);
       try {
-        const [docResponse, nodeResponse] = await Promise.all([
-          searchDocuments(query, {
-            filters: sourceFilter ? { source_type: [sourceFilter] } : undefined,
-            numHits: 30,
-          }),
-          fetchHierarchyNodeSearch(query, {
-            sources: sourceFilter ? [sourceFilter] : undefined,
-          }),
-        ]);
-        if (requestId !== searchRequestIdRef.current) return;
-        setSearchResults({
-          docs: docResponse.search_docs,
-          nodes: nodeResponse.nodes,
+        const nodeResponse = await fetchHierarchyNodeSearch(query, {
+          sources: sourceFilter ? [sourceFilter] : undefined,
         });
+        if (requestId !== searchRequestIdRef.current) return;
+        setSearchResults({ docs: [], nodes: nodeResponse.nodes });
       } catch (err) {
         if (requestId !== searchRequestIdRef.current) return;
         console.error("Knowledge search failed:", err);

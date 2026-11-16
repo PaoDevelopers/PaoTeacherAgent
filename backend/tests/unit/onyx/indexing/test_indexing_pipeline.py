@@ -349,10 +349,7 @@ def _index_batch_with_handler(
     index_doc_batch_mock: Any, doc_ids: list[str]
 ) -> IndexingPipelineResult:
     documents = [_make_doc(doc_id) for doc_id in doc_ids]
-    with (
-        patch(f"{_PATCH_PREFIX}.index_doc_batch", index_doc_batch_mock),
-        patch(f"{_PATCH_PREFIX}.sentry_sdk"),
-    ):
+    with patch(f"{_PATCH_PREFIX}.index_doc_batch", index_doc_batch_mock):
         return index_doc_batch_with_handler(
             chunker=MagicMock(),
             embedder=MagicMock(),
@@ -478,12 +475,9 @@ def test_batch_handler_forces_only_the_documents_the_batch_prepared() -> None:
     chunker = MagicMock()
     chunker.chunk.side_effect = RuntimeError("chunker down")
 
-    with (
-        patch(
-            f"{_PATCH_PREFIX}._apply_document_ingestion_hook",
-            side_effect=lambda documents: documents,
-        ),
-        patch(f"{_PATCH_PREFIX}.sentry_sdk"),
+    with patch(
+        f"{_PATCH_PREFIX}._apply_document_ingestion_hook",
+        side_effect=lambda documents: documents,
     ):
         result = index_doc_batch_with_handler(
             chunker=chunker,

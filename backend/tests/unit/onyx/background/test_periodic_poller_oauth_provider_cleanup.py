@@ -12,18 +12,6 @@ def test_oauth_provider_cleanup_always_runs() -> None:
     assert "oauth-provider-cleanup" in [t.name for t in _build_periodic_tasks()]
 
 
-def test_oauth_provider_cleanup_lock_id_is_unique() -> None:
-    with (
-        patch("onyx.configs.app_configs.AUTO_LLM_CONFIG_URL", "http://llm"),
-        patch("onyx.configs.app_configs.SCHEDULED_EVAL_DATASET_NAMES", ["ds"]),
-        patch("onyx.utils.variable_functionality.global_version") as mock_version,
-    ):
-        mock_version.is_ee_version.return_value = True
-        lock_ids = [t.lock_id for t in _build_periodic_tasks()]
-
-    assert len(lock_ids) == len(set(lock_ids))
-
-
 _TASKS_MODULE = "onyx.background.celery.tasks.oauth_provider.tasks"
 
 

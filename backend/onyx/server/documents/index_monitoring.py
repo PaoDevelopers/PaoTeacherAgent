@@ -76,7 +76,6 @@ from onyx.utils.audit import (
     actor_from_user,
     emit_audit_event,
 )
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 router = APIRouter(prefix="/manage/admin/index-monitoring")
 
@@ -365,12 +364,7 @@ def get_indexing_connectors(
 
 def _shared_group_sync_sources() -> set[DocumentSource]:
     """The sources whose group sync covers every pair of the source at once."""
-    sources: set[DocumentSource] = fetch_ee_implementation_or_noop(
-        "onyx.external_permissions.sync_params",
-        "get_all_cc_pair_agnostic_group_sync_sources",
-        noop_return_value=set(),
-    )()
-    return sources
+    return set()
 
 
 def _pair_of_run(

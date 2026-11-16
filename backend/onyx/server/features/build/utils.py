@@ -105,11 +105,11 @@ def validate_file(size: int) -> tuple[bool, str | None]:
 # Build Mode Feature Announcements
 # =============================================================================
 
-# PostHog feature flag key for enabling Onyx Craft (cloud rollout control)
+# Feature flag key for enabling Onyx Craft (cloud rollout control)
 # Flag logic: True = enabled, False/null/not found = disabled
 ONYX_CRAFT_ENABLED_FLAG = "onyx-craft-enabled"
 
-# PostHog multivariate flag; each variant key maps to a fixed disabled-tools
+# Multivariate flag; each variant key maps to a fixed disabled-tools
 # list below. An unrecognized/missing variant falls back to OPENCODE_DISABLED_TOOLS.
 OPENCODE_DISABLED_TOOLS_FLAG = "onyx-craft-opencode-disabled-tools"
 OPENCODE_DISABLED_TOOLS_VARIANTS: dict[str, list[str]] = {
@@ -129,13 +129,13 @@ def _craft_flag_enabled(user: User) -> bool:
 
     Only explicit True enables the feature.
 
-    On the PostHog path the flag is evaluated for the requesting user, so
+    A real provider evaluates the flag for the requesting user, so
     "deployment-level" assumes tenant-scoped flag targeting; per-user cohort
     rollouts would make this reflect the requester's own bucket.
     """
     feature_flag_provider = get_default_feature_flag_provider()
 
-    # If no PostHog configured (NoOp provider), use ENABLE_CRAFT env var
+    # With the NoOp provider, use the ENABLE_CRAFT env var
     if isinstance(feature_flag_provider, NoOpFeatureFlagProvider):
         return ENABLE_CRAFT
 
@@ -146,10 +146,10 @@ def _craft_flag_enabled(user: User) -> bool:
     )
 
     if is_enabled:
-        logger.debug("Onyx Craft enabled via PostHog feature flag")
+        logger.debug("Onyx Craft enabled via feature flag")
         return True
     else:
-        logger.debug("Onyx Craft disabled via PostHog feature flag")
+        logger.debug("Onyx Craft disabled via feature flag")
         return False
 
 
@@ -209,8 +209,8 @@ def is_craft_enabled_for_user(
 
 def get_opencode_disabled_tools() -> list[str]:
     """Deployment-wide, not per-user: every user in a tenant/deployment gets
-    the same answer, so PostHog release conditions target tenant_id rather
-    than a per-user rollout."""
+    the same answer, so release conditions target tenant_id rather than a
+    per-user rollout."""
     feature_flag_provider = get_default_feature_flag_provider()
 
     if isinstance(feature_flag_provider, NoOpFeatureFlagProvider):
@@ -234,7 +234,7 @@ def ensure_build_mode_intro_notification(user: User, db_session: Session) -> Non
     Called from /api/notifications endpoint. Uses notification deduplication
     to ensure each user only gets one notification.
     """
-    # PostHog feature flag check - only show notification if Onyx Craft is enabled
+    # Only show the notification if Onyx Craft is enabled
     if not is_craft_enabled_for_user(user):
         return
 

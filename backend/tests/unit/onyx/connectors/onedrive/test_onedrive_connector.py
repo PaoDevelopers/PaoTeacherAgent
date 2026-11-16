@@ -5,11 +5,7 @@ from unittest.mock import MagicMock, create_autospec
 
 import pytest
 
-from ee.onyx.external_permissions.onedrive.permission_mapper import (
-    map_onedrive_permissions,
-)
 from onyx.access.models import ExternalAccess
-from onyx.access.utils import build_ext_group_name_for_onyx
 from onyx.configs.constants import DocumentSource
 from onyx.connectors.capability_checks.models import (
     MAX_FINDING_OPTIONS,
@@ -732,77 +728,6 @@ def test_onedrive_recorded_spike_item_does_not_require_shared_changed() -> None:
     assert item.id == "<file-direct-id>"
 
 
-def test_onedrive_fixture_permission_mutations_traverse_connector(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    connector, gateway = _connector()
-    monkeypatch.setattr(
-        "onyx.connectors.onedrive.connector.get_onedrive_external_access",
-        map_onedrive_permissions,
-    )
-    destination = _fixture_item(
-        "<folder-move-destination-id>", "incremental_delta_pages"
-    )
-    moved = _fixture_item("<file-move-id>", "incremental_delta_pages")
-    remove_share = _fixture_item("<file-remove-share-id>", "incremental_delta_pages")
-    restore_inheritance = _fixture_item(
-        "<file-restore-inheritance-id>", "incremental_delta_pages"
-    )
-    permission_shapes = {
-        destination.id: "move_destination_after",
-        remove_share.id: "remove_share_after",
-        restore_inheritance.id: "restore_inheritance_after",
-    }
-
-    def list_permissions(
-        *,
-        drive_id: str,
-        item_id: str,
-        next_link: str | None,
-    ) -> OneDrivePermissionPage:
-        del drive_id, next_link
-        return _fixture_permissions(permission_shapes[item_id])
-
-    gateway.list_permissions.side_effect = list_permissions
-    gateway.download_item.return_value = DriveItemContent(
-        sections=[TextSection(text="body")]
-    )
-    gateway.get_delta_page.return_value = DriveDeltaFetchResult(
-        page=DriveDeltaPage(
-            items=[destination, moved, remove_share, restore_inheritance]
-        )
-    )
-    checkpoint = OneDriveCheckpoint(
-        has_more=True,
-        current_user=_user(),
-        current_drive=_drive(),
-    )
-
-    output, _ = _run_perm_step(connector, checkpoint)
-
-    documents = {item.id: item for item in output if isinstance(item, Document)}
-    moved_access = documents[moved.id].external_access
-    remove_share_access = documents[remove_share.id].external_access
-    restored_access = documents[restore_inheritance.id].external_access
-    assert moved_access is not None
-    assert remove_share_access is not None
-    assert restored_access is not None
-    assert "<alternate-user-email>" in moved_access.external_user_emails
-    assert remove_share_access.external_user_emails == {
-        "owner@example.com",
-        "<owner-email>",
-    }
-    assert "<primary-user-email>" in restored_access.external_user_emails
-    permission_item_ids = [
-        call.kwargs["item_id"] for call in gateway.list_permissions.call_args_list
-    ]
-    assert permission_item_ids == [
-        destination.id,
-        remove_share.id,
-        restore_inheritance.id,
-    ]
-
-
 def test_onedrive_permission_pagination_rejects_page_limit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -835,128 +760,6 @@ def test_onedrive_file_permission_transient_error_fails_attempt() -> None:
 
     with pytest.raises(OneDriveGraphError, match="tooManyRequests"):
         _run_perm_step(connector, checkpoint)
-
-
-def test_onedrive_slim_folder_access_prefixes_external_groups(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    connector, gateway = _connector()
-    monkeypatch.setattr(
-        "onyx.connectors.onedrive.connector.get_onedrive_external_access",
-        map_onedrive_permissions,
-    )
-    folder = _folder_item()
-    gateway.get_delta_page.return_value = DriveDeltaFetchResult(
-        page=DriveDeltaPage(items=[folder])
-    )
-    gateway.list_permissions.return_value = _fixture_permissions("visible_group")
-    checkpoint = OneDriveCheckpoint(
-        has_more=True,
-        current_user=_user(),
-        current_drive=_drive(),
-    )
-
-    output = list(
-        connector._discover_from_checkpoint(
-            0,
-            0,
-            checkpoint,
-            include_permissions=True,
-            add_group_prefix=False,
-        )
-    )
-
-    node = next(
-        item
-        for item in output
-        if isinstance(item, HierarchyNode)
-        and item.raw_node_id == hierarchy_item_id("drive-1", folder.id)
-    )
-    assert node.external_access is not None
-    assert node.external_access.external_user_group_ids == {
-        build_ext_group_name_for_onyx("<visible-group-id>", DocumentSource.ONEDRIVE)
-    }
-
-
-def test_onedrive_fixture_child_before_parent_reads_child_permissions(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    connector, gateway = _connector()
-    monkeypatch.setattr(
-        "onyx.connectors.onedrive.connector.get_onedrive_external_access",
-        map_onedrive_permissions,
-    )
-    destination = _fixture_item(
-        "<folder-move-destination-id>", "incremental_delta_pages"
-    )
-    moved = _fixture_item("<file-move-id>", "incremental_delta_pages")
-    gateway.list_permissions.return_value = _fixture_permissions(
-        "move_destination_after"
-    )
-    gateway.download_item.return_value = DriveItemContent(
-        sections=[TextSection(text="body")]
-    )
-    gateway.get_delta_page.return_value = DriveDeltaFetchResult(
-        page=DriveDeltaPage(items=[moved, destination])
-    )
-    checkpoint = OneDriveCheckpoint(
-        has_more=True,
-        current_user=_user(),
-        current_drive=_drive(),
-    )
-
-    output, _ = _run_perm_step(connector, checkpoint)
-
-    assert [item.id for item in output if isinstance(item, Document)] == [moved.id]
-    assert [
-        call.kwargs["item_id"] for call in gateway.list_permissions.call_args_list
-    ] == [moved.id, destination.id]
-
-
-def test_onedrive_fixture_cache_loss_checkpoint_restart_reads_item_permissions(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    connector, gateway = _connector()
-    monkeypatch.setattr(
-        "onyx.connectors.onedrive.connector.get_onedrive_external_access",
-        map_onedrive_permissions,
-    )
-    destination = _fixture_item(
-        "<folder-move-destination-id>", "incremental_delta_pages"
-    )
-    moved = _fixture_item("<file-move-id>", "incremental_delta_pages")
-    gateway.list_permissions.return_value = _fixture_permissions(
-        "move_destination_after"
-    )
-    gateway.download_item.return_value = DriveItemContent(
-        sections=[TextSection(text="body")]
-    )
-    gateway.get_delta_page.side_effect = [
-        DriveDeltaFetchResult(
-            page=DriveDeltaPage(items=[destination]),
-            next_checkpoint_url="next-delta",
-        ),
-        DriveDeltaFetchResult(page=DriveDeltaPage(items=[moved])),
-    ]
-    checkpoint = OneDriveCheckpoint(
-        has_more=True,
-        current_user=_user(),
-        current_drive=_drive(),
-    )
-
-    _, checkpoint = _run_perm_step(connector, checkpoint)
-    checkpoint = connector.validate_checkpoint_json(checkpoint.model_dump_json())
-    connector._folder_access.clear()
-    output, _ = _run_perm_step(connector, checkpoint)
-
-    documents = [item for item in output if isinstance(item, Document)]
-    assert len(documents) == 1
-    access = documents[0].external_access
-    assert access is not None
-    assert "<alternate-user-email>" in access.external_user_emails
-    assert [
-        call.kwargs["item_id"] for call in gateway.list_permissions.call_args_list
-    ] == [destination.id, moved.id]
 
 
 def test_onedrive_slim_walk_is_complete_without_downloads() -> None:

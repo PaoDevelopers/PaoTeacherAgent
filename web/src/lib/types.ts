@@ -364,10 +364,6 @@ export interface FederatedConnectorDetail {
   }>;
 }
 
-export interface OAuthPrepareAuthorizationResponse {
-  url: string;
-}
-
 export interface OAuthBaseCallbackResponse {
   success: boolean;
   message: string;

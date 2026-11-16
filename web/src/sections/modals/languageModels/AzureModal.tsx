@@ -17,7 +17,6 @@ import {
   LlmModalsTranslator,
 } from "@/sections/modals/languageModels/utils";
 import { submitProvider } from "@/sections/modals/languageModels/svc";
-import { LLMProviderConfiguredSource } from "@/lib/analytics/utils";
 import {
   APIKeyField,
   DisplayNameField,
@@ -96,7 +95,6 @@ export default function AzureModal({
   shouldMarkAsDefault,
   onOpenChange,
   onSuccess,
-  analyticsSource,
 }: LLMProviderFormProps) {
   const t = useTranslations("admin.languageModels.modals");
   const tPlaceholders = useTranslations("common.placeholders");
@@ -139,11 +137,6 @@ export default function AzureModal({
 
         await submitProvider({
           t,
-          analyticsSource:
-            analyticsSource ??
-            (isOnboarding
-              ? LLMProviderConfiguredSource.CHAT_ONBOARDING
-              : LLMProviderConfiguredSource.ADMIN_PAGE),
           providerName: LLMProviderName.AZURE,
           values: processedValues,
           initialValues,

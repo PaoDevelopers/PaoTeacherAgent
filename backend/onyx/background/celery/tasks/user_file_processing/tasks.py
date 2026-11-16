@@ -76,7 +76,6 @@ from onyx.indexing.embedder import DefaultIndexingEmbedder
 from onyx.indexing.indexing_pipeline import run_indexing_pipeline
 from onyx.redis.redis_pool import get_redis_client
 from onyx.redis.tenant_redis_client import TenantRedisClient
-from onyx.utils.variable_functionality import global_version
 
 
 def _as_uuid(value: str | UUID) -> UUID:
@@ -1072,7 +1071,7 @@ def project_sync_user_file_impl(
             user_files = fetch_user_files_with_access_relationships(
                 [user_file_id],
                 db_session,
-                eager_load_groups=global_version.is_ee_version(),
+                eager_load_groups=False,
             )
             user_file = user_files[0] if user_files else None
             if not user_file:

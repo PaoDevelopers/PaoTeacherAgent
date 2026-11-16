@@ -8,9 +8,7 @@ import { useEffect } from "react";
 import { useSettings } from "@/lib/settings/hooks";
 import { useAdminDocumentTitle } from "@/lib/app/hooks";
 import { useUser } from "@/providers/UserProvider";
-import { ApplicationStatus } from "@/lib/settings/types";
-import { Button, Text } from "@opal/components";
-import { markdown } from "@opal/utils";
+import { Button } from "@opal/components";
 import useScreenSize from "@/hooks/useScreenSize";
 import { SvgSidebar } from "@opal/icons";
 import { RootLayout, useSidebarState } from "@opal/layouts";
@@ -39,7 +37,7 @@ export default function AdminChrome({
   const { setFolded } = useSidebarState();
   const { isMobile } = useScreenSize();
   const pathname = usePathname();
-  const { vectorDbEnabled, isLoading, application_status } = useSettings();
+  const { vectorDbEnabled, isLoading } = useSettings();
   useAdminDocumentTitle();
   const router = useRouter();
   const { adminCapabilities: liveAdminCapabilities, isUserLoading } = useUser();
@@ -85,19 +83,6 @@ export default function AdminChrome({
 
   return (
     <RootLayout.Root>
-      {application_status === ApplicationStatus.PAYMENT_REMINDER && (
-        <div className="fixed top-2 left-1/2 -translate-x-1/2 bg-status-warning-01 p-4 rounded-lg shadow-lg z-50 max-w-md text-center">
-          <Text font="main-ui-body" color="text-05">
-            {markdown(t("adminChrome.paymentReminder.text"))}
-          </Text>
-          <div className="mt-2">
-            <Button width="full" href="/admin/billing">
-              {t("adminChrome.paymentReminder.billingButton.label")}
-            </Button>
-          </div>
-        </div>
-      )}
-
       <AdminSidebar />
 
       <RootLayout.App data-main-container>

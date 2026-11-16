@@ -10,10 +10,7 @@ from collections.abc import Callable
 from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
-
 from onyx.configs.constants import DocumentSource
-from onyx.connectors.capability_checks.registry import get_capability_checks
 from onyx.connectors.confluence.source_operations import (
     ConfluenceRestSpacePermissionsNotAvailableError,
     ConfluenceSpacePermissionsVariant,
@@ -58,10 +55,6 @@ from onyx.connectors.slack.source_operations import (
     SlackTeamsPage,
     SlackUsersPage,
 )
-from onyx.connectors.source_operations import (
-    SourceOperations,
-    registered_source_operations,
-)
 from onyx.connectors.youtrack.models import (
     YouTrackAssignedRole,
     YouTrackIssue,
@@ -71,7 +64,6 @@ from onyx.connectors.youtrack.models import (
     YouTrackUser,
 )
 from tests.unit.onyx.connectors.source_operation_harnesses import (
-    compute_uncovered_units,
     import_all_source_operation_gateways,
 )
 
@@ -363,44 +355,3 @@ _CONNECTOR_CONFIGS: dict[DocumentSource, list[dict[str, Any]]] = {
     # The root page check reads a page only when a root page is set.
     DocumentSource.NOTION: [{"root_page_id": "root"}],
 }
-
-
-@pytest.mark.usefixtures("enable_ee")
-@pytest.mark.parametrize(
-    "gateway_class",
-    list(registered_source_operations().values()),
-    ids=lambda gateway_class: gateway_class.source.value,
-)
-def test_every_operation_unit_is_exercised_by_a_check(
-    gateway_class: type[SourceOperations],
-) -> None:
-    """Verifies check coverage of every non-exempt (operation, variant) unit.
-
-    Runs with EE enabled: perm-sync checks live only in the EE registries, so
-    perm-sync-tagged units are coverable only when EE resolution is on.
-    """
-    # Precondition.
-    checks = get_capability_checks(gateway_class.source)
-
-    # Under test.
-    configurations = _SPY_CONFIGURATIONS.get(gateway_class.source) or [None]
-    connector_configs = _CONNECTOR_CONFIGS.get(gateway_class.source) or [None]
-    uncovered = set.intersection(
-        *(
-            set(
-                compute_uncovered_units(
-                    gateway_class, checks, configure_spy, connector_config
-                )
-            )
-            for configure_spy in configurations
-            for connector_config in connector_configs
-        )
-    )
-
-    # Postcondition.
-    assert not uncovered, (
-        f"{gateway_class.source.value} has operation units no capability "
-        f"check exercises: {uncovered}. Add a check composing them "
-        '(variant-bearing operations must be invoked with variant="<name>") '
-        'or annotate the operation untested="<reason>".'
-    )

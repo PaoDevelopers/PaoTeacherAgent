@@ -1,5 +1,4 @@
 import time
-from collections.abc import Callable
 from datetime import datetime
 from typing import Any, cast
 
@@ -46,7 +45,7 @@ from onyx.db.document_set import (
 )
 from onyx.db.engine.sql_engine import get_session_with_current_tenant
 from onyx.db.enums import SyncStatus, SyncType
-from onyx.db.models import DocumentSet, UserGroup
+from onyx.db.models import DocumentSet
 from onyx.db.port_attempt import port_backfill_has_pending_work
 from onyx.db.search_settings import get_active_search_settings
 from onyx.db.sync_record import (
@@ -65,15 +64,8 @@ from onyx.redis.redis_pool import (
     get_redis_replica_client,
     redis_lock_dump,
 )
-from onyx.redis.redis_usergroup import RedisUserGroup
 from onyx.redis.tenant_redis_client import TenantRedisClient
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation,
-    fetch_versioned_implementation_with_fallback,
-    global_version,
-    noop_fallback,
-)
 
 logger = setup_logger()
 
@@ -145,30 +137,6 @@ def check_for_vespa_sync_task(self: Task, *, tenant_id: str) -> bool | None:
 
         # check if any user groups are not synced
         lock_beat.reacquire()
-        if global_version.is_ee_version():
-            try:
-                fetch_user_groups = fetch_versioned_implementation(
-                    "onyx.db.user_group", "fetch_user_groups"
-                )
-            except ModuleNotFoundError:
-                # Always exceptions on the MIT version, which is expected
-                # We shouldn't actually get here if the ee version check works
-                pass
-            else:
-                usergroup_ids: list[int] = []
-                with get_session_with_current_tenant() as db_session:
-                    user_groups = fetch_user_groups(
-                        db_session=db_session, only_up_to_date=False
-                    )
-
-                    usergroup_ids.extend(usergroup.id for usergroup in user_groups)
-
-                for usergroup_id in usergroup_ids:
-                    lock_beat.reacquire()
-                    with get_session_with_current_tenant() as db_session:
-                        try_generate_user_group_sync_tasks(
-                            self.app, usergroup_id, db_session, r, lock_beat, tenant_id
-                        )
 
         # 2/3: VALIDATE: TODO
 
@@ -191,16 +159,6 @@ def check_for_vespa_sync_task(self: Task, *, tenant_id: str) -> bool | None:
             elif key_str.startswith(RedisDocumentSet.FENCE_PREFIX):
                 with get_session_with_current_tenant() as db_session:
                     monitor_document_set_taskset(tenant_id, key_bytes, r, db_session)
-            elif key_str.startswith(RedisUserGroup.FENCE_PREFIX):
-                monitor_usergroup_taskset = (
-                    fetch_versioned_implementation_with_fallback(
-                        "onyx.background.celery.tasks.vespa.tasks",
-                        "monitor_usergroup_taskset",
-                        noop_fallback,
-                    )
-                )
-                with get_session_with_current_tenant() as db_session:
-                    monitor_usergroup_taskset(tenant_id, key_bytes, r, db_session)
 
     except SoftTimeLimitExceeded:
         task_logger.info(
@@ -295,82 +253,6 @@ def try_generate_document_set_sync_tasks(
 
     # set this only after all tasks have been added
     rds.set_fence(tasks_generated)
-    return tasks_generated
-
-
-def try_generate_user_group_sync_tasks(
-    celery_app: Celery,
-    usergroup_id: int,
-    db_session: Session,
-    r: TenantRedisClient,
-    lock_beat: RedisLock,
-    tenant_id: str,
-) -> int | None:
-    lock_beat.reacquire()
-
-    rug = RedisUserGroup(tenant_id, usergroup_id)
-    if rug.fenced:
-        # don't generate sync tasks if tasks are still pending
-        return None
-
-    # race condition with the monitor/cleanup function if we use a cached result!
-    fetch_user_group = cast(
-        Callable[[Session, int], UserGroup | None],
-        fetch_versioned_implementation("onyx.db.user_group", "fetch_user_group"),
-    )
-
-    usergroup = fetch_user_group(db_session, usergroup_id)
-    if not usergroup:
-        return None
-
-    if usergroup.is_up_to_date:
-        # there should be no in-progress sync records if this is up to date
-        # clean it up just in case things got into a bad state
-        cleanup_sync_records(
-            db_session=db_session,
-            entity_id=usergroup_id,
-            sync_type=SyncType.USER_GROUP,
-        )
-        return None
-
-    # add tasks to celery and build up the task set to monitor in redis
-    r.delete(rug.taskset_key)
-
-    # Add all documents that need to be updated into the queue
-    task_logger.info(
-        f"RedisUserGroup.generate_tasks starting. usergroup_id={usergroup.id}"
-    )
-    result = rug.generate_tasks(
-        DOCUMENT_INDEX_SYNC_MAX_TASKS, celery_app, db_session, r, lock_beat, tenant_id
-    )
-    if result is None:
-        return None
-
-    tasks_generated = result[0]
-    # Currently we are allowing the sync to proceed with 0 tasks.
-    # It's possible for sets/groups to be generated initially with no entries
-    # and they still need to be marked as up to date.
-    # if tasks_generated == 0:
-    #     return 0
-
-    task_logger.info(
-        f"RedisUserGroup.generate_tasks finished. usergroup={usergroup.id} tasks_generated={tasks_generated}"
-    )
-
-    # create before setting fence to avoid race condition where the monitoring
-    # task updates the sync record before it is created
-    try:
-        insert_sync_record(
-            db_session=db_session,
-            entity_id=usergroup_id,
-            sync_type=SyncType.USER_GROUP,
-        )
-    except Exception:
-        task_logger.exception("insert_sync_record exceptioned.")
-
-    # set this only after all tasks have been added
-    rug.set_fence(tasks_generated)
-
     return tasks_generated
 
 

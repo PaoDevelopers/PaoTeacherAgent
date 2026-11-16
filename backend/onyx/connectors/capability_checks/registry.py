@@ -32,7 +32,6 @@ from onyx.connectors.source_operations import get_source_operations_class
 from onyx.connectors.youtrack.capability_checks import (
     build_youtrack_indexing_checks,
 )
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 # INDEXING checks per source. Checks must be enumerable without an instantiated
 # connector, hence a registry module rather than a ``BaseConnector`` method.
@@ -96,12 +95,6 @@ def get_capability_checks(source: DocumentSource) -> list[CapabilityCheck]:
     )
     if not checks:
         checks.append(_ConnectorSettingsFallbackCheck(source))
-    get_perm_sync_checks = fetch_ee_implementation_or_noop(
-        "onyx.connectors.capability_checks",
-        "get_perm_sync_capability_checks",
-        noop_return_value=[],
-    )
-    checks.extend(get_perm_sync_checks(source))
     return checks
 
 

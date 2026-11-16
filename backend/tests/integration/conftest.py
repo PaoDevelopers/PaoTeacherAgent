@@ -40,25 +40,11 @@ load_env_vars()
 
 from fastapi.testclient import TestClient  # noqa: E402
 
-# Import `onyx.main` BEFORE calling fetch_versioned_implementation ourselves.
-# onyx.main's module body (line 706) already calls fetch_versioned_implementation
-# under set_is_ee_if_available(). If our fixture is the first to invoke
-# the dispatcher, the recursion goes:
-#   fixture -> fetch_versioned_implementation -> import ee.onyx.main
-#     -> ee.onyx.main line 53 `from onyx.main import get_application`
-#     -> onyx.main line 706 calls fetch_versioned_implementation again
-#     -> tries to import ee.onyx.main (mid-init), AttributeError on get_application.
-# Letting onyx.main load first means ee.onyx.main's back-reference to
-# onyx.main.get_application (defined at line 429, before line 706) resolves cleanly.
-import onyx.main  # noqa: E402, F401
+import onyx.main  # noqa: E402
 from onyx.background.celery.apps.client import celery_app  # noqa: E402
 from onyx.configs.constants import DocumentSource  # noqa: E402
 from onyx.db.engine.sql_engine import (  # noqa: E402
     SqlEngine,
-    get_session_with_current_tenant,
-)
-from onyx.utils.variable_functionality import (  # noqa: E402
-    fetch_versioned_implementation,
 )
 from shared_configs.configs import MULTI_TENANT  # noqa: E402
 from tests.integration.common_utils import http_client  # noqa: E402
@@ -92,7 +78,6 @@ from tests.integration.common_utils.managers.user_group import (  # noqa: E402
     UserGroupManager,
 )
 from tests.integration.common_utils.reset import (  # noqa: E402
-    _seed_dev_license_if_set,
     reset_all,
     reset_all_multitenant,
 )
@@ -305,42 +290,19 @@ def _test_client(
     initialize_db: None,  # noqa: ARG001
     _start_celery_workers: None,  # noqa: ARG001
 ) -> Generator[TestClient, None, None]:
-    # In-process api_server. Use the versioned dispatcher so MT / EE
-    # builds get ee.onyx.main.get_application — that's the one that
-    # registers tenant_id_middleware (required to populate
-    # CURRENT_TENANT_ID_CONTEXTVAR from the auth cookie in cloud mode).
-    # `set_is_ee_if_available()` already ran at onyx.main module
-    # load above; the dispatcher hits the lru_cache and resolves to the
-    # right implementation.
+    # In-process api_server.
     # Patch setup_prometheus_metrics to avoid "Duplicated timeseries" if
     # get_application() is ever called more than once in the same process.
     # Use TestClient as a context manager so the real lifespan runs
     # (setup_onyx / file store init / pool metrics).
-    get_application = fetch_versioned_implementation(
-        module="onyx.main", attribute="get_application"
-    )
     with patch("onyx.main.setup_prometheus_metrics"):
-        app = get_application()
+        app = onyx.main.get_application()
     with TestClient(app) as test_client:
         http_client.set_test_client(test_client)
         try:
             yield test_client
         finally:
             http_client.set_test_client(None)
-
-
-@pytest.fixture(scope="session", autouse=True)
-def seed_dev_license_for_session(initialize_db: None) -> None:  # noqa: ARG001
-    # ``reset_postgres`` re-seeds the dev license after every wipe, but tests
-    # that don't take the ``reset`` fixture would otherwise hit Business-tier
-    # endpoints (e.g. /admin/api-key) with no License row and 402. Seed once at
-    # session start; no-op when ONYX_DEV_LICENSE is unset. Skip in multi-tenant
-    # mode: License rows live in tenant schemas, and the public-schema session
-    # here would seed into the wrong place.
-    if MULTI_TENANT:
-        return
-    with get_session_with_current_tenant() as db_session:
-        _seed_dev_license_if_set(db_session)
 
 
 """NOTE: for some reason using this seems to lead to misc

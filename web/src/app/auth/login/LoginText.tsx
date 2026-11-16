@@ -7,17 +7,14 @@ import Text from "@/refresh-components/texts/Text";
 
 export default function LoginText() {
   const t = useTranslations("auth");
-  const { appName, enterprise } = useSettings();
-  const subtitle =
-    enterprise?.custom_login_subtitle?.trim() ||
-    t("login.welcomeSubtitle.text");
+  const { appName } = useSettings();
   return (
     <div className="w-full flex flex-col ">
       <Text as="p" headingH2 text05>
         {t("login.welcomeHeading.title", { appName })}
       </Text>
       <Text as="p" text03 mainUiMuted>
-        {subtitle}
+        {t("login.welcomeSubtitle.text")}
       </Text>
     </div>
   );

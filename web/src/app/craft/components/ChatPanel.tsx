@@ -3,7 +3,6 @@
 import { memo, useCallback, useMemo, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { track, AnalyticsEvent } from "@/lib/analytics/utils";
 import {
   useChatSession,
   useSessionId,
@@ -422,8 +421,6 @@ function ChatPanelContent({
         toast.error(t("toast.scheduledRunWait"));
         return false;
       }
-
-      track(AnalyticsEvent.SENT_CRAFT_MESSAGE);
 
       const chosen = modelOverride ?? selectedModel;
 

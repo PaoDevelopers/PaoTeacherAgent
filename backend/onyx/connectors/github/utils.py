@@ -1,5 +1,5 @@
-from collections.abc import Callable, Mapping
-from typing import Any, cast
+from collections.abc import Mapping
+from typing import Any
 from urllib.parse import ParseResult, urlparse
 
 from onyx.access.models import ExternalAccess
@@ -10,10 +10,6 @@ from onyx.server.security.models import web_connector_ssrf_enforced
 from onyx.server.security.store import get_security_settings
 from onyx.utils.logger import setup_logger
 from onyx.utils.url import SSRFException, validate_outbound_http_url
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation,
-    global_version,
-)
 
 logger = setup_logger()
 
@@ -109,23 +105,12 @@ def resolve_github_base_url(credentials: Mapping[str, Any]) -> str | None:
     return normalize_github_base_url(GITHUB_CONNECTOR_BASE_URL)
 
 
-def get_external_access_permission(repo: GitHubRepository) -> ExternalAccess:
+def get_external_access_permission(repo: GitHubRepository) -> ExternalAccess:  # noqa: ARG001
     """
     Get the external access permission for a repository.
     This functionality requires Enterprise Edition.
     """
     # Check if EE is enabled
-    if not global_version.is_ee_version():
-        # For the MIT version, return an empty ExternalAccess (private document)
-        return ExternalAccess.empty()
+    return ExternalAccess.empty()
 
     # Fetch the EE implementation
-    ee_get_external_access_permission = cast(
-        Callable[[GitHubRepository, bool], ExternalAccess],
-        fetch_versioned_implementation(
-            "onyx.external_permissions.github.utils",
-            "get_external_access_permission",
-        ),
-    )
-
-    return ee_get_external_access_permission(repo, True)

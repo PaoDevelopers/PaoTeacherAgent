@@ -1,5 +1,3 @@
-// Always require withSentryConfig
-const { withSentryConfig } = require("@sentry/nextjs");
 const { PHASE_DEVELOPMENT_SERVER } = require("next/constants");
 const createNextIntlPlugin = require("next-intl/plugin");
 
@@ -78,16 +76,6 @@ const nextConfig = {
         destination: `${
           process.env.INTERNAL_URL || "http://localhost:8080"
         }/build/sessions/:sessionId/webapp/_next/:hmrEndpoint`,
-      },
-      {
-        source: "/ph_ingest/static/:path*",
-        destination: "https://us-assets.i.posthog.com/static/:path*",
-      },
-      {
-        source: "/ph_ingest/:path*",
-        destination: `${
-          process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com"
-        }/:path*`,
       },
       {
         source: "/api/docs/:path*", // catch /api/docs and /api/docs/...
@@ -268,36 +256,6 @@ const nextConfig = {
   },
 };
 
-// Sentry configuration for error monitoring:
-// - Without SENTRY_AUTH_TOKEN and NEXT_PUBLIC_SENTRY_DSN: Sentry is completely disabled
-// - With both configured: Capture errors and limited performance data
-
-// Determine if Sentry should be enabled
-const sentryEnabled = Boolean(
-  process.env.SENTRY_AUTH_TOKEN && process.env.NEXT_PUBLIC_SENTRY_DSN
-);
-
-// Sentry webpack plugin options
-const sentryWebpackPluginOptions = {
-  org: process.env.SENTRY_ORG || "onyx-vl",
-  project: process.env.SENTRY_PROJECT || "onyx-web",
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-  silent: !sentryEnabled, // Silence output when Sentry is disabled
-  dryRun: !sentryEnabled, // Don't upload source maps when Sentry is disabled
-  ...(sentryEnabled && {
-    sourceMaps: {
-      include: ["./.next"],
-      ignore: ["node_modules"],
-      urlPrefix: "~/_next",
-      stripPrefix: ["webpack://_N_E/"],
-      validate: true,
-      cleanArtifacts: true,
-    },
-  }),
-};
-
-// Export the module with conditional Sentry configuration.
-//
 // React Compiler is a production runtime optimization (automatic memoization). It
 // provides no runtime benefit during local development, but it is expensive in the
 // dev server: under Turbopack there is no native SWC path, so Next runs
@@ -310,33 +268,27 @@ const sentryWebpackPluginOptions = {
 // validate React Compiler behavior in dev.
 module.exports = (phase) => {
   const isDevServer = phase === PHASE_DEVELOPMENT_SERVER;
-  return withNextIntl(
-    withSentryConfig(
-      {
-        ...nextConfig,
-        ...(isDevServer && {
-          async rewrites() {
-            return [
-              {
-                source: "/.well-known/oauth-authorization-server/:path*",
-                destination: `${
-                  process.env.INTERNAL_URL || "http://localhost:8080"
-                }/oauth-provider/metadata`,
-              },
-              {
-                source: "/.well-known/oauth-protected-resource/:path*",
-                destination: `${
-                  process.env.MCP_INTERNAL_URL || "http://127.0.0.1:8090"
-                }/.well-known/oauth-protected-resource/:path*`,
-              },
-              ...(await nextConfig.rewrites()),
-            ];
+  return withNextIntl({
+    ...nextConfig,
+    ...(isDevServer && {
+      async rewrites() {
+        return [
+          {
+            source: "/.well-known/oauth-authorization-server/:path*",
+            destination: `${
+              process.env.INTERNAL_URL || "http://localhost:8080"
+            }/oauth-provider/metadata`,
           },
-        }),
-        reactCompiler:
-          !isDevServer || process.env.ENABLE_REACT_COMPILER === "1",
+          {
+            source: "/.well-known/oauth-protected-resource/:path*",
+            destination: `${
+              process.env.MCP_INTERNAL_URL || "http://127.0.0.1:8090"
+            }/.well-known/oauth-protected-resource/:path*`,
+          },
+          ...(await nextConfig.rewrites()),
+        ];
       },
-      sentryWebpackPluginOptions
-    )
-  );
+    }),
+    reactCompiler: !isDevServer || process.env.ENABLE_REACT_COMPILER === "1",
+  });
 };

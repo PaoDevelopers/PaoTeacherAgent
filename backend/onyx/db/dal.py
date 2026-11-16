@@ -10,7 +10,7 @@ with explicit session management. It supports two usage modes:
      own session via the tenant-aware session factory.
 
 Subclasses add domain-specific query methods while inheriting session
-management. See ``ee.onyx.db.scim.ScimDAL`` for a concrete example.
+management.
 
 Example (FastAPI)::
 

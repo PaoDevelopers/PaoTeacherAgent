@@ -170,36 +170,6 @@ def _proposed(
     )
 
 
-def test_state_builder_reads_the_pair(
-    db_session: Session,
-    slack_pair: ConnectorCredentialPair,
-    groups: list[UserGroup],
-    enable_ee: None,  # noqa: ARG001
-) -> None:
-    slack_pair.access_type = AccessType.PRIVATE
-    for group in reversed(groups):
-        db_session.add(
-            UserGroup__CCPairDataAccess(
-                cc_pair_id=slack_pair.id, user_group_id=group.id
-            )
-        )
-    db_session.commit()
-
-    state = fetch_current_pair_state(db_session, slack_pair.id)
-
-    assert state.cc_pair_id == slack_pair.id
-    assert state.connector_id == slack_pair.connector_id
-    assert state.status == ConnectorCredentialPairStatus.ACTIVE
-    assert state.source == DocumentSource.SLACK
-    assert state.input_type == InputType.POLL
-    assert state.connector_specific_config == _STORED_CONFIG
-    assert state.access_type == AccessType.PRIVATE
-    assert state.data_access_group_ids == sorted(group.id for group in groups)
-    assert state.credential_id == slack_pair.credential_id
-    assert state.indexing_start == _INDEXING_START.replace(tzinfo=timezone.utc)
-    assert state.name == slack_pair.name
-
-
 def test_state_builder_raises_for_a_missing_pair(
     db_session: Session,
     tenant_context: None,  # noqa: ARG001
@@ -267,36 +237,6 @@ def test_settings_and_group_edits_skip_validation(
 
     assert stored.plan.validation is None
     assert stored.plan.changed_settings == ["name"]
-    validation.validate.assert_not_called()
-
-
-def test_group_only_edit_skips_validation(
-    db_session: Session,
-    slack_pair: ConnectorCredentialPair,
-    groups: list[UserGroup],
-    admin: User,
-    validation: _Validation,
-    enable_ee: None,  # noqa: ARG001
-) -> None:
-    slack_pair.access_type = AccessType.PRIVATE
-    db_session.add(
-        UserGroup__CCPairDataAccess(
-            cc_pair_id=slack_pair.id, user_group_id=groups[0].id
-        )
-    )
-    db_session.commit()
-    proposed = _proposed(
-        db_session,
-        slack_pair,
-        data_access_group_ids=[group.id for group in groups],
-    )
-
-    stored = plan_connector_edit(
-        db_session, cc_pair_id=slack_pair.id, proposed=proposed, user=admin
-    )
-
-    assert [step.kind for step in stored.plan.steps] == [EditStepKind.ACCESS_GROUPS]
-    assert stored.plan.validation is None
     validation.validate.assert_not_called()
 
 

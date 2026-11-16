@@ -105,7 +105,7 @@ def _flush_batch(
     `batch_num` is the 0-indexed position of this batch within the
     attempt's overall reindex run; it propagates into tracing /
     `IndexAttemptMetadata.structured_id` so each batch is
-    distinguishable in logs and sentry breadcrumbs.
+    distinguishable in logs.
 
     Returns `(landed_doc_ids, failed_doc_ids)`. The pipeline's adapter
     already wraps writes in `prepare_to_modify_documents`, so concurrent

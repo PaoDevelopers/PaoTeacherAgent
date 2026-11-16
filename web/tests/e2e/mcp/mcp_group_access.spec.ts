@@ -1,13 +1,12 @@
-import { test, expect } from "@tests/e2e/fixtures/eeFeatures";
+import { test, expect } from "@playwright/test";
 import { loginAs } from "@tests/e2e/utils/auth";
 import { OnyxApiClient } from "@tests/e2e/utils/onyxApiClient";
-import { AdminMcpServersPage } from "@tests/e2e/pages/AdminMcpServersPage";
 
 /**
  * Group/public access control for MCP servers (CE surface).
  *
  * Group read/filter behaviour is covered by external-dependency unit tests that
- * seed access rows directly. The create/edit selector is EE/business-tier only.
+ * seed access rows directly.
  */
 test.describe("MCP server group access control", () => {
   test.describe.configure({ mode: "serial" });
@@ -33,8 +32,7 @@ test.describe("MCP server group access control", () => {
     expect(body.groups).toEqual([]);
   });
 
-  test("CE rejects private server creation", async ({ page, eeEnabled }) => {
-    test.skip(eeEnabled, "CE-only: EE persists private + group grants");
+  test("CE rejects private server creation", async ({ page }) => {
     await loginAs(page, "admin");
     const res = await page.request.post("/api/admin/mcp/server", {
       data: {
@@ -48,18 +46,6 @@ test.describe("MCP server group access control", () => {
     expect(res.status()).toBe(403);
     const body = await res.json();
     expect(body.error_code).toBe("EE_REQUIRED");
-  });
-
-  test("Add-Server modal exposes the access (public/groups) selector", async ({
-    page,
-    eeEnabled,
-  }) => {
-    test.skip(!eeEnabled, "IsPublicGroupSelector requires business/EE tier");
-    await loginAs(page, "admin");
-    const mcpPage = new AdminMcpServersPage(page);
-    await mcpPage.goto();
-    await mcpPage.openAddServerModal();
-    await mcpPage.expectAccessControlVisible();
   });
 
   test.afterAll(async ({ browser }) => {

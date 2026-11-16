@@ -1,11 +1,10 @@
 import {
   CombinedSettings,
-  EnterpriseSettings,
   ApplicationStatus,
   Settings,
   QueryHistoryType,
 } from "@/lib/settings/types";
-import { CUSTOM_ANALYTICS_ENABLED, HOST_URL } from "@/lib/constants";
+import { APP_NAME, HOST_URL } from "@/lib/constants";
 import { fetchSS } from "@/lib/utilsSS";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 import { getWebVersion } from "@/lib/version";
@@ -20,38 +19,9 @@ export async function fetchStandardSettingsSS(): Promise<Settings | null> {
   }
 }
 
-export async function fetchEnterpriseSettingsSS(): Promise<EnterpriseSettings | null> {
-  try {
-    const response = await fetchSS("/enterprise-settings");
-    if (!response?.ok) return null;
-    return response.json();
-  } catch {
-    return null;
-  }
-}
-
-async function fetchCustomAnalyticsScriptSS(): Promise<string | null> {
-  try {
-    const response = await fetchSS(
-      "/enterprise-settings/custom-analytics-script"
-    );
-    if (!response?.ok) return null;
-    return response.json();
-  } catch {
-    return null;
-  }
-}
-
 export async function fetchSettingsSS(): Promise<CombinedSettings | null> {
-  const settingsTask = fetchSS("/settings");
-  const enterpriseTask = fetchSS("/enterprise-settings");
-  const analyticsTask = CUSTOM_ANALYTICS_ENABLED
-    ? fetchSS("/enterprise-settings/custom-analytics-script")
-    : Promise.resolve(null);
-
   try {
-    const [settingsResponse, enterpriseResponse, analyticsResponse] =
-      await Promise.all([settingsTask, enterpriseTask, analyticsTask]);
+    const settingsResponse = await fetchSS("/settings");
 
     let settings: Settings;
     if (!settingsResponse) {
@@ -85,51 +55,15 @@ export async function fetchSettingsSS(): Promise<CombinedSettings | null> {
       settings = await settingsResponse.json();
     }
 
-    let enterpriseSettings: EnterpriseSettings | null = null;
-    if (enterpriseResponse) {
-      if (enterpriseResponse.ok) {
-        enterpriseSettings = await enterpriseResponse.json();
-      } else if (
-        // 404: a build without Enterprise code has no such route.
-        enterpriseResponse.status !== 404 &&
-        enterpriseResponse.status !== 403 &&
-        enterpriseResponse.status !== 401
-      ) {
-        throw new Error(
-          `fetchSettingsSS: enterprise failed status=${
-            enterpriseResponse.status
-          } body=${await enterpriseResponse.text()}`
-        );
-      }
-    }
-
-    let customAnalyticsScript: string | null = null;
-    if (analyticsResponse) {
-      if (analyticsResponse.ok) {
-        customAnalyticsScript = await analyticsResponse.json();
-      } else if (
-        analyticsResponse.status !== 404 &&
-        analyticsResponse.status !== 403
-      ) {
-        throw new Error(
-          `fetchSettingsSS: analytics failed status=${
-            analyticsResponse.status
-          } body=${await analyticsResponse.text()}`
-        );
-      }
-    }
-
     if (settings.deep_research_enabled == null) {
       settings.deep_research_enabled = true;
     }
 
     return {
       settings,
-      enterpriseSettings,
-      customAnalyticsScript,
       webVersion: settings.version ?? getWebVersion(),
       webDomain: HOST_URL,
-      appName: enterpriseSettings?.application_name?.trim() || "PaoTeacherAgent",
+      appName: APP_NAME,
     };
   } catch (error) {
     console.error("fetchSettingsSS exception: ", error);

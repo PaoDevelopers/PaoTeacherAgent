@@ -12,15 +12,9 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useSettings } from "@/lib/settings/hooks";
 import { SidebarLayouts, useSidebarState } from "@opal/layouts";
-import { useCustomAnalyticsEnabled } from "@/lib/hooks/useCustomAnalyticsEnabled";
 import { useUser } from "@/providers/UserProvider";
 import { InputTypeIn, SidebarTab } from "@opal/components";
 import { SvgSearch, SvgX } from "@opal/icons";
-import {
-  useBillingInformation,
-  useLicense,
-  hasActiveSubscription,
-} from "@/lib/billing";
 import { NEXT_PUBLIC_CLOUD_ENABLED } from "@/lib/constants";
 import useFilter from "@/hooks/useFilter";
 import AccountPopover from "@/sections/sidebar/AccountPopover";
@@ -32,12 +26,10 @@ import {
   type SidebarItemEntry,
 } from "@/lib/admin-sidebar-utils";
 import { renderSidebarLogo } from "@/lib/sidebar/utils";
-import { useShowLogoWhenFolded } from "@/lib/sidebar/hooks";
 
 export default function AdminSidebar() {
   const t = useTranslations("sidebar");
   const { folded, setFolded } = useSidebarState();
-  const showLogoWhenFolded = useShowLogoWhenFolded();
   const searchRef = useRef<HTMLInputElement>(null);
   const [focusSearch, setFocusSearch] = useState(false);
 
@@ -48,34 +40,15 @@ export default function AdminSidebar() {
     }
   }, [focusSearch, folded]);
   const pathname = usePathname();
-  const { customAnalyticsEnabled } = useCustomAnalyticsEnabled();
   const { adminCapabilities } = useUser();
   const settings = useSettings();
   const tier = settings?.tier;
-  const { data: billingData, isLoading: billingLoading } =
-    useBillingInformation();
-  const { data: licenseData, isLoading: licenseLoading } = useLicense();
-  // Default to true while loading to avoid flashing "Upgrade Plan"
-  const hasSubscriptionOrLicense =
-    billingLoading || licenseLoading
-      ? true
-      : Boolean(
-          (billingData && hasActiveSubscription(billingData)) ||
-          licenseData?.has_license
-        );
-
   // Tier is not folded in here: ENTERPRISE is declared as the route's `requiredTier`, so
   // a lower tier renders the entry disabled with an upsell rather than hiding it.
   const flags: FeatureFlags = {
     vectorDbEnabled: settings?.vectorDbEnabled !== false,
     enableCloud: NEXT_PUBLIC_CLOUD_ENABLED,
     tier,
-    customAnalyticsEnabled,
-    hasSubscription: hasSubscriptionOrLicense,
-    hooksEnabled: settings?.hooks_enabled ?? false,
-    queryHistoryEnabled:
-      settings?.query_history_type !== "disabled" &&
-      !settings?.hide_query_history_from_admin_panel,
     craftAvailable: settings?.onyx_craft_available ?? false,
   };
 
@@ -111,10 +84,7 @@ export default function AdminSidebar() {
 
   return (
     <SidebarLayouts.Root>
-      <SidebarLayouts.Header
-        renderAppLogo={renderSidebarLogo}
-        showLogoWhenFolded={showLogoWhenFolded}
-      >
+      <SidebarLayouts.Header renderAppLogo={renderSidebarLogo}>
         {folded ? (
           <SidebarTab
             icon={SvgSearch}

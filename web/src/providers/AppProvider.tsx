@@ -18,8 +18,7 @@
  * 4. **ProviderContextProvider** - LLM provider configuration
  * 5. **ModalProvider** - Global modal state management
  * 6. **SidebarStateProvider** - Sidebar open/closed state
- * 7. **QueryControllerProvider** - Search/Chat mode + query lifecycle
- * 8. **UnsavedChangesNavigationProvider** - Cross-layout navigation guards
+ * 7. **UnsavedChangesNavigationProvider** - Cross-layout navigation guards
  */
 
 "use client";
@@ -32,7 +31,6 @@ import { SettingsProvider } from "@/providers/SettingsProvider";
 import { ModalProvider } from "@/components/context/ModalContext";
 import { SidebarStateProvider, ToastProvider } from "@opal/layouts";
 import { AppBackgroundProvider } from "@/providers/AppBackgroundProvider";
-import { QueryControllerProvider } from "@/providers/QueryControllerProvider";
 import { NEXT_PUBLIC_INCLUDE_ERROR_POPUP_SUPPORT_LINK } from "@/lib/constants";
 import { FullWidthChatProvider } from "@/providers/FullWidthChatProvider";
 import { IncognitoProvider } from "@/providers/IncognitoProvider";
@@ -83,23 +81,21 @@ export default function AppProvider({ children }: AppProviderProps) {
             <ProviderContextProvider>
               <ModalProvider>
                 <SidebarPersistenceProvider>
-                  <QueryControllerProvider>
-                    <FullWidthChatProvider>
-                      <IncognitoProvider>
-                        <UnsavedChangesNavigationProvider>
-                          <ToastProvider
-                            errorAppendix={
-                              NEXT_PUBLIC_INCLUDE_ERROR_POPUP_SUPPORT_LINK
-                                ? "Need help? Join our community at https://discord.gg/4NA5SbzrWb for support!"
-                                : undefined
-                            }
-                          >
-                            {children}
-                          </ToastProvider>
-                        </UnsavedChangesNavigationProvider>
-                      </IncognitoProvider>
-                    </FullWidthChatProvider>
-                  </QueryControllerProvider>
+                  <FullWidthChatProvider>
+                    <IncognitoProvider>
+                      <UnsavedChangesNavigationProvider>
+                        <ToastProvider
+                          errorAppendix={
+                            NEXT_PUBLIC_INCLUDE_ERROR_POPUP_SUPPORT_LINK
+                              ? "Need help? Join our community at https://discord.gg/4NA5SbzrWb for support!"
+                              : undefined
+                          }
+                        >
+                          {children}
+                        </ToastProvider>
+                      </UnsavedChangesNavigationProvider>
+                    </IncognitoProvider>
+                  </FullWidthChatProvider>
                 </SidebarPersistenceProvider>
               </ModalProvider>
             </ProviderContextProvider>

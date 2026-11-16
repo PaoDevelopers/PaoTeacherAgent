@@ -1,5 +1,3 @@
-from collections.abc import Callable
-from typing import cast
 from uuid import UUID
 
 from sqlalchemy import and_, or_, select
@@ -45,10 +43,6 @@ from onyx.db.models import (
     UserFile,
 )
 from onyx.db.user_file import fetch_user_files_with_access_relationships
-from onyx.utils.variable_functionality import (
-    fetch_ee_implementation_or_noop,
-    fetch_versioned_implementation,
-)
 
 
 def _get_access_for_document(
@@ -75,10 +69,7 @@ def get_access_for_document(
     document_id: str,
     db_session: Session,
 ) -> DocumentAccess:
-    versioned_get_access_for_document_fn = fetch_versioned_implementation(
-        "onyx.access.access", "_get_access_for_document"
-    )
-    return versioned_get_access_for_document_fn(document_id, db_session)
+    return _get_access_for_document(document_id, db_session)
 
 
 def get_null_document_access() -> DocumentAccess:
@@ -125,15 +116,12 @@ def get_access_for_documents(
     db_session: Session,
 ) -> dict[str, DocumentAccess]:
     """Fetches all access information for the given documents."""
-    versioned_get_access_for_documents_fn = fetch_versioned_implementation(
-        "onyx.access.access", "_get_access_for_documents"
-    )
-    return versioned_get_access_for_documents_fn(document_ids, db_session)
+    return _get_access_for_documents(document_ids, db_session)
 
 
 def _get_acl_for_user(
     user: User,
-    db_session: Session,  # noqa: ARG001
+    db_session: Session | None,  # noqa: ARG001
 ) -> set[str]:  # noqa: ARG001
     """Returns a list of ACL entries that the user has access to. This is meant to be
     used downstream to filter out documents that the user does not have access to. The
@@ -156,45 +144,28 @@ def _get_acl_for_user(
 
 
 def get_acl_for_user(user: User, db_session: Session | None = None) -> set[str]:
-    versioned_acl_for_user_fn = fetch_versioned_implementation(
-        "onyx.access.access", "_get_acl_for_user"
-    )
-    return versioned_acl_for_user_fn(user, db_session)
+    return _get_acl_for_user(user, db_session)
 
 
 def censor_chunks_for_user(
-    chunks: list[InferenceChunk], user: User
+    chunks: list[InferenceChunk],
+    user: User,  # noqa: ARG001
 ) -> list[InferenceChunk]:
     """EE post-query censoring for sources whose access is decided per user at
     read time. Every path that hands chunk content to a user runs it, not only
     search, since the index ACL alone lets those chunks through."""
-    return fetch_ee_implementation_or_noop(
-        "onyx.external_permissions.post_query_censoring",
-        "_post_query_chunk_censoring",
-        chunks,
-    )(chunks=chunks, user=user)
+    return chunks
 
 
-def source_should_fetch_permissions_during_indexing(source: DocumentSource) -> bool:
-    _source_should_fetch_permissions_during_indexing_func = cast(
-        Callable[[DocumentSource], bool],
-        fetch_ee_implementation_or_noop(
-            "onyx.external_permissions.sync_params",
-            "source_should_fetch_permissions_during_indexing",
-            False,
-        ),
-    )
-    return _source_should_fetch_permissions_during_indexing_func(source)
+def source_should_fetch_permissions_during_indexing(source: DocumentSource) -> bool:  # noqa: ARG001
+    return False
 
 
 def get_access_for_user_files(
     user_file_ids: list[str],
     db_session: Session,
 ) -> dict[str, DocumentAccess]:
-    versioned_fn = fetch_versioned_implementation(
-        "onyx.access.access", "get_access_for_user_files_impl"
-    )
-    return versioned_fn(user_file_ids, db_session)
+    return get_access_for_user_files_impl(user_file_ids, db_session)
 
 
 def get_access_for_user_files_impl(
@@ -211,10 +182,7 @@ def build_access_for_user_files(
     """Compute access from pre-loaded UserFile objects (with relationships).
     Callers must ensure UserFile.user, Persona.users, and Persona.user are
     eagerly loaded (and Persona.groups for the EE path)."""
-    versioned_fn = fetch_versioned_implementation(
-        "onyx.access.access", "build_access_for_user_files_impl"
-    )
-    return versioned_fn(user_files)
+    return build_access_for_user_files_impl(user_files)
 
 
 def build_access_for_user_files_impl(

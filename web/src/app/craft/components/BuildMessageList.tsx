@@ -357,7 +357,7 @@ export default function BuildMessageList({
           <div className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3">
             <div className="relative">
               <div className="h-9 flex items-center">
-                <FoldableLogo onyxBranded folded size={24} />
+                <FoldableLogo folded size={24} />
               </div>
               {message.content.trim() && (
                 <div className="absolute start-0 top-[max(2.25rem,calc(100%-1.75rem))]">
@@ -466,7 +466,7 @@ export default function BuildMessageList({
                   turnIndex !== undefined && (
                     <div className="flex items-start gap-3 py-4">
                       <div className="flex h-9 shrink-0 items-center">
-                        <FoldableLogo onyxBranded folded size={24} />
+                        <FoldableLogo folded size={24} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <TurnOutputCards
@@ -501,7 +501,7 @@ export default function BuildMessageList({
             aria-busy={isStreaming}
           >
             <div className="shrink-0 mt-2">
-              <FoldableLogo onyxBranded folded size={24} />
+              <FoldableLogo folded size={24} />
             </div>
             <div className="flex-1 flex flex-col gap-2 min-w-0">
               {streamRender?.pinnedTodo && (

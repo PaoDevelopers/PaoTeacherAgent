@@ -1,8 +1,6 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { paidTierGated } from "@/ce";
-import { QueryControllerProvider as EEQueryControllerProvider } from "@/ee/providers/QueryControllerProvider";
 import { SearchDocWithContent, BaseFilters } from "@/lib/search/types";
 
 export type AppMode = "auto" | "search" | "chat";
@@ -53,5 +51,3 @@ export const QueryControllerContext = createContext<QueryControllerValue>({
 export function useQueryController(): QueryControllerValue {
   return useContext(QueryControllerContext);
 }
-
-export const QueryControllerProvider = paidTierGated(EEQueryControllerProvider);

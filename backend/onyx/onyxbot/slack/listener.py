@@ -93,12 +93,7 @@ from onyx.onyxbot.slack.utils import (
 from onyx.redis.redis_pool import get_redis_client
 from onyx.server.manage.models import SlackBotTokens
 from onyx.tracing.setup import setup_tracing
-from onyx.utils.fleet_telemetry import start_telemetry
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import (
-    fetch_ee_implementation_or_noop,
-    set_is_ee_if_available,
-)
 from shared_configs.configs import (
     DISALLOWED_SLACK_BOT_TENANT_LIST,
     MODEL_SERVER_HOST,
@@ -295,18 +290,7 @@ class SlackbotHandler:
 
         token: Token[str | None]
 
-        # tenants that are disabled (e.g. their trial is over and haven't subscribed)
-        # for non-cloud, this will return an empty set
-        gated_tenants = fetch_ee_implementation_or_noop(
-            "onyx.server.tenants.product_gating",
-            "get_gated_tenants",
-            set(),
-        )()
-        all_active_tenants = [
-            tenant_id
-            for tenant_id in get_all_tenant_ids()
-            if tenant_id not in gated_tenants
-        ]
+        all_active_tenants = get_all_tenant_ids()
 
         # 1) Try to acquire locks for new tenants
         for tenant_id in all_active_tenants:
@@ -409,27 +393,7 @@ class SlackbotHandler:
                 CURRENT_TENANT_ID_CONTEXTVAR.reset(token)
 
         # 2) Make sure tenants we're handling still have Slack bots
-        #    and haven't been suspended (gated)
         for tenant_id in list(self.tenant_ids):
-            if tenant_id in gated_tenants:
-                logger.info(
-                    "Tenant %s is now gated (suspended). Disconnecting.", tenant_id
-                )
-                self._remove_tenant(tenant_id)
-                if tenant_id in self.redis_locks and not DEV_MODE:
-                    try:
-                        self.redis_locks[tenant_id].release()
-                    except LockNotOwnedError:
-                        # Expected: lock expired or was stolen; nothing to release.
-                        pass
-                    except Exception as e:
-                        logger.warning(
-                            "Error releasing lock for gated tenant %s: %s", tenant_id, e
-                        )
-                    finally:
-                        self.redis_locks.pop(tenant_id, None)
-                continue
-
             token = CURRENT_TENANT_ID_CONTEXTVAR.set(
                 tenant_id or POSTGRES_DEFAULT_SCHEMA
             )
@@ -646,8 +610,7 @@ class SlackbotHandler:
 
         # Establish a WebSocket connection to the Socket Mode servers.
         # connect() internally calls apps.connections.open; on auth failure
-        # slack_sdk's socket_mode client logs its own error (shipped to
-        # Sentry as ONYX-BACKEND-4) and re-raises. The common case is
+        # slack_sdk's socket_mode client logs its own error and re-raises. The common case is
         # caught above by the auth_test guard — this wrapper covers the
         # rarer path where bot_token is valid but app_token is not.
         try:
@@ -1274,65 +1237,6 @@ def _extract_channel_from_request(req: SocketModeRequest) -> str | None:
     return None
 
 
-def _check_tenant_gated(client: TenantSocketModeClient, req: SocketModeRequest) -> bool:
-    """Check if the current tenant is gated (suspended or license expired).
-
-    Multi-tenant: checks the gated tenants Redis set (populated by control plane).
-    Self-hosted: checks the cached license metadata for expiry.
-
-    Returns True if blocked.
-    """
-    from onyx.server.settings.models import ApplicationStatus
-
-    # Multi-tenant path: control plane marks gated tenants in Redis
-    is_gated: bool = fetch_ee_implementation_or_noop(
-        "onyx.server.tenants.product_gating",
-        "is_tenant_gated",
-        False,
-    )(get_current_tenant_id())
-
-    # Self-hosted path: check license metadata cache
-    if not is_gated:
-        get_cached_metadata = fetch_ee_implementation_or_noop(
-            "onyx.db.license",
-            "get_cached_license_metadata",
-            None,
-        )
-        metadata = get_cached_metadata()
-        if metadata is not None:
-            if metadata.status == ApplicationStatus.GATED_ACCESS:
-                is_gated = True
-
-    if not is_gated:
-        return False
-
-    # Only notify once per user action:
-    # - Skip bot messages (avoids feedback loop from our own response)
-    # - Skip app_mention events (Slack fires both app_mention AND message
-    #   for @mentions; we respond on the message event only)
-    event = req.payload.get("event", {}) if req.type == "events_api" else {}
-    is_bot_event = bool(
-        event.get("bot_id")
-        or event.get("bot_profile")
-        or event.get("subtype") == "bot_message"
-    )
-    is_duplicate_mention = event.get("type") == "app_mention"
-    if not is_bot_event and not is_duplicate_mention:
-        channel = _extract_channel_from_request(req)
-        thread_ts = event.get("thread_ts") or event.get("ts")
-        if channel:
-            respond_in_thread_or_channel(
-                client=client.web_client,
-                channel=channel,
-                thread_ts=thread_ts,
-                text=(
-                    "Your organization's subscription has expired. Please contact your Onyx administrator to restore access."
-                ),
-            )
-    logger.info("Blocked Slack request for gated tenant %s", get_current_tenant_id())
-    return True
-
-
 def create_process_slack_event() -> Callable[
     [TenantSocketModeClient, SocketModeRequest], None
 ]:
@@ -1342,9 +1246,6 @@ def create_process_slack_event() -> Callable[
         # Always respond right away, if Slack doesn't receive these frequently enough
         # it will assume the Bot is DEAD!!! :(
         acknowledge_message(req, client)
-
-        if _check_tenant_gated(client, req):
-            return
 
         try:
             if req.type == "interactive":
@@ -1389,14 +1290,10 @@ if __name__ == "__main__":
     # Initialize the SqlEngine
     SqlEngine.init_engine(pool_size=20, max_overflow=5)
 
-    # Start telemetry before the handler starts message-processing threads.
-    start_telemetry("slack")
-
     # Initialize the tenant handler which will manage tenant connections
     logger.info("Starting SlackbotHandler")
     tenant_handler = SlackbotHandler()
 
-    set_is_ee_if_available()
     setup_tracing()
 
     try:

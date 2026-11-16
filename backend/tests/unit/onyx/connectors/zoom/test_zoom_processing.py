@@ -178,7 +178,6 @@ class TestProcessOccurrence:
         assert isinstance(failure, ConnectorFailure)
         assert failure.failed_document is not None
         assert failure.failed_document.document_id == "ZOOM_MEETING_uuid-abc"
-        # The runner only reports a failure to Sentry when this is set.
         assert failure.exception is not None
 
     def test_transcript_download_failure_yields_document_failure(self) -> None:

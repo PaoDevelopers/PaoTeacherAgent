@@ -33,9 +33,6 @@ jest.mock("@/providers/UnsavedChangesNavigationProvider", () => ({
     requestNavigation: (action: () => void) => action(),
   }),
 }));
-jest.mock("@/lib/sidebar/hooks", () => ({
-  useShowLogoWhenFolded: () => false,
-}));
 jest.mock("@/lib/sidebar/utils", () => ({
   renderSidebarLogo: () =>
     function Logo() {

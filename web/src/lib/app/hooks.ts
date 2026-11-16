@@ -13,11 +13,7 @@ import { SEARCH_TOOL_ID, WEB_SEARCH_TOOL_ID } from "@/lib/tools/constants";
 export function useCustomFooterContent(): string {
   const settings = useSettings();
   const t = useTranslations("common");
-  // PaoTeacherAgent: the credit line also follows a custom disclaimer.
-  return t("footer.credit.label", {
-    content:
-      settings.enterprise?.custom_lower_disclaimer_content || settings.appName,
-  });
+  return t("footer.credit.label", { content: settings.appName });
 }
 
 export function useAppDocumentTitle(): void {

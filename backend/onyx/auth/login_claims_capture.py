@@ -33,7 +33,6 @@ from typing import Any, Awaitable, NamedTuple, TypeGuard, cast
 
 import httpx
 import jwt
-from fastapi_users import exceptions as fastapi_users_exceptions
 
 from onyx.configs.app_configs import (
     IDP_PROFILE_CLAIM_MAP,
@@ -41,7 +40,6 @@ from onyx.configs.app_configs import (
 )
 from onyx.redis.redis_pool import get_async_redis_connection
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from shared_configs.configs import MULTI_TENANT
 from shared_configs.contextvars import get_current_tenant_id
 
@@ -78,7 +76,7 @@ def _idp_claims_key(tenant_id: str, email: str) -> str:
     return f"{_IDP_CLAIMS_KEY_PREFIX}:{tenant_id}:{email.lower()}"
 
 
-async def _resolve_capture_tenant_id(email: str) -> str | None:
+async def _resolve_capture_tenant_id(email: str) -> str | None:  # noqa: ARG001
     """Tenant to key the snapshot under. The login callbacks that run capture are
     unauthenticated, so the tenant contextvar still holds the default schema
     there. On multi-tenant the user's tenant must come from the email mapping.
@@ -89,16 +87,7 @@ async def _resolve_capture_tenant_id(email: str) -> str | None:
     """
     if not MULTI_TENANT:
         return get_current_tenant_id()
-    try:
-        tenant_id = await asyncio.to_thread(
-            fetch_ee_implementation_or_noop(
-                "onyx.db.user_tenant_mapping", "get_tenant_id_for_email", None
-            ),
-            email,
-        )
-    except fastapi_users_exceptions.UserNotExists:
-        return None
-    return tenant_id if isinstance(tenant_id, str) else None
+    return None
 
 
 # The snapshot keys that hold claim sources, in resolution precedence order.

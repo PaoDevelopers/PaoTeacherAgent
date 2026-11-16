@@ -237,45 +237,6 @@ def test_wrapped_creation_failure_records_the_original_exception(
     assert check_result["error_type"] == "RuntimeError"
 
 
-@pytest.mark.usefixtures("tenant_context", "enable_ee")
-def test_sync_success_mirrors_the_outcome_onto_perm_sync(
-    db_session: Session,
-    blocking_validation: tuple[ConnectorCredentialPair, MagicMock],
-) -> None:
-    """
-    Verifies a SYNC-access success also claims the applicable perm-sync
-    capability (EE resolution on: applicability comes from the EE hook).
-    """
-    # Precondition.
-    cc_pair, _ = blocking_validation
-
-    # Under test.
-    validate_ccpair_for_user(
-        cc_pair.connector_id,
-        cc_pair.credential_id,
-        AccessType.SYNC,
-        db_session,
-        user=None,
-    )
-
-    # Postcondition.
-    row = get_capability_report_row(
-        db_session, cc_pair.credential_id, cc_pair.connector_id
-    )
-    assert row is not None
-    assert row.report is not None
-    rows = sorted(
-        (result["check_id"], result["capability"])
-        for result in row.report["check_results"]
-    )
-    assert rows == [
-        ("box_connector_settings", "indexing"),
-        ("box_perm_sync", "doc_permission_sync"),
-        ("box_perm_sync", "external_group_sync"),
-    ]
-    assert row.report["verdicts"]["doc_permission_sync"] == "passed"
-
-
 @pytest.mark.usefixtures("tenant_context")
 def test_no_clobber_of_a_granular_report(
     db_session: Session,

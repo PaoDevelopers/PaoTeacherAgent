@@ -46,12 +46,10 @@ import { removeChatSessionFromProject } from "@/lib/projects/svc";
 import type { Project } from "@/lib/projects/types";
 import { SidebarLayouts, useSidebarState } from "@opal/layouts";
 import { renderSidebarLogo } from "@/lib/sidebar/utils";
-import { useShowLogoWhenFolded } from "@/lib/sidebar/hooks";
 import { cn } from "@opal/utils";
 import { useTierAtLeast } from "@/lib/tiers/hooks";
 import { Tier } from "@/lib/tiers/types";
 import { DRAG_TYPES, LOCAL_STORAGE_KEYS } from "@/lib/sidebar/constants";
-import { PHFeatureFlag, usePHFeatureFlag } from "@/lib/analytics/hooks";
 import {
   shouldShowMoveModal,
   showErrorNotification,
@@ -62,7 +60,6 @@ import { ChatSession } from "@/app/app/interfaces";
 import { useUser } from "@/providers/UserProvider";
 import { getFirstPermittedAdminRoute } from "@/lib/permissions/utils";
 import { useAppPosition } from "@/lib/position/hooks";
-import { useModalContext } from "@/components/context/ModalContext";
 import {
   SvgDevKit,
   SvgPlug,
@@ -76,7 +73,6 @@ import SidebarTabSkeleton from "@/refresh-components/skeletons/SidebarTabSkeleto
 import BuildModeIntroBackground from "@/app/craft/components/IntroBackground";
 import BuildModeIntroContent from "@/app/craft/components/IntroContent";
 import { CRAFT_PATH } from "@/app/craft/v1/constants";
-import { track, AnalyticsEvent } from "@/lib/analytics/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { NotificationType } from "@/lib/notifications/interfaces";
 import { dismissNotification } from "@/lib/notifications/api";
@@ -212,7 +208,6 @@ export default function AppSidebar() {
   const { folded } = useSidebarState();
   const router = useRouter();
   const combinedSettingsData = useSettings();
-  const { newTenantInfo, invitationInfo } = useModalContext();
   const { setAppMode, reset } = useQueryController();
 
   // Use SWR hooks for data fetching
@@ -253,7 +248,7 @@ export default function AppSidebar() {
   const [showMoveCustomAgentModal, setShowMoveCustomAgentModal] =
     useState(false);
 
-  // Check if Onyx Craft is enabled via settings (backed by PostHog feature flag)
+  // Check if Onyx Craft is enabled via settings
   // Only explicit true enables the feature; false or undefined = disabled
   const isOnyxCraftEnabled = combinedSettingsData?.onyx_craft_enabled === true;
   // Craft is a Business-plan feature: below that tier the tab is hidden.
@@ -276,34 +271,6 @@ export default function AppSidebar() {
 
   // State for intro animation overlay
   const [showIntroAnimation, setShowIntroAnimation] = useState(false);
-  // Track if auto-trigger has fired (prevents race condition during dismiss)
-  const hasAutoTriggeredRef = useRef(false);
-
-  // Auto-show intro once when there's an undismissed notification
-  // Don't show if tenant/invitation modal is open (e.g., "join existing team" modal)
-  // Gated by PostHog feature flag: if `craft-animation-disabled` is true (or
-  // PostHog is unavailable), skip the auto-show entirely.
-  const isCraftAnimationDisabled = usePHFeatureFlag(
-    PHFeatureFlag.CRAFT_ANIMATION_DISABLED
-  );
-  const hasTenantModal = !!(newTenantInfo || invitationInfo);
-  useEffect(() => {
-    if (
-      isOnyxCraftEnabled &&
-      buildModeNotification &&
-      !hasAutoTriggeredRef.current &&
-      !hasTenantModal &&
-      !isCraftAnimationDisabled
-    ) {
-      hasAutoTriggeredRef.current = true;
-      setShowIntroAnimation(true);
-    }
-  }, [
-    buildModeNotification,
-    isOnyxCraftEnabled,
-    hasTenantModal,
-    isCraftAnimationDisabled,
-  ]);
 
   // Dismiss the build mode notification
   const dismissBuildModeNotification = useCallback(async () => {
@@ -488,7 +455,6 @@ export default function AppSidebar() {
 
   const { hasAdminAccess, adminCapabilities, user } = useUser();
   const activeSidebarTab = useAppPosition();
-  const showLogoWhenFolded = useShowLogoWhenFolded();
   const defaultAppMode =
     (user?.preferences?.default_app_mode?.toLowerCase() as "chat" | "search") ??
     "chat";
@@ -575,10 +541,7 @@ export default function AppSidebar() {
       </AnimatePresence>
 
       <SidebarLayouts.Root foldable>
-        <SidebarLayouts.Header
-          showLogoWhenFolded={showLogoWhenFolded}
-          renderAppLogo={renderSidebarLogo}
-        >
+        <SidebarLayouts.Header renderAppLogo={renderSidebarLogo}>
           <div data-testid="AppSidebar/new-session">
             <SidebarTab
               icon={SvgEditBig}
@@ -602,11 +565,7 @@ export default function AppSidebar() {
           />
           {isOnyxCraftEnabled && hasCraftTier && (
             <div data-testid="AppSidebar/build">
-              <SidebarTab
-                icon={SvgDevKit}
-                href={CRAFT_PATH}
-                onClick={() => track(AnalyticsEvent.CLICKED_CRAFT_IN_SIDEBAR)}
-              >
+              <SidebarTab icon={SvgDevKit} href={CRAFT_PATH}>
                 {t("appSidebar.craft.label")}
               </SidebarTab>
             </div>

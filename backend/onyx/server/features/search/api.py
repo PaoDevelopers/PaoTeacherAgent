@@ -62,7 +62,6 @@ from onyx.tracing.framework.create import (
     trace,
 )
 from onyx.tracing.framework.spans import SpanError
-from onyx.utils.fleet_query_telemetry import QueryMode, telemetry_query
 from shared_configs.contextvars import get_current_tenant_id
 
 router = APIRouter(prefix="/search")
@@ -78,7 +77,6 @@ router = APIRouter(prefix="/search")
     ],
     tags=PUBLIC_API_TAGS,
 )
-@telemetry_query(mode=QueryMode.SEARCH)
 def search(
     request: SearchRequest,
     user: User = Depends(require_permission(Permission.READ_SEARCH)),

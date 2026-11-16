@@ -44,7 +44,6 @@ from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.server.models import UserGroupInfo
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
@@ -954,13 +953,6 @@ def delete_user_from_db__no_commit(
     for oauth_account in user_to_delete.oauth_accounts:
         db_session.delete(oauth_account)
 
-    fetch_ee_implementation_or_noop(
-        "onyx.db.external_perm",
-        "delete_user__ext_group_for_user__no_commit",
-    )(
-        db_session=db_session,
-        user_id=user_to_delete.id,
-    )
     db_session.query(SamlAccount).filter(
         SamlAccount.user_id == user_to_delete.id
     ).delete()

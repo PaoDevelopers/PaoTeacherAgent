@@ -6,7 +6,6 @@ from typing import Any
 
 import pytest
 
-from ee.onyx.connectors.capability_checks import get_perm_sync_capability_checks
 from onyx.configs.constants import DocumentSource
 from onyx.connectors.capability_checks.form_state import FormState
 from onyx.connectors.capability_checks.models import (
@@ -183,7 +182,7 @@ def test_perm_sync_check_can_apply_to_every_access_type() -> None:
 
 
 def _registered_checks(source: DocumentSource) -> list[CapabilityCheck[Any]]:
-    return [*get_capability_checks(source), *get_perm_sync_capability_checks(source)]
+    return get_capability_checks(source)
 
 
 @pytest.mark.parametrize("source", sorted(CONNECTOR_CLASS_MAP, key=str))

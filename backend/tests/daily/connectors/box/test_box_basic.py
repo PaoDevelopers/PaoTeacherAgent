@@ -12,12 +12,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from ee.onyx.external_permissions.box.group_sync import box_group_sync
 from onyx.connectors.box.connector import (
     BOX_ROOT_FOLDER_ID,
     BoxConnector,
-    box_all_enterprise_users_group_id,
-    box_group_id,
 )
 from onyx.connectors.exceptions import ConnectorValidationError
 from onyx.connectors.models import Document, TextSection
@@ -207,61 +204,6 @@ def test_poll_window_filters_documents_but_not_hierarchy(
     assert {n.display_name for n in result.hierarchy_nodes} == EXPECTED_FOLDER_NAMES
 
 
-@pytest.mark.usefixtures("enable_ee")
-def test_perm_sync_external_access(
-    mock_get_unstructured_api_key: MagicMock,  # noqa: ARG001
-    box_connector: BoxConnector,
-    test_secrets: dict[TestSecret, str],
-) -> None:
-    collaborator_email = test_secrets[TestSecret.BOX_COLLABORATOR_EMAIL]
-    result = load_all_from_connector(box_connector, 0, time(), include_permissions=True)
-    documents_by_name = {d.semantic_identifier: d for d in result.documents}
-    assert set(documents_by_name) == EXPECTED_DOC_NAMES
-
-    # folder-level VIEWER collaboration -> collaborator can read
-    shared_access = documents_by_name[SHARED_DOC_NAME].external_access
-    assert shared_access is not None
-    assert collaborator_email in shared_access.external_user_emails
-    assert shared_access.is_public is False
-
-    # file-level EDITOR collaboration -> collaborator can read
-    editor_access = documents_by_name[EDITOR_DOC_NAME].external_access
-    assert editor_access is not None
-    assert collaborator_email in editor_access.external_user_emails
-    assert editor_access.is_public is False
-
-    # folder-level UPLOADER collaboration -> upload-only, NOT read access.
-    # The document is still indexed (the owner can read it), but the
-    # collaborator must be absent from its access set.
-    uploader_access = documents_by_name[UPLOADER_DOC_NAME].external_access
-    assert uploader_access is not None
-    assert collaborator_email not in uploader_access.external_user_emails
-    assert uploader_access.external_user_emails, "owner should still have access"
-    assert uploader_access.is_public is False
-
-    # no collaboration, no shared link -> owner-only
-    root_access = documents_by_name[ROOT_DOC_NAME].external_access
-    assert root_access is not None
-    assert collaborator_email not in root_access.external_user_emails
-    assert root_access.is_public is False
-
-    # open shared link -> public
-    public_access = documents_by_name[PUBLIC_DOC_NAME].external_access
-    assert public_access is not None
-    assert public_access.is_public is True
-
-    # every document must carry externally-resolved access in perm-sync mode
-    for document in result.documents:
-        assert document.external_access is not None
-
-    # folder nodes carry access too; the shared folder grants the collaborator
-    shared_folder_node = next(
-        n for n in result.hierarchy_nodes if n.display_name == SHARED_FOLDER_NAME
-    )
-    assert shared_folder_node.external_access is not None
-    assert collaborator_email in shared_folder_node.external_access.external_user_emails
-
-
 def _mock_cc_pair(
     test_secrets: dict[TestSecret, str], folder_id: str
 ) -> ConnectorCredentialPair:
@@ -276,37 +218,6 @@ def _mock_cc_pair(
         test_secrets
     )
     return cast(ConnectorCredentialPair, cc_pair)
-
-
-def test_group_sync(test_secrets: dict[TestSecret, str]) -> None:
-    folder_id = _find_test_folder_id(test_secrets)
-    collaborator_email = test_secrets[TestSecret.BOX_COLLABORATOR_EMAIL]
-
-    groups = list(box_group_sync("tenant", _mock_cc_pair(test_secrets, folder_id)))
-    groups_by_id = {g.id: g for g in groups}
-
-    # the synthetic enterprise-wide group backs "company" shared links and
-    # must contain every managed user, including the collaborator
-    enterprise_group_id = box_all_enterprise_users_group_id(
-        test_secrets[TestSecret.BOX_ENTERPRISE_ID]
-    )
-    assert enterprise_group_id in groups_by_id
-    enterprise_group = groups_by_id[enterprise_group_id]
-    assert collaborator_email in enterprise_group.user_emails
-
-    # the real Box group from the test corpus, with its membership expanded
-    connector = BoxConnector()
-    connector.load_credentials(_credentials(test_secrets))
-    box_groups = connector.enterprise_client.groups.get_groups(limit=1000)
-    test_group = next(
-        (g for g in (box_groups.entries or []) if g.name == TEST_GROUP_NAME), None
-    )
-    assert test_group is not None, (
-        f"Box group {TEST_GROUP_NAME!r} not found; set up the corpus per "
-        "backend/tests/daily/connectors/box/README.md"
-    )
-    assert box_group_id(test_group.id) in groups_by_id
-    assert collaborator_email in groups_by_id[box_group_id(test_group.id)].user_emails
 
 
 def test_validate_connector_settings(test_secrets: dict[TestSecret, str]) -> None:

@@ -18,7 +18,6 @@ import {
   withFetchedModels,
 } from "@/sections/modals/languageModels/utils";
 import { submitProvider } from "@/sections/modals/languageModels/svc";
-import { LLMProviderConfiguredSource } from "@/lib/analytics/utils";
 import {
   ModelSelectionField,
   DisplayNameField,
@@ -158,7 +157,6 @@ export default function OllamaModal({
   shouldMarkAsDefault,
   onOpenChange,
   onSuccess,
-  analyticsSource,
 }: LLMProviderFormProps) {
   const t = useTranslations("admin.languageModels.modals");
   const isOnboarding = variant === "onboarding";
@@ -208,11 +206,6 @@ export default function OllamaModal({
 
         await submitProvider({
           t,
-          analyticsSource:
-            analyticsSource ??
-            (isOnboarding
-              ? LLMProviderConfiguredSource.CHAT_ONBOARDING
-              : LLMProviderConfiguredSource.ADMIN_PAGE),
           providerName: LLMProviderName.OLLAMA_CHAT,
           values: submitValues,
           initialValues,

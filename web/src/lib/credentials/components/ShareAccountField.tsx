@@ -10,8 +10,6 @@ import {
 import { InputHorizontal, Section } from "@opal/layouts";
 import { SvgLock, SvgUserManage, SvgUsers } from "@opal/icons";
 import { useUserGroups } from "@/lib/hooks";
-import { usePlans } from "@/lib/tiers/hooks";
-import { Tier } from "@/lib/tiers/types";
 import type { CredentialSharing } from "@/lib/credentials/types";
 
 /** Who may reuse a new credential. */
@@ -69,7 +67,7 @@ interface ShareAccountSelectProps {
   onlyMeDisabledReason?: string;
   /** Called when focus leaves the group picker. */
   onGroupsBlur?: () => void;
-  /** Locks "Admins & Groups" with the Business plan badge: groups need it. */
+  /** Hides "Admins & Groups": groups need the Business plan. */
   groupsLocked?: boolean;
 }
 
@@ -87,7 +85,6 @@ export function ShareAccountSelect({
   groupsLocked = false,
 }: ShareAccountSelectProps) {
   const t = useTranslations("admin.credentials.create.share");
-  const plans = usePlans();
   const tGroups = useTranslations("common.groupsMultiSelect");
   const { data: userGroups } = useUserGroups();
 
@@ -131,15 +128,16 @@ export function ShareAccountSelect({
               description: t("admins.description"),
               icon: SvgUserManage,
             },
-            {
-              value: "adminsAndGroups",
-              title: t("adminsAndGroups.label"),
-              description: t("adminsAndGroups.description"),
-              icon: SvgUsers,
-              disabled: groupsLocked,
-              tag: groupsLocked ? plans[Tier.BUSINESS].tag : undefined,
-              tooltip: groupsLocked ? plans[Tier.BUSINESS].tooltip : undefined,
-            },
+            ...(groupsLocked
+              ? []
+              : [
+                  {
+                    value: "adminsAndGroups",
+                    title: t("adminsAndGroups.label"),
+                    description: t("adminsAndGroups.description"),
+                    icon: SvgUsers,
+                  },
+                ]),
             {
               options: [
                 {

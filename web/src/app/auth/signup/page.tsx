@@ -9,8 +9,8 @@ import ReferralSourceSelector from "./ReferralSourceSelector";
 import AuthErrorDisplay from "@/components/auth/AuthErrorDisplay";
 import Text from "@/refresh-components/texts/Text";
 import { cn } from "@opal/utils";
+import { APP_NAME } from "@/lib/constants";
 import { getTranslations } from "next-intl/server";
-import { fetchAppName } from "@/lib/app/svcSS";
 
 const Page = async (props: {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -62,7 +62,6 @@ const Page = async (props: {
   if (cloud && authTypeMetadata) {
     authUrl = await getAuthUrlSS(authTypeMetadata.multiTenant, null);
   }
-  const appName = await fetchAppName();
 
   return (
     <AuthFlowContainer authState="signup">
@@ -83,7 +82,7 @@ const Page = async (props: {
                 : t("signup.createAccountHeading.title")}
             </Text>
             <Text as="p" text03>
-              {t("signup.subtitle.text", { appName })}
+              {t("signup.subtitle.text", { appName: APP_NAME })}
             </Text>
           </div>
           {cloud && authUrl && (

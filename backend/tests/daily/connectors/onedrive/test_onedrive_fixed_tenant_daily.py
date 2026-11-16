@@ -37,7 +37,7 @@ from tests.utils.pytest_secrets import RedactedDict
 from tests.utils.secret_names import TestSecret
 
 pytestmark = [
-    pytest.mark.usefixtures("enable_ee", "mock_get_unstructured_api_key"),
+    pytest.mark.usefixtures("mock_get_unstructured_api_key"),
     pytest.mark.secrets(
         TestSecret.PERM_SYNC_SHAREPOINT_CLIENT_ID,
         TestSecret.PERM_SYNC_SHAREPOINT_DIRECTORY_ID,

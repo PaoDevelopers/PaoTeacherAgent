@@ -3,7 +3,6 @@
 import { useCallback, useState, useMemo, useEffect } from "react";
 import { useUser } from "@/providers/UserProvider";
 import { useLanguageModels } from "@/lib/languageModels/hooks";
-import { track, AnalyticsEvent } from "@/lib/analytics/utils";
 import { OnboardingModalController } from "@/app/craft/onboarding/types";
 import {
   getCraftOnboardingSeen,
@@ -52,7 +51,6 @@ export function useOnboardingModal(): OnboardingModalController {
   // success path triggers it instead).
   const completeOnboarding = useCallback(() => {
     if (user) setCraftOnboardingSeen(user.id);
-    track(AnalyticsEvent.COMPLETED_CRAFT_ONBOARDING);
     if (hasAnyProvider) {
       ensurePreProvisionedSession();
     }

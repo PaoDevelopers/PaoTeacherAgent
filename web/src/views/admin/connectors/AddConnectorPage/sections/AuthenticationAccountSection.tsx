@@ -100,7 +100,6 @@ export default function AuthenticationAccountSection({
     credentials,
     oauthDetails,
     methods,
-    canAuthorize,
     openMethod,
     namesMethods,
     open,
@@ -109,8 +108,6 @@ export default function AuthenticationAccountSection({
     remove,
     saveSharing,
     refresh,
-    authorize,
-    isAuthorizing,
   } = useCredentialSetup(connector);
   const checkReports = useCredentialCheckReports(connector);
   // Expanded, the section lists every account. Folded, only the chosen one
@@ -341,14 +338,6 @@ export default function AuthenticationAccountSection({
     left === CredentialCreationMethod.Manual ? -1 : 1
   );
 
-  // Gets an auth url from the server and sends the user to it in a popup.
-  async function handleAuthorize() {
-    const error = await authorize(t("add.oauthStartFailed.toast"));
-    if (error !== null) {
-      toast.error(error || t("add.unknownError.toast"));
-    }
-  }
-
   function renderSavedCard(credential: SimilarCredential) {
     return (
       <AuthenticationAccountCard
@@ -534,36 +523,13 @@ export default function AuthenticationAccountSection({
                 </div>
               </Fold>
             ))}
-            {canAuthorize && (
-              <Fold open={sectionExpanded} keepMounted>
-                <div className={cn(credentials.length > 0 && "pt-2")}>
-                  <Section flexDirection="row" justifyContent="start" gap={1}>
-                    <Button
-                      disabled={isAuthorizing}
-                      variant="action"
-                      onClick={handleAuthorize}
-                    >
-                      {isAuthorizing
-                        ? t("add.authorizeButton.pendingLabel")
-                        : t("add.authorizeButton.label", {
-                            source: displayName,
-                          })}
-                    </Button>
-                  </Section>
-                </div>
-              </Fold>
-            )}
             {/* Shown unless a saved account is the pick. Its own fold (the
             form) is independent of the section's. */}
             <Fold
               open={sectionExpanded || selectedSavedId === null}
               keepMounted
             >
-              <div
-                className={cn(
-                  (credentials.length > 0 || canAuthorize) && "pt-2"
-                )}
-              >
+              <div className={cn(credentials.length > 0 && "pt-2")}>
                 {newAccountCard}
               </div>
             </Fold>

@@ -3,10 +3,8 @@
 HookSkipped and HookSoftFailed are real classes kept here because
 process_message.py (CE code) uses isinstance checks against them.
 
-execute_hook is the public entry point. It dispatches to _execute_hook_impl
-via fetch_versioned_implementation so that:
-  - CE: onyx.hooks.executor._execute_hook_impl → no-op, returns HookSkipped()
-  - EE: ee.onyx.hooks.executor._execute_hook_impl → real HTTP call
+execute_hook is the public entry point. It is a no-op that returns
+HookSkipped().
 """
 
 from typing import Any, TypeVar
@@ -15,7 +13,6 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from onyx.db.enums import HookPoint
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 
 
 class HookSkipped:
@@ -47,13 +44,8 @@ def execute_hook(
     payload: dict[str, Any],
     response_type: type[T],
 ) -> T | HookSkipped | HookSoftFailed:
-    """Execute the hook for the given hook point.
-
-    Dispatches to the versioned implementation so EE gets the real executor
-    and CE gets the no-op stub, without any changes at the call site.
-    """
-    impl = fetch_versioned_implementation("onyx.hooks.executor", "_execute_hook_impl")
-    return impl(
+    """Execute the hook for the given hook point."""
+    return _execute_hook_impl(
         db_session=db_session,
         hook_point=hook_point,
         payload=payload,

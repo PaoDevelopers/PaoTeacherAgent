@@ -50,9 +50,6 @@ from onyx.db.models import (  # noqa: E402
     LLMProvider,
     VoiceProvider,
 )
-from onyx.utils.variable_functionality import (  # noqa: E402
-    set_is_ee_if_available,
-)
 
 PROVIDER_ALIASES: dict[str, set[str]] = {
     "openai": {"openai", "openai_compatible"},
@@ -208,7 +205,6 @@ def main() -> None:
     for p in args.provider:
         provider_names |= PROVIDER_ALIASES[p]
 
-    set_is_ee_if_available()
     SqlEngine.init_engine(pool_size=5, max_overflow=2)
 
     if args.dry_run:

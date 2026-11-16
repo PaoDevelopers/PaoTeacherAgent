@@ -74,7 +74,6 @@ from onyx.configs.constants import (
     DEFAULT_PERSONA_ID,
     DocumentSource,
     MessageType,
-    MilestoneRecordType,
 )
 from onyx.context.search.models import BaseFilters, SearchDoc
 from onyx.db.chat import (
@@ -149,9 +148,7 @@ from onyx.tools.tool_constructor import (
     SearchToolConfig,
     construct_tools,
 )
-from onyx.utils.fleet_query_telemetry import QueryObservation, telemetry_chat
 from onyx.utils.logger import setup_logger
-from onyx.utils.telemetry import mt_cloud_telemetry
 from onyx.utils.timing import log_function_time, log_generator_function_time
 from shared_configs.contextvars import (
     CURRENT_CONTENT_FREE_SESSION_ID_CONTEXTVAR,
@@ -651,25 +648,6 @@ def build_chat_turn(
         user_id=llm_user_identifier, session_id=str(chat_session.id)
     )
 
-    # Milestone tracking, most devs using the API don't need to understand this
-    mt_cloud_telemetry(
-        tenant_id=tenant_id,
-        distinct_id=str(user.id) if not user.is_anonymous else tenant_id,
-        event=MilestoneRecordType.MULTIPLE_ASSISTANTS,
-    )
-    mt_cloud_telemetry(
-        tenant_id=tenant_id,
-        distinct_id=str(user.id) if not user.is_anonymous else tenant_id,
-        event=MilestoneRecordType.USER_MESSAGE_SENT,
-        properties={
-            "origin": new_msg_req.origin.value,
-            "has_files": len(new_msg_req.file_descriptors) > 0,
-            "has_project": chat_session.project_id is not None,
-            "has_persona": persona is not None and persona.id != DEFAULT_PERSONA_ID,
-            "deep_research": new_msg_req.deep_research,
-        },
-    )
-
     # Check LLM cost limits before using the LLM (only for Onyx-managed keys),
     # then build the LLM instance(s).
     llms: list[LLM] = []
@@ -1143,7 +1121,6 @@ def _run_models(
     user: User,
     external_state_container: ChatStateContainer | None = None,
     stream_buffer: StreamBufferWriter | None = None,
-    query_observation: QueryObservation | None = None,
 ) -> AnswerStream:
     """Stream packets from one or more LLM loops running in parallel worker threads.
 
@@ -1318,7 +1295,6 @@ def _run_models(
             model_idx=model_idx,
             merged_queue=merged_queue,
             drain_done=drain_done,
-            query_observation=query_observation,
         )
         sc = state_containers[model_idx]
         model_llm = setup.llms[model_idx]
@@ -1475,8 +1451,6 @@ def _run_models(
 
     def _publish(item: Packet | StreamingError) -> None:
         """Fan one outbound item to the stream buffer and, while attached, the reader."""
-        if query_observation is not None:
-            query_observation.observe_packet(item)
         if stream_buffer is not None:
             try:
                 stream_buffer.append_line(get_json_line(item.model_dump()))
@@ -1584,8 +1558,6 @@ def _run_models(
                 )
             )
         finally:
-            if query_observation is not None:
-                query_observation.finish()
             # Mark done before _run_post_steps clears the fence so resume
             # readers never see a fence-less, not-done buffer and drop the tail.
             if stream_buffer is not None:
@@ -1608,14 +1580,7 @@ def _run_models(
         args=(_drain_to_completion,),
         name="chat-stream-writer",
     )
-    if query_observation is not None:
-        query_observation.writer_owned = True
-    try:
-        writer_thread.start()
-    except Exception:
-        if query_observation is not None:
-            query_observation.writer_owned = False
-        raise
+    writer_thread.start()
 
     def _read_stream() -> AnswerStream:
         # ── Reader: tail the tee while the client is attached ────────────────
@@ -1659,7 +1624,6 @@ def _stream_chat_turn(
     additional_context: str | None = None,
     slack_context: SlackContext | None = None,
     external_state_container: ChatStateContainer | None = None,
-    query_observation: QueryObservation | None = None,
 ) -> AnswerStream:
     """Private implementation for single-model and multi-model chat turn streaming.
 
@@ -1788,7 +1752,6 @@ def _stream_chat_turn(
             user=user,
             external_state_container=external_state_container,
             stream_buffer=stream_buffer,
-            query_observation=query_observation,
         )
         run_started = True
         yield from run_stream
@@ -1879,7 +1842,6 @@ def _stream_chat_turn(
 
 
 @log_generator_function_time()
-@telemetry_chat
 def handle_stream_message_objects(
     new_msg_req: SendMessageRequest,
     user: User,
@@ -1889,15 +1851,8 @@ def handle_stream_message_objects(
     additional_context: str | None = None,
     slack_context: SlackContext | None = None,
     external_state_container: ChatStateContainer | None = None,
-    *,
-    query_observation: QueryObservation | None = None,
 ) -> AnswerStream:
-    """Single-model streaming entrypoint. For multi-model comparison, use ``handle_multi_model_stream``.
-
-    Emits one fleet ``query`` record when server execution ends, including after
-    client disconnects. Callers pass ``new_msg_req`` as a keyword argument
-    so the record names the request channel.
-    """
+    """Single-model streaming entrypoint. For multi-model comparison, use ``handle_multi_model_stream``."""
     yield from _stream_chat_turn(
         new_msg_req=new_msg_req,
         user=user,
@@ -1908,7 +1863,6 @@ def handle_stream_message_objects(
         additional_context=additional_context,
         slack_context=slack_context,
         external_state_container=external_state_container,
-        query_observation=query_observation,
     )
 
 
@@ -1927,7 +1881,6 @@ def _build_model_display_name(override: LLMOverride | None, llm: LLM) -> str:
 
 
 @log_generator_function_time()
-@telemetry_chat
 def handle_multi_model_stream(
     new_msg_req: SendMessageRequest,
     user: User,
@@ -1935,8 +1888,6 @@ def handle_multi_model_stream(
     litellm_additional_headers: dict[str, str] | None = None,
     custom_tool_additional_headers: dict[str, str] | None = None,
     mcp_headers: dict[str, str] | None = None,
-    *,
-    query_observation: QueryObservation | None = None,
 ) -> AnswerStream:
     """Thin wrapper for side-by-side multi-model comparison (2–3 models).
 
@@ -1974,7 +1925,6 @@ def handle_multi_model_stream(
         new_msg_req=new_msg_req,
         user=user,
         llm_overrides=llm_overrides,
-        query_observation=query_observation,
         litellm_additional_headers=litellm_additional_headers,
         custom_tool_additional_headers=custom_tool_additional_headers,
         mcp_headers=mcp_headers,

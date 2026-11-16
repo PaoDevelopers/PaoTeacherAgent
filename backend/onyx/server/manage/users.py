@@ -32,7 +32,6 @@ from onyx.auth.session_tokens import (
 )
 from onyx.auth.users import (
     anonymous_user_enabled,
-    enforce_seat_limit_locked,
     optional_user,
     scope_exempt,
 )
@@ -41,7 +40,6 @@ from onyx.configs.app_configs import (
     DEV_MODE,
     EMAIL_CONFIGURED,
     ENABLE_EMAIL_INVITES,
-    INTEGRATION_TESTS_MODE,
     NUM_FREE_TRIAL_USER_INVITES,
     REDIS_AUTH_KEY_PREFIX,
     SESSION_EXPIRE_TIME_SECONDS,
@@ -55,7 +53,6 @@ from onyx.configs.constants import (
     PUBLIC_API_TAGS,
 )
 from onyx.db.api_key import is_api_key_email_address
-from onyx.db.auth import get_live_users_count
 from onyx.db.engine.sql_engine import get_session, get_session_with_shared_schema
 from onyx.db.enums import AccountType, Permission, UserFileStatus
 from onyx.db.models import User, UserFile
@@ -147,10 +144,6 @@ from onyx.utils.audit import (
 )
 from onyx.utils.csv_utils import sanitize_csv_cell
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import (
-    fetch_ee_implementation_or_noop,
-    fetch_versioned_implementation_with_fallback,
-)
 from shared_configs.configs import MULTI_TENANT
 from shared_configs.contextvars import get_current_tenant_id
 
@@ -236,32 +229,6 @@ def set_user_craft_access(
             "target_emails": [target.email for target in users_to_update],
             "craft_enabled": craft_access_update_request.craft_enabled,
         },
-    )
-
-
-class TestUpsertRequest(BaseModel):
-    email: str
-
-
-@router.post("/manage/users/test-upsert-user")
-async def test_upsert_user(
-    request: TestUpsertRequest,
-    _: User = Depends(require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)),
-) -> None | FullUserSnapshot:
-    """Test endpoint for upsert_saml_user. Only used for integration testing."""
-    if not INTEGRATION_TESTS_MODE:
-        raise OnyxError(OnyxErrorCode.NOT_FOUND)
-
-    user = await fetch_ee_implementation_or_noop(
-        "onyx.server.saml", "upsert_saml_user", None
-    )(email=request.email)
-    return (
-        FullUserSnapshot.from_user_model(
-            user,
-            is_admin=user_is_admin(user),
-        )
-        if user
-        else None
     )
 
 
@@ -619,14 +586,6 @@ def bulk_invite_users(
         if e not in existing_users and e not in already_invited
     ]
 
-    # Must run before the trial counter reservation — a seat-limit
-    # failure must not burn trial quota. Self-hosted only: the cloud
-    # check runs inside add_users_to_tenant, atomic with the mapping
-    # insert. Locking here too re-acquires the tenant advisory lock on
-    # a second connection and self-deadlocks (#10900).
-    if emails_needing_seats and not MULTI_TENANT:
-        enforce_seat_limit_locked(db_session, seats_needed=len(emails_needing_seats))
-
     # Enforce the trial invite cap via the monotonic `tenant_invite_counter`.
     # The UPSERT holds a row-level lock on `tenant_id` during the UPDATE, so
     # concurrent bulk-invite flows for the same tenant are serialized without
@@ -653,18 +612,6 @@ def bulk_invite_users(
             num_invites=len(emails_needing_seats),
             tenant_id=tenant_id,
         )
-
-    if MULTI_TENANT:
-        try:
-            fetch_ee_implementation_or_noop(
-                "onyx.db.user_tenant_mapping", "add_users_to_tenant", None
-            )(new_invited_emails, tenant_id)
-        except OnyxError:
-            # Seat-limit / billing declines from the cloud check must reach
-            # the caller now that this is the only enforcement point.
-            raise
-        except Exception as e:
-            logger.error("Failed to add users to tenant %s: %s", tenant_id, str(e))
 
     initial_invited_users = get_invited_users()
 
@@ -711,9 +658,6 @@ def bulk_invite_users(
         # for billing purposes, write to the control plane about the number of new users
         try:
             logger.info("Registering tenant users")
-            fetch_ee_implementation_or_noop(
-                "onyx.server.tenants.billing", "register_tenant_users", None
-            )(tenant_id, get_live_users_count(db_session))
         except Exception as e:
             logger.error("Failed to register tenant users: %s", str(e))
             logger.info(
@@ -721,9 +665,6 @@ def bulk_invite_users(
             )
             try:
                 write_invited_users(initial_invited_users)  # Reset to original state
-                fetch_ee_implementation_or_noop(
-                    "onyx.db.user_tenant_mapping", "remove_users_from_tenant", None
-                )(new_invited_emails, tenant_id)
             finally:
                 # Release the counter reservation regardless of whether the KV /
                 # user-mapping reverts above succeeded — otherwise a double-fault
@@ -769,7 +710,6 @@ def remove_invited_user(
     current_user: User = Depends(
         require_permission(Permission.FULL_ADMIN_PANEL_ACCESS)
     ),
-    db_session: Session = Depends(get_session),
 ) -> int:
     tenant_id = get_current_tenant_id()
     if MULTI_TENANT and is_tenant_on_trial_fn(tenant_id):
@@ -777,23 +717,7 @@ def remove_invited_user(
             redis_client=get_redis_client(tenant_id=tenant_id),
             admin_user_id=current_user.id,
         )
-    if MULTI_TENANT:
-        fetch_ee_implementation_or_noop(
-            "onyx.db.user_tenant_mapping", "remove_users_from_tenant", None
-        )([user_email.user_email], tenant_id)
     number_of_invited_users = remove_user_from_invited_users(user_email.user_email)
-
-    try:
-        if MULTI_TENANT and not DEV_MODE:
-            fetch_ee_implementation_or_noop(
-                "onyx.server.tenants.billing", "register_tenant_users", None
-            )(tenant_id, get_live_users_count(db_session))
-    except Exception:
-        logger.error(
-            "Request to update number of seats taken in control plane failed. "
-            "This may cause synchronization issues/out of date enforcement of seat limits."
-        )
-        raise
 
     return number_of_invited_users
 
@@ -832,10 +756,6 @@ def deactivate_user_api(
 
     # Invalidate license cache so used_seats reflects the new count
     # Only for self-hosted (non-multi-tenant) deployments
-    if not MULTI_TENANT:
-        fetch_ee_implementation_or_noop(
-            "onyx.db.license", "invalidate_license_cache", None
-        )()
 
 
 @router.delete("/manage/admin/delete-user", tags=PUBLIC_API_TAGS)
@@ -866,10 +786,6 @@ async def delete_user(
     db_session.expunge(user_to_delete)
 
     try:
-        tenant_id = get_current_tenant_id()
-        fetch_ee_implementation_or_noop(
-            "onyx.db.user_tenant_mapping", "remove_users_from_tenant", None
-        )([user_email.user_email], tenant_id)
         delete_user_from_db(user_to_delete, db_session)
         logger.info("Deleted user %s", user_to_delete.email)
 
@@ -884,10 +800,6 @@ async def delete_user(
 
         # Invalidate license cache so used_seats reflects the new count
         # Only for self-hosted (non-multi-tenant) deployments
-        if not MULTI_TENANT:
-            fetch_ee_implementation_or_noop(
-                "onyx.db.license", "invalidate_license_cache", None
-            )()
 
     except Exception as e:
         db_session.rollback()
@@ -913,8 +825,6 @@ def activate_user_api(
         logger.warning("%s is already activated", user_to_activate.email)
         return
 
-    enforce_seat_limit_locked(db_session)
-
     activate_user(user_to_activate, db_session)
 
     emit_audit_event(
@@ -928,10 +838,6 @@ def activate_user_api(
 
     # Invalidate license cache so used_seats reflects the new count
     # Only for self-hosted (non-multi-tenant) deployments
-    if not MULTI_TENANT:
-        fetch_ee_implementation_or_noop(
-            "onyx.db.license", "invalidate_license_cache", None
-        )()
 
 
 @router.get("/manage/admin/valid-domains")
@@ -1130,31 +1036,9 @@ def verify_user_logged_in(
     if MULTI_TENANT and user.account_type == AccountType.SERVICE_ACCOUNT:
         team_name = tenant_id
     else:
-        team_name = fetch_ee_implementation_or_noop(
-            "onyx.db.user_tenant_mapping", "get_tenant_id_for_email", None
-        )(user.email)
+        team_name = None
 
-        if MULTI_TENANT:
-            if team_name != tenant_id:
-                user_count = fetch_ee_implementation_or_noop(
-                    "onyx.db.user_tenant_mapping", "get_tenant_count", None
-                )(team_name)
-                new_tenant = TenantSnapshot(
-                    tenant_id=team_name, number_of_users=user_count
-                )
-
-            tenant_invitation = fetch_ee_implementation_or_noop(
-                "onyx.db.user_tenant_mapping", "get_tenant_invitation", None
-            )(user.email)
-
-    super_users_list = cast(
-        list[str],
-        fetch_versioned_implementation_with_fallback(
-            "onyx.configs.app_configs",
-            "SUPER_USERS",
-            [],
-        ),
-    )
+    super_users_list: list[str] = []
     memories = [
         MemoryItem(id=memory.id, content=memory.memory_text)
         for memory in get_memories_for_user(user.id, db_session)

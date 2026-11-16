@@ -119,15 +119,6 @@ export type ConfigurableSources = Exclude<
   | ValidSources.CraftFile // User Library - managed through dedicated UI
 >;
 
-export const oauthSupportedSources: ConfigurableSources[] = [
-  ValidSources.Slack,
-  // NOTE: temporarily disabled until our GDrive App is approved
-  // ValidSources.GoogleDrive,
-  ValidSources.Confluence,
-];
-
-export type OAuthSupportedSource = (typeof oauthSupportedSources)[number];
-
 /** The catalog section a source is listed under. */
 export enum SourceCategory {
   Wiki = "Knowledge Base & Wikis",
@@ -149,7 +140,6 @@ export interface SourceMetadata {
   internalName: ValidSources;
   adminUrl: string;
   isPopular?: boolean;
-  oauthSupported?: boolean;
   federated?: boolean;
   federatedTooltip?: string;
   uniqueKey?: string;

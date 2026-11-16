@@ -4,6 +4,8 @@ import useSWR, { mutate } from "swr";
 import { errorHandlingFetcher } from "@/lib/fetcher";
 import { UserGroup } from "@/lib/types";
 import { useSettings } from "@/lib/settings/hooks";
+import { Tier } from "@/lib/tiers/types";
+import { tierAtLeast } from "@/lib/tiers/utils";
 import { SWR_KEYS } from "@/lib/swr-keys";
 
 /**
@@ -13,8 +15,8 @@ import { SWR_KEYS } from "@/lib/swr-keys";
  * Use this for displaying group lists in sharing dialogs, admin panels, or permission
  * management interfaces.
  *
- * Note: This hook only returns data if enterprise features are enabled. In non-enterprise
- * environments, it returns an empty array.
+ * Note: This hook only returns data on the Business tier or higher. Below it,
+ * it returns an empty array.
  *
  * @returns Object containing:
  *   - data: Array of UserGroup objects, or undefined while loading
@@ -41,7 +43,7 @@ import { SWR_KEYS } from "@/lib/swr-keys";
 export default function useGroups(includeDefault = false) {
   const settings = useSettings();
   const isPaidEnterpriseFeaturesEnabled =
-    !settings.isLoading && settings.enterprise !== null;
+    !settings.isLoading && tierAtLeast(settings.tier, Tier.BUSINESS);
 
   const url = includeDefault
     ? SWR_KEYS.adminUserGroupsWithDefault

@@ -20,11 +20,6 @@ jest.mock("@/lib/settings/hooks", () => ({
   }),
 }));
 
-jest.mock("@/lib/analytics/hooks", () => ({
-  PHFeatureFlag: { LANGUAGE_MODEL_CONFIGURATION_DISABLED: "disabled" },
-  usePHFeatureFlag: () => false,
-}));
-
 jest.mock("@/views/admin/CostOverridesPanel", () => ({
   __esModule: true,
   default: () => null,

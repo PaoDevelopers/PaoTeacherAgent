@@ -61,7 +61,7 @@ import {
   SvgTrash,
   SvgX,
 } from "@opal/icons";
-import { useIsSearchModeAvailable, useSettings } from "@/lib/settings/hooks";
+import { useIsSearchModeAvailable } from "@/lib/settings/hooks";
 import type { AppMode } from "@/providers/QueryControllerProvider";
 import { useAppDocumentTitle, useCustomFooterContent } from "@/lib/app/hooks";
 import { useAppPosition } from "@/lib/position/hooks";
@@ -82,7 +82,6 @@ function Header() {
   const businessTier = useTierAtLeast(Tier.BUSINESS);
   const { state, setAppMode } = useQueryController();
   const isSearchModeAvailable = useIsSearchModeAvailable();
-  const settings = useSettings();
   const { isMobile } = useScreenSize();
   const { setFolded } = useSidebarState();
   const { fullWidthChat, toggleFullWidthChat } = useFullWidthChat();
@@ -116,10 +115,6 @@ function Header() {
     removeSession,
   } = useChatSessions();
   const router = useRouter();
-
-  const customHeaderContent = settings.enterprise?.custom_header_content;
-  const pageWithHeaderContent =
-    appPosition.isChat() || appPosition.isNewSession() || appPosition.isAgent();
 
   const effectiveMode: AppMode =
     appPosition.isNewSession() && state.phase === "idle"
@@ -464,25 +459,7 @@ function Header() {
                   )}
               </div>
 
-              {/*
-          Center:
-          - custom-header-content
-          - Wraps to its own row below left/right on mobile when content is present
-        */}
-              <div
-                className={cn(
-                  "flex flex-col items-center overflow-hidden",
-                  pageWithHeaderContent && customHeaderContent
-                    ? "order-last basis-full py-2 sm:py-0 sm:order-0 sm:basis-auto sm:flex-1"
-                    : "flex-1"
-                )}
-              >
-                {pageWithHeaderContent && customHeaderContent && (
-                  <span className="text-center w-full">
-                    <Text color="text-03">{customHeaderContent}</Text>
-                  </span>
-                )}
-              </div>
+              <div className="flex-1" />
 
               {/*
           Right:

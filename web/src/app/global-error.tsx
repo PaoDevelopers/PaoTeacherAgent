@@ -1,21 +1,8 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import NextError from "next/error";
-import { useEffect } from "react";
 
-// This global error page is necessary to capture errors that occur in the app.
-export default function GlobalError({
-  error,
-}: {
-  error: Error & { digest?: string };
-}) {
-  useEffect(() => {
-    if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-      Sentry.captureException(error);
-    }
-  }, [error]);
-
+export default function GlobalError() {
   return (
     <html lang="en">
       <body>

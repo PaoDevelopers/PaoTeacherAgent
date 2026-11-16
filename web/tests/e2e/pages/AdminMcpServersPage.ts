@@ -119,10 +119,6 @@ export class AdminMcpServersPage {
     await expect(this.page.getByRole("dialog")).toBeHidden();
   }
 
-  async expectAccessControlVisible(): Promise<void> {
-    await expect(this.accessControlSelector).toBeVisible();
-  }
-
   async fillServerDetails(details: { name: string }): Promise<void> {
     await this.page.getByRole("button", { name: "Back", exact: true }).click();
     await this.nameInput.fill(details.name);

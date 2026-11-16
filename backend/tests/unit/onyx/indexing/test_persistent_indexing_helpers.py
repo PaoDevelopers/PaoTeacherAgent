@@ -122,8 +122,6 @@ def test_record_generic_failure_persists_via_create_index_attempt_error() -> Non
         record_generic_failure(
             index_attempt_id=7,
             cc_pair_id=11,
-            source=DocumentSource.SLACK,
-            tenant_id="tenant-a",
             failure=failure,
         )
 
@@ -151,7 +149,5 @@ def test_record_generic_failure_swallows_db_errors() -> None:
         record_generic_failure(
             index_attempt_id=7,
             cc_pair_id=11,
-            source=DocumentSource.SLACK,
-            tenant_id="tenant-a",
             failure=failure,
         )

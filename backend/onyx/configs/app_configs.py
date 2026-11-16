@@ -137,11 +137,6 @@ HIDE_QUERY_HISTORY_FROM_ADMIN_PANEL = (
 # fixes it)
 WEB_DOMAIN = os.environ.get("WEB_DOMAIN") or "http://localhost:3000"
 
-# Surfaced to the web app via /api/settings so analytics can be enabled by env
-# var instead of a NEXT_PUBLIC_POSTHOG_KEY build arg. Client-side project key.
-POSTHOG_API_KEY = os.environ.get("POSTHOG_API_KEY")
-POSTHOG_HOST = os.environ.get("POSTHOG_HOST") or "https://us.i.posthog.com"
-
 
 #####
 # Auth Configs
@@ -1789,8 +1784,6 @@ LOG_POSTGRES_LATENCY = os.environ.get("LOG_POSTGRES_LATENCY", "").lower() == "tr
 LOG_POSTGRES_CONN_COUNTS = (
     os.environ.get("LOG_POSTGRES_CONN_COUNTS", "").lower() == "true"
 )
-# Anonymous usage telemetry
-DISABLE_TELEMETRY = os.environ.get("DISABLE_TELEMETRY", "").lower() == "true"
 
 #####
 # Braintrust Configuration

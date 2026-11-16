@@ -21,7 +21,6 @@ import {
   withFetchedModels,
 } from "@/sections/modals/languageModels/utils";
 import { submitProvider } from "@/sections/modals/languageModels/svc";
-import { LLMProviderConfiguredSource } from "@/lib/analytics/utils";
 import {
   ModelSelectionField,
   DisplayNameField,
@@ -275,7 +274,6 @@ export default function BedrockModal({
   shouldMarkAsDefault,
   onOpenChange,
   onSuccess,
-  analyticsSource,
 }: LLMProviderFormProps) {
   const t = useTranslations("admin.languageModels.modals");
   const isOnboarding = variant === "onboarding";
@@ -338,11 +336,6 @@ export default function BedrockModal({
 
         await submitProvider({
           t,
-          analyticsSource:
-            analyticsSource ??
-            (isOnboarding
-              ? LLMProviderConfiguredSource.CHAT_ONBOARDING
-              : LLMProviderConfiguredSource.ADMIN_PAGE),
           providerName: LLMProviderName.BEDROCK,
           values: submitValues,
           initialValues,

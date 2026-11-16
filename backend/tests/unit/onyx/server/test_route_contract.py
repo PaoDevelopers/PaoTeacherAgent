@@ -77,7 +77,7 @@ GATE2_HELPERS: frozenset[str] = frozenset(
 
 # Call depth below the handler that the source walk follows.
 WALK_DEPTH = 3
-_FOLLOWED_PACKAGES = ("onyx.", "ee.onyx.")
+_FOLLOWED_PACKAGES = ("onyx.",)
 
 
 # --- route discovery --------------------------------------------------------
@@ -275,20 +275,17 @@ def get_write_violations(app: FastAPI) -> set[str]:
 
 @pytest.fixture(scope="module")
 def app() -> Iterator[FastAPI]:
-    # onyx.main must load before ee.onyx.main, or the import is circular.
     onyx_main = importlib.import_module("onyx.main")
-    ee_main = importlib.import_module("ee.onyx.main")
 
     # Pin the flags that add or remove routers so the route set is stable.
     with pytest.MonkeyPatch.context() as mp:
-        mp.setattr(ee_main, "MULTI_TENANT", True)
         mp.setattr(onyx_main, "OAUTH_ENABLED", True)
         mp.setattr(onyx_main, "OAUTH_CLIENT_ID", "route-contract-client")
         mp.setattr(onyx_main, "OAUTH_CLIENT_SECRET", "route-contract-value")
         mp.setattr(onyx_main, "OAUTH_PROVIDER_SETTINGS", MagicMock())
         mp.setattr(onyx_main, "ENABLE_PUBLIC_DOCS", False)
         mp.setattr(onyx_main, "APP_API_PREFIX", "")
-        yield ee_main.get_application()
+        yield onyx_main.get_application()
 
 
 def _load_baseline() -> dict[str, dict[str, str]]:

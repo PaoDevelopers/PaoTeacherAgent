@@ -80,7 +80,6 @@ from onyx.utils.audit import (
     emit_audit_event,
 )
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
@@ -140,11 +139,7 @@ def _authorize_proposed_state(
         and proposed.data_access_group_ids == current.data_access_group_ids
     ):
         return
-    manage_roles: dict[int, ConnectorManageRole] = fetch_ee_implementation_or_noop(
-        "onyx.db.connector_manage_access",
-        "fetch_manage_roles_for_cc_pair",
-        noop_return_value={},
-    )(db_session, current.cc_pair_id)
+    manage_roles: dict[int, ConnectorManageRole] = {}
     manage_group_ids = list(manage_roles)
     # As at creation: a groupless perm-synced pair mirrors the source's ACLs,
     # so there is no reach for a group to bound.

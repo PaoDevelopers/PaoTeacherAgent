@@ -17,7 +17,6 @@ from celery.utils.log import get_task_logger
 from celery.worker import strategy
 from celery.worker.control import control_command
 from redis.lock import Lock as RedisLock
-from sentry_sdk.integrations.celery import CeleryIntegration
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -44,7 +43,6 @@ from onyx.redis.redis_document_set import RedisDocumentSet
 from onyx.redis.redis_pool import get_redis_client
 from onyx.redis.redis_usergroup import RedisUserGroup
 from onyx.tracing.setup import setup_tracing
-from onyx.utils.fleet_telemetry import start_telemetry
 from onyx.utils.logger import (
     ColoredFormatter,
     LoggerContextVars,
@@ -59,8 +57,6 @@ from shared_configs.configs import (
     JSON_LOGGING,
     MULTI_TENANT,
     POSTGRES_DEFAULT_SCHEMA,
-    SENTRY_CELERY_TRACES_SAMPLE_RATE,
-    SENTRY_DSN,
     TENANT_ID_PREFIX,
 )
 from shared_configs.contextvars import CURRENT_TENANT_ID_CONTEXTVAR
@@ -68,16 +64,6 @@ from shared_configs.contextvars import CURRENT_TENANT_ID_CONTEXTVAR
 logger = setup_logger()
 
 task_logger = get_task_logger(__name__)
-
-if SENTRY_DSN:
-    from onyx.configs.sentry import init_sentry
-
-    init_sentry(
-        traces_sample_rate=SENTRY_CELERY_TRACES_SAMPLE_RATE,
-        integrations=[CeleryIntegration()],
-    )
-else:
-    logger.debug("Sentry DSN not provided, skipping Sentry initialization")
 
 
 @control_command()
@@ -415,7 +401,6 @@ def on_secondary_worker_init(sender: Any, **kwargs: Any) -> None:  # noqa: ARG00
 
 
 def on_worker_ready(sender: Any, **kwargs: Any) -> None:  # noqa: ARG001
-    start_telemetry("worker")
     task_logger.info("worker_ready signal received.")
 
     # file based way to do readiness/liveness probes
@@ -706,9 +691,6 @@ _VECTOR_DB_TASK_MODULES: set[str] = {
     "onyx.background.celery.tasks.tabular_rechunk",
     "onyx.background.celery.tasks.doc_permission_syncing",
     "onyx.background.celery.tasks.hierarchyfetching",
-    # EE modules that are vector-DB-dependent
-    "ee.onyx.background.celery.tasks.doc_permission_syncing",
-    "ee.onyx.background.celery.tasks.external_group_syncing",
 }
 # NOTE: "onyx.background.celery.tasks.shared" is intentionally NOT in the set
 # above. It contains celery_beat_heartbeat (which only writes to Redis) alongside

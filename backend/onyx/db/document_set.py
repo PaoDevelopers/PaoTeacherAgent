@@ -34,7 +34,6 @@ from onyx.server.features.document_set.models import (
     FederatedConnectorConfig,
 )
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 
 logger = setup_logger()
 
@@ -389,12 +388,8 @@ def insert_document_set(
                 entities=fc_config.entities,
             )
 
-        versioned_private_doc_set_fn = fetch_versioned_implementation(
-            "onyx.db.document_set", "make_doc_set_private"
-        )
-
         # Private Document Sets
-        versioned_private_doc_set_fn(
+        make_doc_set_private(
             document_set_id=new_document_set_row.id,
             user_ids=document_set_creation_request.users,
             group_ids=document_set_creation_request.groups,
@@ -460,12 +455,9 @@ def update_document_set(
             document_set_row.is_up_to_date = False
         document_set_row.is_public = document_set_update_request.is_public
         document_set_row.time_last_modified_by_user = func.now()
-        versioned_private_doc_set_fn = fetch_versioned_implementation(
-            "onyx.db.document_set", "make_doc_set_private"
-        )
 
         # Private Document Sets
-        versioned_private_doc_set_fn(
+        make_doc_set_private(
             document_set_id=document_set_row.id,
             user_ids=document_set_update_request.users,
             group_ids=document_set_update_request.groups,
@@ -577,10 +569,7 @@ def mark_document_set_as_to_be_deleted(
         db_session.execute(delete_stmt)
 
         # delete all private document set information
-        versioned_delete_private_fn = fetch_versioned_implementation(
-            "onyx.db.document_set", "delete_document_set_privacy__no_commit"
-        )
-        versioned_delete_private_fn(
+        delete_document_set_privacy__no_commit(
             document_set_id=document_set_id, db_session=db_session
         )
 

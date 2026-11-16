@@ -12,7 +12,7 @@ import {
   InputVertical,
   toast,
 } from "@opal/layouts";
-import { copyText, markdown } from "@opal/utils";
+import { markdown } from "@opal/utils";
 import { Formik, Form } from "formik";
 import * as Yup from "yup";
 import {
@@ -84,9 +84,8 @@ import {
   UNSET_REASONING_STOP,
   reasoningStopIndex,
 } from "@/sections/model-selector/setting-controls";
-import { LLM_GATEWAY_MIN_TIER, tierAtLeast } from "@/lib/tiers/utils";
+import { tierAtLeast } from "@/lib/tiers/utils";
 import { Tooltip } from "@opal/components";
-import { useCloudSubscription } from "@/hooks/useCloudSubscription";
 import { useSmoothStreaming } from "@/hooks/useSmoothStreaming";
 import { hasPermission } from "@/lib/permissions/utils";
 import {
@@ -96,8 +95,6 @@ import {
   findModelConfigId,
 } from "@/lib/languageModels/options";
 import { useLanguageModels } from "@/lib/languageModels/hooks";
-import { DOCS_BASE_URL } from "@/lib/constants";
-import { Collapsible } from "@opal/components";
 import type { ErrorResponseBody } from "@/lib/fetcher";
 import OAuthProviderConnections from "@/sections/oauth-provider/OAuthProviderConnections";
 
@@ -1726,256 +1723,6 @@ function ChatPreferencesSettings() {
   );
 }
 
-interface GatewayAccessSectionProps {
-  canCreateToken: boolean;
-  onCreateToken: () => void;
-}
-
-interface GatewayCopyValueButtonProps {
-  value: string;
-}
-
-function GatewayCopyValueButton({ value }: GatewayCopyValueButtonProps) {
-  const t = useTranslations("settings");
-  const [copied, setCopied] = useState(false);
-
-  async function handleCopy() {
-    try {
-      await copyText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error(t("gateway.copyButton.copyError"));
-    }
-  }
-
-  return (
-    <Button
-      prominence="secondary"
-      size="sm"
-      onClick={handleCopy}
-      rightIcon={copied ? SvgCheck : undefined}
-      tooltip={
-        copied ? t("gateway.copyButton.copied") : t("gateway.copyButton.copy")
-      }
-    >
-      {value}
-    </Button>
-  );
-}
-
-function GatewayAccessSection({
-  canCreateToken,
-  onCreateToken,
-}: GatewayAccessSectionProps) {
-  const t = useTranslations("settings");
-  const { appName } = useSettings();
-  const gatewayTier = useTierAtLeast(LLM_GATEWAY_MIN_TIER);
-  const { llmProviders } = useLanguageModels();
-  const [gatewayUrl, setGatewayUrl] = useState("");
-
-  useEffect(() => {
-    setGatewayUrl(`${window.location.origin}/api/gateway/v1`);
-  }, []);
-
-  const providerGroups = useMemo(
-    () =>
-      (llmProviders ?? [])
-        .map((provider) => ({
-          id: provider.id,
-          name: provider.name || provider.provider_display_name,
-          models: provider.model_configurations
-            .filter((model) => model.is_visible)
-            .sort((first, second) => {
-              if (
-                first.is_recommended_default !== second.is_recommended_default
-              ) {
-                return first.is_recommended_default ? -1 : 1;
-              }
-
-              return first.effectiveDisplayName.localeCompare(
-                second.effectiveDisplayName
-              );
-            })
-            .map((model) => ({
-              id: `${provider.id}/${model.name}`,
-              name: model.effectiveDisplayName,
-            })),
-        }))
-        .filter((provider) => provider.models.length > 0)
-        .sort((first, second) => first.name.localeCompare(second.name)),
-    [llmProviders]
-  );
-
-  const availableModelCount = providerGroups.reduce(
-    (count, provider) => count + provider.models.length,
-    0
-  );
-
-  if (!gatewayTier || availableModelCount === 0) {
-    return null;
-  }
-
-  const gatewayAddress = gatewayUrl || "/api/gateway/v1";
-
-  return (
-    <Section gap={3}>
-      <ContentAction
-        title={t("gateway.title")}
-        description={t("gateway.description", { appName })}
-        sizePreset="main-content"
-        variant="section"
-        width="full"
-        center
-        rightChildren={
-          <Button
-            prominence="tertiary"
-            href={`${DOCS_BASE_URL}/developers/guides/llm_gateway`}
-            target="_blank"
-            size="sm"
-          >
-            {t("gateway.guideButton")}
-          </Button>
-        }
-      />
-      <Card border="solid" rounding={4} padding={3}>
-        <Section alignItems="start" height="fit" gap={3}>
-          <InputHorizontal
-            title={t("gateway.url.title")}
-            description={t("gateway.url.description")}
-            center
-          >
-            <GatewayCopyValueButton value={gatewayAddress} />
-          </InputHorizontal>
-
-          <Divider />
-
-          <Section gap={2} alignItems="start">
-            <Content
-              title={t("gateway.models.title")}
-              description={t("gateway.models.description", {
-                count: availableModelCount,
-              })}
-              sizePreset="main-ui"
-              variant="section"
-            />
-
-            <Section gap={2} alignItems="start">
-              {providerGroups.map((provider) => (
-                <Collapsible
-                  key={provider.id}
-                  defaultOpen={false}
-                  title={provider.name}
-                  description={t("gateway.provider.modelsAvailable", {
-                    count: provider.models.length,
-                  })}
-                >
-                  <Section gap={2} alignItems="start">
-                    {provider.models.map((model) => (
-                      <Section
-                        key={model.id}
-                        flexDirection="row"
-                        justifyContent="between"
-                        alignItems="center"
-                        height="fit"
-                        gap={2}
-                      >
-                        <Text font="main-ui-body" color="text-04">
-                          {model.name}
-                        </Text>
-                        <GatewayCopyValueButton value={model.id} />
-                      </Section>
-                    ))}
-                  </Section>
-                </Collapsible>
-              ))}
-            </Section>
-          </Section>
-
-          <Divider />
-
-          <InputHorizontal
-            title={t("gateway.accessToken.title")}
-            description={t("gateway.accessToken.description")}
-            center
-          >
-            <Button
-              prominence="secondary"
-              icon={SvgKey}
-              disabled={!canCreateToken}
-              onClick={onCreateToken}
-            >
-              {t("gateway.accessToken.button")}
-            </Button>
-          </InputHorizontal>
-        </Section>
-      </Card>
-    </Section>
-  );
-}
-
-function LLMGatewaySettings() {
-  const t = useTranslations("settings");
-  const { permissions } = useUser();
-  // Same gate as the Access Tokens section: this is a second PAT-minting path.
-  const canCreatePAT = hasPermission(
-    permissions,
-    Permission.CREATE_USER_API_KEYS
-  );
-  const canCreateTokens = useCloudSubscription();
-  const tokenCreation = usePATCreation({
-    defaultName: t("gateway.title"),
-    defaultAccessMode: "limited",
-    defaultScopes: ["use:llm_gateway"],
-  });
-  const currentTier = useSettings().tier;
-  const { data: allScopeOptions = [], error: scopeOptionsError } = useSWR<
-    PatScopeOption[]
-  >(canCreateTokens ? SWR_KEYS.userPatScopes : null, errorHandlingFetcher, {
-    fallbackData: [],
-  });
-  const scopeOptions = useMemo(
-    () =>
-      allScopeOptions.filter((option) =>
-        tierAtLeast(currentTier ?? Tier.COMMUNITY, option.min_tier)
-      ),
-    [allScopeOptions, currentTier]
-  );
-  const canCreateGatewayToken =
-    canCreateTokens &&
-    canCreatePAT &&
-    scopeOptions.some((option) => option.scope === "use:llm_gateway");
-
-  return (
-    <>
-      {tokenCreation.showCreateModal && (
-        <PATModal
-          isCreating={tokenCreation.isCreating}
-          newTokenName={tokenCreation.newTokenName}
-          setNewTokenName={tokenCreation.setNewTokenName}
-          expirationDays={tokenCreation.expirationDays}
-          setExpirationDays={tokenCreation.setExpirationDays}
-          accessMode={tokenCreation.accessMode}
-          setAccessMode={tokenCreation.setAccessMode}
-          defaultAccessMode={tokenCreation.defaultAccessMode}
-          scopeOptions={scopeOptions}
-          scopesError={Boolean(scopeOptionsError)}
-          selectedScopes={tokenCreation.selectedScopes}
-          toggleScope={tokenCreation.toggleScope}
-          onClose={tokenCreation.closeTokenModal}
-          onCreate={tokenCreation.createPAT}
-          createdToken={tokenCreation.newlyCreatedToken}
-        />
-      )}
-
-      <GatewayAccessSection
-        canCreateToken={canCreateGatewayToken}
-        onCreateToken={tokenCreation.openTokenModal}
-      />
-    </>
-  );
-}
-
 function AccountsAccessSettings() {
   const t = useTranslations("settings");
   const { user, authTypeMetadata, permissions } = useUser();
@@ -2007,7 +1754,6 @@ function AccountsAccessSettings() {
 
   const [tokenToDelete, setTokenToDelete] = useState<PAT | null>(null);
 
-  const canCreateTokens = useCloudSubscription();
   const canCreatePAT = hasPermission(
     permissions,
     Permission.CREATE_USER_API_KEYS
@@ -2037,11 +1783,9 @@ function AccountsAccessSettings() {
 
   const { data: allScopeOptions = [], error: scopeOptionsError } = useSWR<
     PatScopeOption[]
-  >(
-    showTokensSection && canCreateTokens ? SWR_KEYS.userPatScopes : null,
-    errorHandlingFetcher,
-    { fallbackData: [] }
-  );
+  >(showTokensSection ? SWR_KEYS.userPatScopes : null, errorHandlingFetcher, {
+    fallbackData: [],
+  });
   const { tier: currentTier, appName } = useSettings();
   const scopeOptions = useMemo(
     () =>
@@ -2350,147 +2094,132 @@ function AccountsAccessSettings() {
               variant="section"
               width="full"
             />
-            {canCreateTokens ? (
-              <Card border="solid" padding={1} rounding={4}>
-                <Section alignItems="start" height="fit">
-                  <Section gap={0}>
-                    <Section flexDirection="row" padding={1} gap={2}>
-                      {pats.length === 0 ? (
-                        <Section
-                          padding={2}
-                          alignItems="start"
-                          data-testid="access-token-list-status"
-                        >
-                          <Text font="secondary-body" color="text-03">
-                            {isLoading
-                              ? t("apiKeys.list.loading")
-                              : t("apiKeys.list.empty")}
-                          </Text>
-                        </Section>
-                      ) : (
-                        <InputTypeIn
-                          placeholder={t("apiKeys.list.searchPlaceholder")}
-                          value={query}
-                          onChange={(e) => setQuery(e.target.value)}
-                          searchIcon
-                          variant="internal"
-                        />
-                      )}
-                      <div className="shrink-0">
-                        <Button
-                          rightIcon={SvgPlusCircle}
-                          prominence="internal"
-                          interaction={
-                            tokenCreation.showCreateModal ? "active" : "rest"
-                          }
-                          onClick={tokenCreation.openTokenModal}
-                          disabled={!canCreatePAT}
-                          tooltip={
-                            !canCreatePAT
-                              ? t("apiKeys.list.noPermissionTooltip")
-                              : undefined
-                          }
-                        >
-                          {t("apiKeys.list.newTokenButton")}
-                        </Button>
-                      </div>
-                    </Section>
+            <Card border="solid" padding={1} rounding={4}>
+              <Section alignItems="start" height="fit">
+                <Section gap={0}>
+                  <Section flexDirection="row" padding={1} gap={2}>
+                    {pats.length === 0 ? (
+                      <Section
+                        padding={2}
+                        alignItems="start"
+                        data-testid="access-token-list-status"
+                      >
+                        <Text font="secondary-body" color="text-03">
+                          {isLoading
+                            ? t("apiKeys.list.loading")
+                            : t("apiKeys.list.empty")}
+                        </Text>
+                      </Section>
+                    ) : (
+                      <InputTypeIn
+                        placeholder={t("apiKeys.list.searchPlaceholder")}
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        searchIcon
+                        variant="internal"
+                      />
+                    )}
+                    <div className="shrink-0">
+                      <Button
+                        rightIcon={SvgPlusCircle}
+                        prominence="internal"
+                        interaction={
+                          tokenCreation.showCreateModal ? "active" : "rest"
+                        }
+                        onClick={tokenCreation.openTokenModal}
+                        disabled={!canCreatePAT}
+                        tooltip={
+                          !canCreatePAT
+                            ? t("apiKeys.list.noPermissionTooltip")
+                            : undefined
+                        }
+                      >
+                        {t("apiKeys.list.newTokenButton")}
+                      </Button>
+                    </div>
+                  </Section>
 
-                    <Section gap={1}>
-                      {filteredPats.map((pat) => {
-                        const now = new Date();
-                        const createdDate = new Date(pat.created_at);
-                        const daysSinceCreation = Math.floor(
-                          (now.getTime() - createdDate.getTime()) /
+                  <Section gap={1}>
+                    {filteredPats.map((pat) => {
+                      const now = new Date();
+                      const createdDate = new Date(pat.created_at);
+                      const daysSinceCreation = Math.floor(
+                        (now.getTime() - createdDate.getTime()) /
+                          (1000 * 60 * 60 * 24)
+                      );
+
+                      let expiryText = t("apiKeys.list.neverExpires");
+                      if (pat.expires_at) {
+                        const expiresDate = new Date(pat.expires_at);
+                        const daysUntilExpiry = Math.ceil(
+                          (expiresDate.getTime() - now.getTime()) /
                             (1000 * 60 * 60 * 24)
                         );
-
-                        let expiryText = t("apiKeys.list.neverExpires");
-                        if (pat.expires_at) {
-                          const expiresDate = new Date(pat.expires_at);
-                          const daysUntilExpiry = Math.ceil(
-                            (expiresDate.getTime() - now.getTime()) /
-                              (1000 * 60 * 60 * 24)
-                          );
-                          expiryText = t("apiKeys.list.expiresIn", {
-                            count: daysUntilExpiry,
-                          });
-                        }
-
-                        const scopeText =
-                          pat.scopes === null
-                            ? t(
-                                "apiKeys.createModal.permissions.fullAccessOption"
-                              )
-                            : pat.scopes
-                                .map((scope) => scopeLabels.get(scope) ?? scope)
-                                .join(", ");
-
-                        const createdText =
-                          daysSinceCreation === 0
-                            ? t("apiKeys.list.createdToday")
-                            : t("apiKeys.list.createdDaysAgo", {
-                                count: daysSinceCreation,
-                              });
-
-                        const middleText = t("apiKeys.list.middleText", {
-                          created: createdText,
-                          expiry: expiryText,
-                          scope: scopeText,
+                        expiryText = t("apiKeys.list.expiresIn", {
+                          count: daysUntilExpiry,
                         });
+                      }
 
-                        return (
-                          <AttachmentItemButton
-                            key={pat.id}
-                            presentational
-                            prominence="secondary"
-                            icon={SvgKey}
-                            title={pat.name}
-                            description={pat.token_display}
-                            centerChildren={
-                              <Section alignItems="end">
-                                <Text
-                                  font="secondary-body"
-                                  color="text-03"
-                                  maxLines={1}
-                                >
-                                  {middleText}
-                                </Text>
-                              </Section>
-                            }
-                            rightChildren={
-                              <Button
-                                icon={SvgTrash}
-                                onClick={() => setTokenToDelete(pat)}
-                                prominence="tertiary"
-                                size="sm"
-                                aria-label={t(
-                                  "apiKeys.list.deleteTokenAriaLabel",
-                                  { name: pat.name }
-                                )}
-                              />
-                            }
-                          />
-                        );
-                      })}
-                    </Section>
+                      const scopeText =
+                        pat.scopes === null
+                          ? t(
+                              "apiKeys.createModal.permissions.fullAccessOption"
+                            )
+                          : pat.scopes
+                              .map((scope) => scopeLabels.get(scope) ?? scope)
+                              .join(", ");
+
+                      const createdText =
+                        daysSinceCreation === 0
+                          ? t("apiKeys.list.createdToday")
+                          : t("apiKeys.list.createdDaysAgo", {
+                              count: daysSinceCreation,
+                            });
+
+                      const middleText = t("apiKeys.list.middleText", {
+                        created: createdText,
+                        expiry: expiryText,
+                        scope: scopeText,
+                      });
+
+                      return (
+                        <AttachmentItemButton
+                          key={pat.id}
+                          presentational
+                          prominence="secondary"
+                          icon={SvgKey}
+                          title={pat.name}
+                          description={pat.token_display}
+                          centerChildren={
+                            <Section alignItems="end">
+                              <Text
+                                font="secondary-body"
+                                color="text-03"
+                                maxLines={1}
+                              >
+                                {middleText}
+                              </Text>
+                            </Section>
+                          }
+                          rightChildren={
+                            <Button
+                              icon={SvgTrash}
+                              onClick={() => setTokenToDelete(pat)}
+                              prominence="tertiary"
+                              size="sm"
+                              aria-label={t(
+                                "apiKeys.list.deleteTokenAriaLabel",
+                                { name: pat.name }
+                              )}
+                            />
+                          }
+                        />
+                      );
+                    })}
                   </Section>
                 </Section>
-              </Card>
-            ) : (
-              <Card border="solid" rounding={4}>
-                <Section alignItems="start" height="fit">
-                  <Section flexDirection="row" justifyContent="between">
-                    <Text font="secondary-body" color="text-03">
-                      {t("apiKeys.upsell.description")}
-                    </Text>
-                    <Button prominence="secondary" href="/admin/billing">
-                      {t("apiKeys.upsell.upgradeButton")}
-                    </Button>
-                  </Section>
-                </Section>
-              </Card>
-            )}
+              </Section>
+            </Card>
           </Section>
         )}
         <OAuthProviderConnections />
@@ -2721,6 +2450,5 @@ export {
   GeneralSettings,
   ChatPreferencesSettings,
   AccountsAccessSettings,
-  LLMGatewaySettings,
   ConnectorsSettings,
 };

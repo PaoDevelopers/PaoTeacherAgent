@@ -80,7 +80,6 @@ describe("hasAnyAdminPermission", () => {
   it("returns true when the user holds any single admin-route permission", () => {
     expect(hasAnyAdminPermission([Permission.MANAGE_AGENTS])).toBe(true);
     expect(hasAnyAdminPermission([Permission.MANAGE_LLMS])).toBe(true);
-    expect(hasAnyAdminPermission([Permission.MANAGE_USER_GROUPS])).toBe(true);
   });
 });
 

@@ -14,8 +14,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from httpx_oauth.clients.google import GoogleOAuth2
-from sentry_sdk.integrations.fastapi import FastApiIntegration
-from sentry_sdk.integrations.starlette import StarletteIntegration
 from starlette.types import Lifespan
 
 from onyx import __version__
@@ -170,25 +168,16 @@ from onyx.server.utils import BasicAuthenticationError
 from onyx.setup import setup_multitenant_onyx, setup_onyx
 from onyx.tracing.setup import setup_tracing
 from onyx.utils.client_ip import ClientIPMiddleware
-from onyx.utils.fleet_telemetry import start_telemetry
 from onyx.utils.logger import setup_logger, setup_uvicorn_logger
 from onyx.utils.middleware import (
     add_endpoint_context_middleware,
     request_id_middleware,
-)
-from onyx.utils.variable_functionality import (
-    fetch_ee_implementation_or_noop,
-    fetch_versioned_implementation,
-    global_version,
-    set_is_ee_if_available,
 )
 from shared_configs.configs import (
     CORS_ALLOW_CREDENTIALS,
     CORS_ALLOWED_ORIGIN,
     MULTI_TENANT,
     POSTGRES_DEFAULT_SCHEMA,
-    SENTRY_DSN,
-    SENTRY_TRACES_SAMPLE_RATE,
 )
 from shared_configs.contextvars import CURRENT_TENANT_ID_CONTEXTVAR
 
@@ -388,9 +377,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
     )
 
     # Self-hosted license seat + expiry gauges on /metrics (EE-only, no-op on CE)
-    fetch_ee_implementation_or_noop(
-        "onyx.server.metrics.license_metrics", "register_license_metrics"
-    )()
 
     # Warns on stale AUTH_TYPE env values.
     verify_auth_setting()
@@ -429,8 +415,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
             get_default_file_store().initialize()
     else:
         setup_multitenant_onyx()
-
-    start_telemetry("api")
 
     if RATE_LIMITING_ENABLED:
         await setup_auth_limiter()
@@ -542,16 +526,6 @@ def get_application(lifespan_override: Lifespan | None = None) -> FastAPI:
         redoc_url="/redoc" if ENABLE_PUBLIC_DOCS else None,
         lifespan=lifespan_override or lifespan,
     )
-    if SENTRY_DSN:
-        from onyx.configs.sentry import init_sentry
-
-        init_sentry(
-            traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
-            integrations=[StarletteIntegration(), FastApiIntegration()],
-        )
-    else:
-        logger.debug("Sentry DSN not provided, skipping Sentry initialization")
-
     application.add_exception_handler(status.HTTP_400_BAD_REQUEST, log_http_error)
     application.add_exception_handler(status.HTTP_401_UNAUTHORIZED, log_http_error)
     application.add_exception_handler(status.HTTP_403_FORBIDDEN, log_http_error)
@@ -817,8 +791,7 @@ def get_application(lifespan_override: Lifespan | None = None) -> FastAPI:
 
 # NOTE: needs to be outside of the `if __name__ == "__main__"` block so that the
 # app is exportable
-set_is_ee_if_available()
-app = fetch_versioned_implementation(module="onyx.main", attribute="get_application")
+app = get_application
 
 
 if __name__ == "__main__":
@@ -828,8 +801,5 @@ if __name__ == "__main__":
         APP_HOST,
         str(APP_PORT),
     )
-
-    if global_version.is_ee_version():
-        logger.notice("Running Enterprise Edition")
 
     uvicorn.run(app, host=APP_HOST, port=APP_PORT)

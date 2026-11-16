@@ -116,8 +116,6 @@ export interface CredentialSetup {
   namesMethods: boolean;
   /** The source's credential spec, null for a source with none. */
   spec: CredentialSpec | null;
-  /** Whether this deployment offers the hosted Authorize flow for the source. */
-  canAuthorize: boolean;
   /** The method whose creation form is showing, if any. */
   openMethod: CredentialCreationMethod | null;
   /**
@@ -148,10 +146,6 @@ export interface CredentialSetup {
   ) => Promise<SimilarCredential>;
   /** Refetches the credential list. */
   refresh: () => void;
-  /** Opens the hosted OAuth popup. `invalidUrlMessage` is the caller's copy. */
-  authorize: (invalidUrlMessage: string) => Promise<string | null>;
-  /** True while the popup request is in flight. */
-  isAuthorizing: boolean;
 }
 
 /** One credential field a federated source asks for. */

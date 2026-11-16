@@ -5,7 +5,6 @@ import AgentAvatar from "@/refresh-components/avatars/AgentAvatar";
 import Text from "@/refresh-components/texts/Text";
 import { MinimalAgent } from "@/lib/agents/types";
 import { useState, useEffect } from "react";
-import { useSettings } from "@/lib/settings/hooks";
 import FrostedDiv from "@/refresh-components/FrostedDiv";
 import { Section } from "@/layouts/general-layouts";
 import { SvgEyeClosed } from "@opal/icons";
@@ -22,20 +21,15 @@ export default function WelcomeMessage({
   isDefaultAgent,
 }: WelcomeMessageProps) {
   const t = useTranslations("chat.welcome");
-  const settings = useSettings();
 
   // Use a stable default for SSR, then randomize on client after hydration
   const [greeting, setGreeting] = useState(t("greeting.helpText"));
 
   useEffect(() => {
-    if (settings.enterprise?.custom_greeting_message) {
-      setGreeting(settings.enterprise.custom_greeting_message);
-    } else {
-      setGreeting(
-        Math.random() < 0.5 ? t("greeting.helpText") : t("greeting.startText")
-      );
-    }
-  }, [settings.enterprise?.custom_greeting_message, t]);
+    setGreeting(
+      Math.random() < 0.5 ? t("greeting.helpText") : t("greeting.startText")
+    );
+  }, [t]);
 
   const { incognitoEnabled } = useIncognito();
 

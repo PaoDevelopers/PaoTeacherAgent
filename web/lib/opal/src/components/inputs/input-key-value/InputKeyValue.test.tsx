@@ -40,7 +40,6 @@ describe("InputKeyValue", () => {
     );
     expect(value).toHaveAttribute("type", "password");
     expect(value).toHaveAttribute("autocomplete", "new-password");
-    expect(value).toHaveAttribute("data-ph-no-capture");
     expect(value).toHaveValue("sk-original-secret");
 
     await user.click(screen.getByRole("button", { name: "Show password" }));

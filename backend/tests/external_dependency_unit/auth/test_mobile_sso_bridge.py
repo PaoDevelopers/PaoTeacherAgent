@@ -18,7 +18,7 @@ Coverage:
 
 import asyncio
 from typing import Any, cast
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -143,17 +143,11 @@ def _authorize_and_get_state(client: TestClient, params: dict[str, str]) -> str:
 
 def _callback(client: TestClient, state: str) -> httpx.Response:
     # Every callback test resolves the tenant the same way; centralize the patch.
-    with patch(
-        "onyx.auth.users.fetch_ee_implementation_or_noop",
-        # Dispatch arity varies by target. This test guards the mobile bridge,
-        # not the resolver signature.
-        return_value=lambda *_args: "tenant_1",
-    ):
-        return client.get(
-            "/auth/oauth/callback",
-            params={"code": "idp_code", "state": state},
-            follow_redirects=False,
-        )
+    return client.get(
+        "/auth/oauth/callback",
+        params={"code": "idp_code", "state": state},
+        follow_redirects=False,
+    )
 
 
 def test_authorize_folds_mobile_params_into_signed_state() -> None:

@@ -14,7 +14,6 @@ from onyx.configs.constants import POSTGRES_CELERY_BEAT_APP_NAME
 from onyx.db.engine.sql_engine import SqlEngine
 from onyx.db.engine.tenant_utils import get_all_tenant_ids
 from onyx.server.runtime.onyx_runtime import OnyxRuntime
-from onyx.utils.variable_functionality import fetch_versioned_implementation
 from shared_configs.configs import IGNORED_SYNCING_TENANT_LIST, MULTI_TENANT
 
 task_logger = get_task_logger(__name__)
@@ -87,9 +86,8 @@ class DynamicTenantScheduler(PersistentScheduler):
         if MULTI_TENANT:
             # cloud tasks are system wide and thus only need to be on the beat schedule
             # once for all tenants
-            get_cloud_tasks_to_schedule = fetch_versioned_implementation(
-                "onyx.background.celery.tasks.beat_schedule",
-                "get_cloud_tasks_to_schedule",
+            from onyx.background.celery.tasks.beat_schedule import (
+                get_cloud_tasks_to_schedule,
             )
 
             cloud_tasks_to_schedule: list[dict[str, Any]] = get_cloud_tasks_to_schedule(
@@ -113,9 +111,7 @@ class DynamicTenantScheduler(PersistentScheduler):
         # note that currently this just schedules for a single tenant in self hosted
         # and doesn't do anything in the cloud because it's much more scalable
         # to schedule a single cloud beat task to dispatch per tenant tasks.
-        get_tasks_to_schedule = fetch_versioned_implementation(
-            "onyx.background.celery.tasks.beat_schedule", "get_tasks_to_schedule"
-        )
+        from onyx.background.celery.tasks.beat_schedule import get_tasks_to_schedule
 
         tasks_to_schedule: list[dict[str, Any]] = get_tasks_to_schedule()
 

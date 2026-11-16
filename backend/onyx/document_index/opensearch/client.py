@@ -60,10 +60,8 @@ from onyx.server.metrics.opensearch_search import (
     record_opensearch_search_error,
     track_opensearch_search,
 )
-from onyx.utils.fleet_telemetry import emit_stage_counter
 from onyx.utils.logger import setup_logger
 from onyx.utils.timing import log_function_time
-from shared_configs.contextvars import INDEX_ATTEMPT_INFO_CONTEXTVAR
 
 CLIENT_THRESHOLD_TO_LOG_SLOW_SEARCH_MS = 2000
 DEFAULT_INDEX_SETTINGS_TIMEOUT_S = 15
@@ -88,18 +86,6 @@ opensearch_logger.setLevel(logging.WARNING)
 
 
 SchemaDocumentModel = TypeVar("SchemaDocumentModel")
-
-
-def _report_written_chunks(written: int, failed: int, started: float) -> None:
-    """Fleet telemetry for one bulk write made for an index attempt."""
-    context: tuple[int, int] | None = INDEX_ATTEMPT_INFO_CONTEXTVAR.get()
-    if context is not None:
-        emit_stage_counter(
-            context[1],
-            "write",
-            {"write_chunks": written, "write_errors": max(0, failed)},
-            duration_ms=max(0, int((time.monotonic() - started) * 1000)),
-        )
 
 
 class SearchHit(BaseModel, Generic[SchemaDocumentModel]):
@@ -1145,7 +1131,6 @@ class OpenSearchIndexClient(OpenSearchClient):
             }
             data.append(data_for_document)
 
-        started: float = time.monotonic()
         if use_create_only:
             # a chunk that already exists is owned by a live/forward writer, so
             # the port yields with a benign 409 instead of failing the batch
@@ -1169,9 +1154,6 @@ class OpenSearchIndexClient(OpenSearchClient):
             )
             benign_conflicts = 0
 
-        _report_written_chunks(
-            successes, len(documents) - successes - benign_conflicts, started
-        )
         if successes + benign_conflicts != len(documents):
             raise OpenSearchIndexError(
                 f"Bulk index for index {self._index_name}: successful operations ({successes}) "

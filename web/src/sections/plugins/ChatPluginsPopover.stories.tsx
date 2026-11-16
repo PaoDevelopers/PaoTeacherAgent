@@ -95,8 +95,7 @@ function ChatPluginsStory({ scenario }: ChatPluginsStoryProps) {
           effective_permissions: [],
           admin_capabilities: [],
         });
-      if (path === "/api/settings")
-        return jsonResponse({ tier: "community", ee_features_enabled: false });
+      if (path === "/api/settings") return jsonResponse({ tier: "community" });
       if (path === "/api/auth/type")
         return jsonResponse({ auth_type: "basic", oauth_enabled: true });
       if (path === "/api/persona") return jsonResponse([agent]);

@@ -33,7 +33,6 @@ from onyx.server.features.release_notes.utils import (
     ensure_release_notes_fresh_and_notify,
 )
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import fetch_ee_implementation_or_noop
 
 logger = setup_logger()
 router = APIRouter(prefix="/notifications")
@@ -96,21 +95,6 @@ def _ensure_system_announcement_notification(user: User, db_session: Session) ->
         return False
 
 
-def _ensure_license_expiry_notification(user: User, db_session: Session) -> bool:
-    """Self-hosted EE only: create the admin's current-stage license-expiry
-    notification on read so the banner appears without waiting for the daily
-    task. No-op on non-EE builds (and for non-admins / no active warning)."""
-    try:
-        fetch_ee_implementation_or_noop(
-            "onyx.utils.license_notifications",
-            "ensure_license_expiry_notification_for_user",
-        )(user, db_session)
-        return True
-    except Exception:
-        logger.exception("Failed to ensure license expiry notification on read")
-        return False
-
-
 @router.get("")
 def get_notifications_api(
     page_num: int = Query(0, ge=0),
@@ -152,10 +136,6 @@ def get_notifications_api(
                 (
                     NotificationType.SYSTEM_ANNOUNCEMENT,
                     _ensure_system_announcement_notification,
-                ),
-                (
-                    NotificationType.LICENSE_EXPIRY_WARNING,
-                    _ensure_license_expiry_notification,
                 ),
             ):
                 if polled or notif_type in (None, banner_type):

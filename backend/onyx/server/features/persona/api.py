@@ -27,7 +27,7 @@ from onyx.auth.users import (
     scope_exempt,
 )
 from onyx.configs.app_configs import DISABLE_VECTOR_DB
-from onyx.configs.constants import PUBLIC_API_TAGS, FileOrigin, MilestoneRecordType
+from onyx.configs.constants import PUBLIC_API_TAGS, FileOrigin
 from onyx.db.engine.sql_engine import get_session
 from onyx.db.enums import Permission, PermissionAuthority, PersonaSharePermission
 from onyx.db.file_record import get_filerecord_by_file_id_optional
@@ -89,9 +89,6 @@ from onyx.server.manage.llm.provider_cache import invalidate_provider_listing_ca
 from onyx.server.models import DisplayPriorityRequest
 from onyx.server.settings.store import load_settings
 from onyx.utils.logger import setup_logger
-from onyx.utils.telemetry import mt_cloud_telemetry
-from onyx.utils.variable_functionality import fetch_versioned_implementation
-from shared_configs.contextvars import get_current_tenant_id
 
 logger = setup_logger()
 
@@ -377,7 +374,6 @@ def create_persona(
     user: User = Depends(require_permission(Permission.ADD_AGENTS, allow_scope=True)),
     db_session: Session = Depends(get_session),
 ) -> PersonaSnapshot:
-    tenant_id = get_current_tenant_id()
 
     _validate_user_knowledge_enabled(persona_upsert_request, "create")
     _validate_vector_db_knowledge(persona_upsert_request)
@@ -387,11 +383,6 @@ def create_persona(
         create_persona_request=persona_upsert_request,
         user=user,
         db_session=db_session,
-    )
-    mt_cloud_telemetry(
-        tenant_id=tenant_id,
-        distinct_id=str(user.id),
-        event=MilestoneRecordType.CREATED_ASSISTANT,
     )
 
     return persona_snapshot
@@ -570,11 +561,10 @@ def transfer_persona_ownership_endpoint(
     user: User = Depends(require_permission(Permission.BASIC_ACCESS)),
     db_session: Session = Depends(get_session),
 ) -> None:
-    versioned_transfer = fetch_versioned_implementation(
-        "onyx.db.persona", "transfer_persona_ownership"
-    )
+    from onyx.db.persona import transfer_persona_ownership
+
     try:
-        versioned_transfer(
+        transfer_persona_ownership(
             persona_id=persona_id,
             user=user,
             db_session=db_session,

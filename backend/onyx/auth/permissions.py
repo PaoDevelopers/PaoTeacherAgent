@@ -18,7 +18,6 @@ from onyx.db.permissions import parse_permission_values
 from onyx.error_handling.error_codes import OnyxErrorCode
 from onyx.error_handling.exceptions import OnyxError
 from onyx.utils.logger import setup_logger
-from onyx.utils.variable_functionality import global_version
 
 logger = setup_logger()
 
@@ -295,10 +294,7 @@ def get_effective_permissions(user: User) -> set[Permission]:
 
     # CE auto-grants capabilities (no permission UI exists), but never to the
     # anonymous user — it stays a chat-only surface.
-    if (
-        not global_version.is_ee_version()
-        and user.account_type != AccountType.ANONYMOUS
-    ):
+    if user.account_type != AccountType.ANONYMOUS:
         granted |= CE_UNGATED_PERMISSIONS
 
     expanded = resolve_effective_permissions({p.value for p in granted})

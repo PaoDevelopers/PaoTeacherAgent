@@ -14,13 +14,6 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from ee.onyx.db.analytics import user_can_view_assistant_stats
-from ee.onyx.db.token_limit import insert_user_group_token_rate_limit
-from ee.onyx.server.token_rate_limits.api import (
-    _authorize_group_token_rate_limit_write,
-    get_group_token_limit_settings,
-)
-from ee.onyx.server.user_group.api import delete_user_group, set_user_group_permissions
 from onyx.auth.permission_projection import (
     CC_PAIR_ACTIONS,
     CUSTOM_SKILL_ACTIONS,
@@ -39,7 +32,6 @@ from onyx.auth.permission_projection import (
 )
 from onyx.auth.permissions import has_global_permission, has_permission
 from onyx.auth.scoped_permissions import (
-    assert_manages_group,
     assert_within_scope,
     manages_group,
     within_scope,
@@ -78,7 +70,6 @@ from onyx.db.models import (
     Persona__UserGroup,
     Skill,
     Skill__UserGroup,
-    TokenRateLimit__UserGroup,
     Tool,
     User,
     User__UserGroup,
@@ -91,12 +82,9 @@ from onyx.db.persona import (
     can_edit_persona,
     can_view_persona_stats,
     fetch_persona_by_id_for_user,
-    get_persona_by_id,
     is_persona_editable_by_user,
-    persona_edit_within_scope,
 )
 from onyx.db.skill import get_group_ids_for_skill
-from onyx.db.token_limit import insert_global_token_rate_limit
 from onyx.db.tools import can_manage_mcp_server, can_manage_tool
 from onyx.error_handling.exceptions import OnyxError
 from onyx.server.documents.credential import (
@@ -112,10 +100,6 @@ from onyx.server.features.mcp.api import (
     _ensure_mcp_server_owner_or_admin,
     _ensure_mcp_server_viewable,
 )
-from onyx.server.features.persona.api import (
-    delete_persona,
-    patch_user_persona_public_status,
-)
 from onyx.server.features.persona.models import PersonaUpsertRequest
 from onyx.server.features.tool.api import (
     _connected_tool_ids,
@@ -125,7 +109,6 @@ from onyx.server.features.tool.api import (
     list_tools,
 )
 from onyx.server.manage.administrative import create_deletion_attempt_for_connector_id
-from onyx.server.token_rate_limits.models import TokenRateLimitArgs
 from tests.external_dependency_unit.conftest import create_test_user
 
 
@@ -457,117 +440,6 @@ def _make_doc_set(
     return doc_set
 
 
-def test_persona_projection_matches_gates(db_session: Session) -> None:
-    """edit tracks the read-editable AND managed-scope decision the write guard enforces;
-    view_stats tracks the real owner-or-admin stats gate; the rest are global-only."""
-    managed = _make_group(db_session)
-    unmanaged = _make_group(db_session)
-
-    in_scope = create_test_user(db_session, "b-persona-in")
-    _manage(db_session, in_scope, managed)
-    in_scope.effective_permissions = []
-
-    out_scope = create_test_user(db_session, "b-persona-out")
-    _manage(db_session, out_scope, unmanaged)
-    out_scope.effective_permissions = []
-
-    owner = create_test_user(db_session, "b-persona-owner")
-    owner.effective_permissions = []
-
-    admin = create_test_user(db_session, "b-persona-admin", is_admin=True)
-    db_session.commit()
-
-    persona = _make_persona(db_session, owner=owner, is_public=False, groups=[managed])
-    group_ids = [group.id for group in persona.groups]
-
-    def edit_guard_raises(
-        actor: User, target: Persona | None = None, groups: list[int] | None = None
-    ) -> bool:
-        target = target or persona
-        request = PersonaUpsertRequest(
-            name=target.name,
-            description=target.description or "",
-            system_prompt="",
-            task_prompt="",
-            datetime_aware=False,
-            document_set_ids=[],
-            tool_ids=[],
-            groups=groups if groups is not None else [g.id for g in target.groups],
-            is_public=target.is_public,
-        )
-        return _guard_raises(
-            _assert_persona_update_within_managed_scope,
-            target.id,
-            request,
-            actor,
-            db_session,
-        )
-
-    for actor in (in_scope, out_scope, owner, admin):
-        # read bool == the real write guard's managed-scope decision
-        assert persona_edit_within_scope(
-            actor,
-            db_session,
-            group_ids=group_ids,
-            is_public=persona.is_public,
-            is_owner=can_delete_persona(actor, persona, db_session),
-        ) == (not edit_guard_raises(actor)), actor.email
-        # view_stats == the real owner-or-admin stats gate
-        assert can_view_persona_stats(
-            actor, persona, db_session
-        ) == user_can_view_assistant_stats(db_session, actor, persona.id), actor.email
-        # delete == the real delete handler's ownership gate (get_persona_by_id is_for_edit)
-        try:
-            get_persona_by_id(persona_id=persona.id, user=actor, db_session=db_session)
-            delete_allowed = True
-        except ValueError:
-            delete_allowed = False
-        assert can_delete_persona(actor, persona, db_session) == delete_allowed, (
-            actor.email
-        )
-
-    # A scoped manager who owns the agent keeps the edit right they'd hold as a plain owner,
-    # even though the agent's group is outside their scope — and the read bool agrees.
-    owned_out_of_scope = _make_persona(
-        db_session, owner=out_scope, is_public=False, groups=[managed]
-    )
-    owned_group_ids = [group.id for group in owned_out_of_scope.groups]
-    assert not edit_guard_raises(out_scope, owned_out_of_scope)
-    assert persona_edit_within_scope(
-        out_scope,
-        db_session,
-        group_ids=owned_group_ids,
-        is_public=owned_out_of_scope.is_public,
-        is_owner=can_delete_persona(out_scope, owned_out_of_scope, db_session),
-    )
-    # The exemption covers leaving the groups alone, not widening them.
-    assert edit_guard_raises(
-        out_scope, owned_out_of_scope, owned_group_ids + [unmanaged.id]
-    )
-
-    # concrete: an in-scope manager can edit/share but not view_stats/delete/feature/reorder
-    in_scope_editable = is_persona_editable_by_user(db_session, persona.id, in_scope)
-    mgr_map = persona_permissions(
-        can_edit=can_edit_persona(
-            in_scope, persona, db_session, is_editable=in_scope_editable
-        ),
-        can_share=in_scope_editable,
-        can_view_stats=can_view_persona_stats(in_scope, persona, db_session),
-        can_delete=can_delete_persona(in_scope, persona, db_session),
-        holds_add_agents=has_permission(in_scope, Permission.ADD_AGENTS)
-        is not PermissionAuthority.NONE,
-        is_manage_agents_admin=has_global_permission(
-            in_scope, Permission.MANAGE_AGENTS
-        ),
-        is_full_admin=has_global_permission(
-            in_scope, Permission.FULL_ADMIN_PANEL_ACCESS
-        ),
-    )
-    assert mgr_map["edit"] is True and mgr_map["share"] is True
-    assert mgr_map["view_stats"] is False
-    assert not any(mgr_map[a] for a in ("delete", "publish", "feature", "reorder"))
-
-
 def test_persona_scope_guard_rereads_groups_after_concurrent_reassign(
     db_session: Session,
 ) -> None:
@@ -622,80 +494,6 @@ def test_persona_scope_guard_rereads_groups_after_concurrent_reassign(
         manager,
         db_session,
     )
-
-
-def test_group_share_gate_anchors_on_pre_update_public_state(
-    enable_ee: None,  # noqa: ARG001 -- side-effect fixture: forces EE for the whole test
-    db_session: Session,
-) -> None:
-    """A public->private convert must be judged on the state from before the caller staged
-    it — otherwise a scoped manager could pull a public agent into a group in one call."""
-    from ee.onyx.db.persona import update_persona_access
-
-    managed = _make_group(db_session)
-    manager = create_test_user(db_session, "b-anchor-mgr")
-    _manage(db_session, manager, managed)
-    manager.effective_permissions = []
-    db_session.commit()
-
-    persona = _make_persona(db_session, owner=manager, is_public=True, groups=[])
-    # What upsert_persona stages before update_persona_access runs.
-    persona.is_public = False
-
-    assert _guard_raises(
-        update_persona_access,
-        persona_id=persona.id,
-        creator_user_id=manager.id,
-        db_session=db_session,
-        acting_user=manager,
-        group_ids=[managed.id],
-        original_is_public=True,
-    ), "a public agent must not be convertible into managed scope"
-    db_session.rollback()
-
-
-def test_delete_persona_route_admits_scoped_owner(
-    enable_ee: None,  # noqa: ARG001 -- side-effect fixture: forces EE for the whole test
-    db_session: Session,
-) -> None:
-    """The delete route must admit a scoped ADD_AGENTS holder (allow_scope=True); otherwise an
-    owner who holds ADD_AGENTS only by scope is 403'd before the GATE-2 ownership check, making
-    the projection's delete=true a lie for them. The gate checks above can't catch a missing
-    allow_scope. enable_ee so ADD_AGENTS is genuinely scoped — CE auto-grants it globally, which
-    would pass the gate regardless and prove nothing."""
-    manager = create_test_user(db_session, "del-route-mgr")
-    _manage(db_session, manager, _make_group(db_session))
-    manager.effective_permissions = []
-    db_session.commit()
-
-    # Premise: if the manager ever holds ADD_AGENTS globally, the route check below tests
-    # nothing — fail loudly here instead of passing vacuously.
-    assert (
-        has_permission(manager, Permission.ADD_AGENTS) is PermissionAuthority.SCOPED
-    ), "manager should hold ADD_AGENTS only by scope"
-    assert _route_admits(delete_persona, "user", manager), (
-        "delete route must admit scoped managers at GATE 1 (allow_scope=True)"
-    )
-
-
-def test_public_route_admits_plain_owner(
-    enable_ee: None,  # noqa: ARG001 -- side-effect fixture: CE auto-grants ADD_AGENTS
-    db_session: Session,
-) -> None:
-    """/public is BASIC_ACCESS + GATE 2 like /share (update_persona_public_status checks
-    owner / owner-group / global MANAGE_AGENTS). Requiring ADD_AGENTS at GATE 1 would 403
-    an owner who can publish the same agent through /share.
-
-    enable_ee so the owner genuinely lacks ADD_AGENTS — CE ungates it for every user
-    (CE_UNGATED_PERMISSIONS), which would make the premise below vacuous."""
-    owner = create_test_user(db_session, "public-route-owner")
-    owner.effective_permissions = [Permission.BASIC_ACCESS.value]
-    db_session.commit()
-
-    assert has_permission(owner, Permission.ADD_AGENTS) is PermissionAuthority.NONE, (
-        "owner should not hold ADD_AGENTS, else the gate below proves nothing"
-    )
-    assert _route_admits(patch_user_persona_public_status, "user", owner)
 
 
 def test_persona_share_projection_tracks_share_guard_not_edit(
@@ -754,85 +552,6 @@ def test_persona_share_projection_tracks_share_guard_not_edit(
     )
     assert tags["share"] == share_allowed  # share tracks the share guard...
     assert tags["edit"] is False  # ...not the stricter edit guard
-
-
-def test_persona_edit_share_editable_without_add_agents(
-    enable_ee: None,  # noqa: ARG001 -- side-effect fixture: forces EE for the whole test
-    db_session: Session,
-) -> None:
-    """edit and share gate on editable alone (their routes are BASIC_ACCESS): an EDITOR-shared
-    user without ADD_AGENTS may still edit and manage sharing, so both are True. enable_ee
-    because CE auto-grants ADD_AGENTS, which would mask that they need no create permission."""
-    owner = create_test_user(db_session, "add-share-owner")
-    owner.effective_permissions = []
-    # EDITOR-shared, but no ADD_AGENTS authority: not a manager, empty permissions.
-    editor = create_test_user(db_session, "add-share-editor")
-    editor.effective_permissions = []
-    db_session.commit()
-
-    persona = _make_persona(db_session, owner=owner, is_public=False, groups=[])
-    db_session.add(
-        Persona__User(
-            persona_id=persona.id,
-            user_id=editor.id,
-            permission=PersonaSharePermission.EDITOR,
-        )
-    )
-    db_session.commit()
-
-    is_editable = is_persona_editable_by_user(db_session, persona.id, editor)
-    holds_add_agents = (
-        has_permission(editor, Permission.ADD_AGENTS) is not PermissionAuthority.NONE
-    )
-    assert is_editable is True  # EDITOR-shared → editable
-    assert holds_add_agents is False  # ...but no ADD_AGENTS authority under EE
-
-    tags = persona_permissions(
-        can_edit=can_edit_persona(editor, persona, db_session, is_editable=is_editable),
-        can_share=is_editable,
-        can_view_stats=can_view_persona_stats(editor, persona, db_session),
-        can_delete=can_delete_persona(editor, persona, db_session),
-        holds_add_agents=holds_add_agents,
-        is_manage_agents_admin=has_global_permission(editor, Permission.MANAGE_AGENTS),
-        is_full_admin=has_global_permission(editor, Permission.FULL_ADMIN_PANEL_ACCESS),
-    )
-    assert tags["share"] is True  # editable is enough to share (no ADD_AGENTS needed)
-    assert (
-        tags["edit"] is True
-    )  # ...and to edit — both routes gate on editable, not ADD_AGENTS
-
-
-def test_persona_publish_projection_is_owner_not_add_agents(
-    enable_ee: None,  # noqa: ARG001 -- side-effect fixture: forces EE for the whole test
-    db_session: Session,
-) -> None:
-    """publish (org-wide public, via the share route's is_owner_or_admin gate) is owner-or-admin,
-    NOT ADD_AGENTS-gated. An owner without ADD_AGENTS can publish but cannot delete (delete's
-    route requires ADD_AGENTS). enable_ee because CE auto-grants ADD_AGENTS, masking this."""
-    owner = create_test_user(db_session, "publish-owner")
-    owner.effective_permissions = []
-    db_session.commit()
-
-    persona = _make_persona(db_session, owner=owner, is_public=False, groups=[])
-    is_editable = is_persona_editable_by_user(db_session, persona.id, owner)
-    holds_add_agents = (
-        has_permission(owner, Permission.ADD_AGENTS) is not PermissionAuthority.NONE
-    )
-    assert holds_add_agents is False  # owner holds no ADD_AGENTS authority under EE
-
-    tags = persona_permissions(
-        can_edit=can_edit_persona(owner, persona, db_session, is_editable=is_editable),
-        can_share=is_editable,
-        can_view_stats=can_view_persona_stats(owner, persona, db_session),
-        can_delete=can_delete_persona(owner, persona, db_session),
-        holds_add_agents=holds_add_agents,
-        is_manage_agents_admin=has_global_permission(owner, Permission.MANAGE_AGENTS),
-        is_full_admin=has_global_permission(owner, Permission.FULL_ADMIN_PANEL_ACCESS),
-    )
-    assert (
-        tags["publish"] is True
-    )  # owner may publish via the share route (no ADD_AGENTS)
-    assert tags["delete"] is False  # ...but delete's route requires ADD_AGENTS
 
 
 def test_document_set_projection_matches_gates(db_session: Session) -> None:
@@ -1221,112 +940,6 @@ def test_actions_and_skill_key_coverage() -> None:
     ) == set(CUSTOM_SKILL_ACTIONS)
 
 
-def test_user_group_projection_matches_gates(db_session: Session) -> None:
-    """Each flag is pinned to its real route, not the bool that built it: manage and
-    edit_token_limits → assert_manages_group (per-group scoped — the token read route now
-    admits scope), delete → delete-group (global MANAGE_USER_GROUPS), edit_permissions →
-    permission-toggle (FULL_ADMIN). groups_admin (global MANAGE_USER_GROUPS, not full admin)
-    separates the two levels; out_scope (manages a different group) pins the per-group gate."""
-    managed = _make_group(db_session)
-
-    in_scope = create_test_user(db_session, "proj-ug-in")
-    _manage(db_session, in_scope, managed)
-    in_scope.effective_permissions = []
-
-    out_scope = create_test_user(db_session, "proj-ug-out")
-    _manage(db_session, out_scope, _make_group(db_session))
-    out_scope.effective_permissions = []
-
-    groups_admin = create_test_user(db_session, "proj-ug-groupsadmin")
-    groups_admin.effective_permissions = [Permission.MANAGE_USER_GROUPS.value]
-
-    admin = create_test_user(db_session, "proj-ug-admin", is_admin=True)
-    db_session.commit()
-
-    for actor in (in_scope, out_scope, groups_admin, admin):
-        manage_enforced = not _guard_raises(
-            assert_manages_group, actor, db_session, group_id=managed.id
-        )
-        # the token-limit POST guard (scoped create) is the same managed-scope decision
-        token_create_enforced = not _guard_raises(
-            assert_within_scope,
-            actor,
-            db_session,
-            permission=Permission.MANAGE_USER_GROUPS,
-            current_group_ids=[managed.id],
-            requested_group_ids=[managed.id],
-            is_non_public=True,
-        )
-        can_manage = manages_group(actor, db_session, group_id=managed.id)
-        assert can_manage == manage_enforced, actor.email
-        assert can_manage == token_create_enforced, actor.email
-
-        tags = user_group_permissions(
-            can_manage=can_manage,
-            is_user_groups_admin=has_global_permission(
-                actor, Permission.MANAGE_USER_GROUPS
-            ),
-            is_full_admin=has_global_permission(
-                actor, Permission.FULL_ADMIN_PANEL_ACCESS
-            ),
-            is_default=False,
-            permission_toggles_allowed=True,
-        )
-        assert tags["manage"] == manage_enforced, actor.email
-        assert tags["manage_members"] == manage_enforced, actor.email
-        assert tags["delete"] == _route_admits(delete_user_group, "user", actor), (
-            actor.email
-        )
-        assert tags["edit_permissions"] == _route_admits(
-            set_user_group_permissions, "user", actor
-        ), actor.email
-        # edit_token_limits rides the token read route: GATE 1 admits scope, GATE 2 is
-        # assert_manages_group — net per-group decision, so AND the two.
-        token_read_gate1 = _route_admits(get_group_token_limit_settings, "user", actor)
-        assert tags["edit_token_limits"] == (token_read_gate1 and manage_enforced), (
-            actor.email
-        )
-
-    assert user_group_permissions(
-        can_manage=manages_group(in_scope, db_session, group_id=managed.id),
-        is_user_groups_admin=has_global_permission(
-            in_scope, Permission.MANAGE_USER_GROUPS
-        ),
-        is_full_admin=has_global_permission(
-            in_scope, Permission.FULL_ADMIN_PANEL_ACCESS
-        ),
-        is_default=False,
-        permission_toggles_allowed=True,
-    ) == {
-        "manage": True,
-        "manage_members": True,
-        "delete": False,
-        "edit_permissions": False,
-        # scoped manager now fully manages its group's token limits
-        "edit_token_limits": True,
-    }
-
-    # groups_admin (global MANAGE_USER_GROUPS, not full admin): manages token limits and
-    # deletes the group, but can't edit permissions (FULL_ADMIN).
-    assert user_group_permissions(
-        can_manage=manages_group(groups_admin, db_session, group_id=managed.id),
-        is_user_groups_admin=has_global_permission(
-            groups_admin, Permission.MANAGE_USER_GROUPS
-        ),
-        is_full_admin=has_global_permission(
-            groups_admin, Permission.FULL_ADMIN_PANEL_ACCESS
-        ),
-        is_default=False,
-        permission_toggles_allowed=True,
-    ) == {
-        "manage": True,
-        "manage_members": True,
-        "delete": True,
-        "edit_permissions": False,
-        "edit_token_limits": True,
-    }
-
-
 def test_default_user_group_projection_is_membership_only(db_session: Session) -> None:
     """A seeded default group keeps exactly one affordance — manage_members, and only for
     a full admin. Everything else is denied, matching the CONFLICT the routes raise."""
@@ -1395,112 +1008,3 @@ def test_user_group_key_coverage() -> None:
             permission_toggles_allowed=True,
         )
     ) == set(USER_GROUP_ACTIONS)
-
-
-def test_group_token_rate_limit_write_scope(db_session: Session) -> None:
-    """A group token-limit write needs the caller to manage the group AND the limit to
-    belong to it — so a group admin fully manages its limits, but a global/per-user limit or
-    another group's limit can't be reached through the group path."""
-    managed = _make_group(db_session)
-    other = _make_group(db_session)
-
-    # Disabled: these tests check write authorization only, and an enabled
-    # global limit left in the shared DB would be enforced on later suites.
-    args = TokenRateLimitArgs(enabled=False, token_budget=1000, period_hours=24)
-    managed_limit = insert_user_group_token_rate_limit(
-        db_session=db_session, token_rate_limit_settings=args, group_id=managed.id
-    )
-    global_limit = insert_global_token_rate_limit(db_session, args)
-
-    in_scope = create_test_user(db_session, "proj-trl-in")
-    _manage(db_session, in_scope, managed)
-    in_scope.effective_permissions = []
-
-    out_scope = create_test_user(db_session, "proj-trl-out")
-    _manage(db_session, out_scope, other)
-    out_scope.effective_permissions = []
-
-    groups_admin = create_test_user(db_session, "proj-trl-groupsadmin")
-    groups_admin.effective_permissions = [Permission.MANAGE_USER_GROUPS.value]
-
-    admin = create_test_user(db_session, "proj-trl-admin", is_admin=True)
-
-    plain = create_test_user(db_session, "proj-trl-plain")
-    plain.effective_permissions = []
-    db_session.commit()
-
-    def denied(actor: User, group_id: int, rate_limit_id: int) -> bool:
-        return _guard_raises(
-            _authorize_group_token_rate_limit_write,
-            actor,
-            db_session,
-            group_id=group_id,
-            rate_limit_id=rate_limit_id,
-        )
-
-    assert not denied(admin, managed.id, managed_limit.id)
-    assert not denied(groups_admin, managed.id, managed_limit.id)
-    assert not denied(in_scope, managed.id, managed_limit.id)
-    assert denied(out_scope, managed.id, managed_limit.id)
-    assert denied(plain, managed.id, managed_limit.id)
-
-    # a global limit can't be reached through the group path — even for a full admin
-    assert denied(admin, managed.id, global_limit.id)
-
-    # the limit must belong to the claimed group (can't reach managed's limit via other)
-    assert denied(out_scope, other.id, managed_limit.id)
-    assert denied(in_scope, other.id, managed_limit.id)
-
-    # an unknown id folds into the same OnyxError 404, not the helper's raw ValueError
-    nonexistent_limit_id = -1
-    assert denied(in_scope, managed.id, nonexistent_limit_id)
-    assert denied(admin, managed.id, nonexistent_limit_id)
-
-
-def test_group_token_rate_limit_write_multi_group_scope(db_session: Session) -> None:
-    """Defensive: no API path attaches a limit to more than one group, but the schema allows
-    many-to-many. If a limit ever spanned groups, a mutation would hit all of them, so a manager
-    of only one attached group must be denied — the guard checks every attached group, not one
-    arbitrary association; global holders manage all groups so they pass. Builds the multi-group
-    state directly (no API can) to lock in the guard's behavior if that ever changes."""
-    managed = _make_group(db_session)
-    unmanaged = _make_group(db_session)
-
-    # Disabled: these tests check write authorization only, and an enabled
-    # global limit left in the shared DB would be enforced on later suites.
-    args = TokenRateLimitArgs(enabled=False, token_budget=1000, period_hours=24)
-    # limit attached to BOTH a managed and an unmanaged group
-    shared_limit = insert_user_group_token_rate_limit(
-        db_session=db_session, token_rate_limit_settings=args, group_id=managed.id
-    )
-    db_session.add(
-        TokenRateLimit__UserGroup(
-            rate_limit_id=shared_limit.id, user_group_id=unmanaged.id
-        )
-    )
-    db_session.commit()
-
-    in_scope = create_test_user(db_session, "proj-trl-multi-in")
-    _manage(db_session, in_scope, managed)
-    in_scope.effective_permissions = []
-
-    groups_admin = create_test_user(db_session, "proj-trl-multi-groupsadmin")
-    groups_admin.effective_permissions = [Permission.MANAGE_USER_GROUPS.value]
-
-    admin = create_test_user(db_session, "proj-trl-multi-admin", is_admin=True)
-    db_session.commit()
-
-    def denied(actor: User) -> bool:
-        return _guard_raises(
-            _authorize_group_token_rate_limit_write,
-            actor,
-            db_session,
-            group_id=managed.id,
-            rate_limit_id=shared_limit.id,
-        )
-
-    # manager of `managed` only: mutating the shared limit would also hit `unmanaged`, so deny
-    assert denied(in_scope)
-    # global MANAGE_USER_GROUPS holders manage every group, so the shared limit is reachable
-    assert not denied(groups_admin)
-    assert not denied(admin)

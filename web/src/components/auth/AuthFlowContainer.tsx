@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { SvgOnyxLogo } from "@opal/logos";
-import { useSettings } from "@/lib/settings/hooks";
+import { APP_NAME } from "@/lib/constants";
 import { Text } from "@opal/components";
 
 export default function AuthFlowContainer({
@@ -16,27 +16,10 @@ export default function AuthFlowContainer({
   footerContent?: React.ReactNode;
 }) {
   const t = useTranslations("auth.flowContainer");
-  const { appName, logoUrl } = useSettings();
   return (
     <div className="p-4 flex flex-col items-center justify-center min-h-screen bg-background">
       <div className="w-full max-w-md flex items-start flex-col bg-background-tint-00 rounded-16 shadow-lg shadow-box-02 p-6">
-        {/* logo_display_style only governs the sidebar; auth pages always show
-            the logo mark (custom when uploaded, Onyx otherwise) */}
-        {logoUrl ? (
-          <div
-            className="aspect-square rounded-full overflow-hidden relative"
-            style={{ height: 44 }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              alt={t("logo.alt")}
-              src={logoUrl}
-              className="object-cover object-center w-full h-full"
-            />
-          </div>
-        ) : (
-          <SvgOnyxLogo size={44} className="text-theme-primary-05" />
-        )}
+        <SvgOnyxLogo size={44} className="text-theme-primary-05" />
         <div className="w-full mt-3">{children}</div>
       </div>
       {authState === "login" && (
@@ -44,7 +27,7 @@ export default function AuthFlowContainer({
           {footerContent ?? (
             <>
               <Text font="main-ui-body" color="text-03">
-                {t("signupPrompt.text", { appName })}
+                {t("signupPrompt.text", { appName: APP_NAME })}
               </Text>{" "}
               <Link
                 href="/auth/signup"

@@ -202,10 +202,8 @@ function MockEnvironment({
       if (path === "/api/settings")
         return json({
           tier: scenario.community ? "community" : "business",
-          ee_features_enabled: !scenario.community,
           onyx_craft_available: scenario.craftEnabled ?? false,
         });
-      if (path === "/api/enterprise-settings") return json({});
       if (path === "/api/auth/type")
         return json({
           auth_type: "basic",

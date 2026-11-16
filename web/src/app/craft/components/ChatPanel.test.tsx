@@ -23,10 +23,6 @@ const idle = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
-jest.mock("@/lib/analytics/utils", () => ({
-  track: jest.fn(),
-  AnalyticsEvent: { SENT_CRAFT_MESSAGE: "send" },
-}));
 jest.mock("@/providers/CraftStreamingProvider", () => ({
   useCraftStreaming: () => ({
     streamMessage,

@@ -1,10 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  getSourceDisplayName,
-  getSourceMetadata,
-} from "@/lib/connectors/utils";
+import { getSourceDisplayName } from "@/lib/connectors/utils";
 import { useTranslations } from "next-intl";
 import useSWR, { mutate, useSWRConfig } from "swr";
 import { getConnectorOauthRedirectUrl } from "@/lib/connectors/svc";
@@ -22,16 +19,7 @@ import {
   shouldRedirectToOAuth,
 } from "@/lib/credentials/utils";
 import { CredentialCreationMethod } from "@/lib/credentials/types";
-import { prepareOAuthAuthorizationRequest } from "@/lib/oauth_utils";
-import {
-  EE_ENABLED,
-  NEXT_PUBLIC_CLOUD_ENABLED,
-  NEXT_PUBLIC_TEST_ENV,
-} from "@/lib/constants";
-import {
-  oauthSupportedSources,
-  ValidSources,
-} from "@/lib/connectors/types/source";
+import { ValidSources } from "@/lib/connectors/types/source";
 import type {
   AnyCredential,
   CredentialCheckReport,
@@ -160,7 +148,7 @@ export function useCredentialLoad(
 /**
  * Everything one source needs in order to be authenticated against: its
  * saved credentials, the ways it accepts a new one, the fields each way
- * asks for, and the actions that open, create, delete or authorize.
+ * asks for, and the actions that open, create or delete.
  *
  * It replaces the set of fetches, lookups and half-duplicated handlers that
  * every screen touching credentials used to assemble for itself.
@@ -178,19 +166,10 @@ export function useCredentialSetup(sourceType: ValidSources): CredentialSetup {
   const [openMethod, setOpenMethod] = useState<CredentialCreationMethod | null>(
     null
   );
-  const [isAuthorizing, setIsAuthorizing] = useState(false);
 
   const displayName = getSourceDisplayName(sourceType) || sourceType;
   const methods = getCredentialCreationMethods(oauthDetails);
   const spec = getCredentialSpec(sourceType);
-
-  // Two gates used to be kept apart and could disagree: the source list and
-  // the source's own metadata flag. A source has to pass both.
-  const canAuthorize =
-    EE_ENABLED &&
-    (NEXT_PUBLIC_CLOUD_ENABLED || NEXT_PUBLIC_TEST_ENV) &&
-    oauthSupportedSources.some((source) => source === sourceType) &&
-    getSourceMetadata(sourceType).oauthSupported === true;
 
   function close() {
     setOpenMethod(null);
@@ -272,26 +251,6 @@ export function useCredentialSetup(sourceType: ValidSources): CredentialSetup {
     return saved;
   }
 
-  async function authorize(invalidUrlMessage: string): Promise<string | null> {
-    setIsAuthorizing(true);
-    try {
-      // Read at call time: the page can change its own query string, and a
-      // click only ever happens in the browser.
-      const response = await prepareOAuthAuthorizationRequest(
-        sourceType,
-        window.location.href,
-        invalidUrlMessage
-      );
-      if (!response.url) return invalidUrlMessage;
-      window.open(response.url, "_blank", "noopener,noreferrer");
-      return null;
-    } catch (error) {
-      return errorMessage(error);
-    } finally {
-      setIsAuthorizing(false);
-    }
-  }
-
   return {
     displayName,
     credentials,
@@ -301,7 +260,6 @@ export function useCredentialSetup(sourceType: ValidSources): CredentialSetup {
     methods,
     namesMethods: methods.length > 1,
     spec,
-    canAuthorize,
     openMethod,
     open,
     selectMethod,
@@ -309,8 +267,6 @@ export function useCredentialSetup(sourceType: ValidSources): CredentialSetup {
     remove,
     saveSharing,
     refresh,
-    authorize,
-    isAuthorizing,
   };
 }
 

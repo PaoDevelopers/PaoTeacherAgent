@@ -75,11 +75,7 @@ export default function BuildWelcome({
               className="flex flex-row items-baseline gap-2 select-none"
               onClick={handleWordmarkClick}
             >
-              <FoldableLogo
-                onyxBranded
-                size={28}
-                className="translate-y-[6px]"
-              />
+              <FoldableLogo size={28} className="translate-y-[6px]" />
               <Text
                 text05
                 style={{

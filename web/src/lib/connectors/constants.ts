@@ -162,7 +162,6 @@ export interface PartialSourceMetadata {
   category: SourceCategory;
   isPopular?: boolean;
   docs?: string;
-  oauthSupported?: boolean;
   federated?: boolean;
   federatedTooltip?: string;
   // federated connectors store the base source type if it's a source
@@ -180,7 +179,6 @@ const slackMetadata = {
   category: SourceCategory.Messaging,
   isPopular: true,
   docs: `${DOCS_ADMINS_PATH}/connectors/official/slack`,
-  oauthSupported: true,
   // Federated Slack is available as an option but not the default
   federated: true,
   federatedTooltip:
@@ -195,7 +193,6 @@ export const SOURCE_METADATA_MAP: SourceMap = {
     displayName: "Confluence",
     category: SourceCategory.Wiki,
     docs: `${DOCS_ADMINS_PATH}/connectors/official/confluence`,
-    oauthSupported: true,
     isPopular: true,
   },
   lumapps: {
@@ -301,7 +298,6 @@ export const SOURCE_METADATA_MAP: SourceMap = {
     displayName: "Google Drive",
     category: SourceCategory.Storage,
     docs: `${DOCS_ADMINS_PATH}/connectors/official/google_drive/overview`,
-    oauthSupported: true,
     isPopular: true,
   },
   onedrive: {

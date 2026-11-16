@@ -10,7 +10,6 @@ from uuid import UUID
 
 from redis import Redis
 
-from ee.onyx.db.user_tenant_mapping import get_tenant_id_for_email
 from onyx.auth.invited_users import get_invited_users, write_invited_users
 from onyx.configs.app_configs import (
     REDIS_AUTH_KEY_PREFIX,
@@ -24,7 +23,7 @@ from onyx.db.engine.sql_engine import get_session_with_tenant
 from onyx.db.users import get_user_by_email
 from onyx.redis.redis_connector import RedisConnector
 from onyx.redis.redis_pool import RedisPool
-from shared_configs.configs import MULTI_TENANT, POSTGRES_DEFAULT_SCHEMA
+from shared_configs.configs import POSTGRES_DEFAULT_SCHEMA
 from shared_configs.contextvars import (
     CURRENT_TENANT_ID_CONTEXTVAR,
     get_current_tenant_id,
@@ -63,9 +62,7 @@ class OnyxRedisCommand(Enum):
 
 
 def get_user_id(user_email: str) -> tuple[UUID, str]:
-    tenant_id = (
-        get_tenant_id_for_email(user_email) if MULTI_TENANT else POSTGRES_DEFAULT_SCHEMA
-    )
+    tenant_id = POSTGRES_DEFAULT_SCHEMA
 
     with get_session_with_tenant(tenant_id=tenant_id) as session:
         user = get_user_by_email(user_email, session)

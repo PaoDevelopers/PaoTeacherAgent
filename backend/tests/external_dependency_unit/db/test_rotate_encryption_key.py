@@ -18,7 +18,6 @@ import pytest
 from sqlalchemy import LargeBinary, select, text
 from sqlalchemy.orm import Session
 
-from ee.onyx.utils.encryption import _decrypt_bytes, _encrypt_string, _get_trimmed_key
 from onyx.configs.constants import DocumentSource
 from onyx.db.models import (
     Credential,
@@ -30,12 +29,9 @@ from onyx.db.rotate_encryption_key import (
     _discover_encrypted_columns,
     rotate_encryption_key,
 )
-from onyx.utils.variable_functionality import (
-    fetch_versioned_implementation,
-    global_version,
-)
+from onyx.utils.encryption import _aes_key, _decrypt_bytes, _encrypt_string
 
-EE_MODULE = "ee.onyx.utils.encryption"
+ENCRYPTION_MODULE = "onyx.utils.encryption"
 ROTATE_MODULE = "onyx.db.rotate_encryption_key"
 
 OLD_KEY = "o" * 16
@@ -43,18 +39,8 @@ NEW_KEY = "n" * 16
 
 
 @pytest.fixture(autouse=True)
-def _enable_ee() -> Generator[None, None, None]:
-    prev = global_version._is_ee
-    global_version.set_ee()
-    fetch_versioned_implementation.cache_clear()
-    yield
-    global_version._is_ee = prev
-    fetch_versioned_implementation.cache_clear()
-
-
-@pytest.fixture(autouse=True)
 def _clear_key_cache() -> None:
-    _get_trimmed_key.cache_clear()
+    _aes_key.cache_clear()
 
 
 def _raw_credential_bytes(db_session: Session, credential_id: int) -> bytes | None:
@@ -176,7 +162,7 @@ class TestRotateCredential:
     ) -> None:
         with (
             patch(f"{ROTATE_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
-            patch(f"{EE_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
+            patch(f"{ENCRYPTION_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
         ):
             totals = rotate_encryption_key(db_session, old_key=OLD_KEY)
 
@@ -193,7 +179,7 @@ class TestRotateCredential:
     ) -> None:
         with (
             patch(f"{ROTATE_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
-            patch(f"{EE_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
+            patch(f"{ENCRYPTION_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
         ):
             rotate_encryption_key(db_session, old_key=OLD_KEY)
             _ = rotate_encryption_key(db_session, old_key=OLD_KEY)
@@ -210,7 +196,7 @@ class TestRotateCredential:
 
         with (
             patch(f"{ROTATE_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
-            patch(f"{EE_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
+            patch(f"{ENCRYPTION_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
         ):
             totals = rotate_encryption_key(db_session, old_key=OLD_KEY, dry_run=True)
 
@@ -273,7 +259,7 @@ class TestRotateInternetSearchProvider:
     def test_rotates_api_key(self, db_session: Session, isp_id: int) -> None:
         with (
             patch(f"{ROTATE_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
-            patch(f"{EE_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
+            patch(f"{ENCRYPTION_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
         ):
             totals = rotate_encryption_key(db_session, old_key=OLD_KEY)
 
@@ -308,7 +294,7 @@ class TestRotateInternetSearchProvider:
         try:
             with (
                 patch(f"{ROTATE_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
-                patch(f"{EE_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
+                patch(f"{ENCRYPTION_MODULE}.ENCRYPTION_KEY_SECRET", NEW_KEY),
             ):
                 totals = rotate_encryption_key(db_session, old_key=None)
 

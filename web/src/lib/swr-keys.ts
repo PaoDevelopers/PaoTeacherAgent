@@ -61,8 +61,6 @@ export const SWR_KEYS = {
 
   // ── Settings ──────────────────────────────────────────────────────────────
   settings: "/api/settings",
-  enterpriseSettings: "/api/enterprise-settings",
-  customAnalyticsScript: "/api/enterprise-settings/custom-analytics-script",
   authType: "/api/auth/type",
   adminSecuritySettings: "/api/admin/security",
   adminSecurityPinnedFields: "/api/admin/security/pinned-fields",
@@ -103,8 +101,6 @@ export const SWR_KEYS = {
   llmContextualCost: "/api/admin/llm/provider-contextual-cost",
   userUsage: "/api/user/usage",
   costOverrides: "/api/admin/cost-overrides",
-  adminUsageExport: "/api/admin/usage/export",
-  adminSystemUsage: "/api/admin/usage/system",
   adminUsageReset: "/api/admin/usage/reset",
 
   // ── Image Generation ──────────────────────────────────────────────────────
@@ -198,22 +194,14 @@ export const SWR_KEYS = {
   // entries when `?include_api_keys=true`). Used by group create/edit pages so
   // global curators — who cannot hit the admin-only `/accepted/all` and
   // `/invited` endpoints — can still load the member picker.
-  groupMemberCandidates: "/api/manage/users?include_api_keys=true",
   pendingTenantUsers: "/api/tenants/users/pending",
   userCounts: "/api/manage/users/counts",
-
-  // ── API Keys ──────────────────────────────────────────────────────────────
-  adminApiKeys: "/api/admin/api-key",
 
   // ── Groups ────────────────────────────────────────────────────────────────
   adminUserGroups: "/api/manage/admin/user-group",
   adminUserGroupsWithDefault:
     "/api/manage/admin/user-group?include_default=true",
   shareableGroups: "/api/manage/user-groups/minimal",
-  userGroupPermissions: (groupId: number) =>
-    `/api/manage/admin/user-group/${groupId}/permissions`,
-  permissionRegistry: "/api/manage/admin/permissions/registry",
-  scimToken: "/api/admin/enterprise-settings/scim/token",
 
   // ── MCP Servers ───────────────────────────────────────────────────────────
   adminMcpServers: "/api/admin/mcp/servers",
@@ -268,16 +256,6 @@ export const SWR_KEYS = {
   buildSessionApprovals: (sessionId: string) =>
     `/api/build/approvals/sessions/${sessionId}`,
 
-  // ── Token Rate Limits ─────────────────────────────────────────────────────
-  globalTokenRateLimits: "/api/admin/token-rate-limits/global",
-  userTokenRateLimits: "/api/admin/token-rate-limits/users",
-  userGroupTokenRateLimits: "/api/admin/token-rate-limits/user-groups",
-  userGroupTokenRateLimit: (groupId: number) =>
-    `/api/admin/token-rate-limits/user-group/${groupId}`,
-
-  // ── Usage Reports ─────────────────────────────────────────────────────────
-  usageReport: "/api/admin/usage-report",
-
   // ── Web Search ────────────────────────────────────────────────────────────
   webSearchContentProviders: "/api/admin/web-search/content-providers",
   webSearchSearchProviders: "/api/admin/web-search/search-providers",
@@ -288,33 +266,12 @@ export const SWR_KEYS = {
   // ── Prompt shortcuts ──────────────────────────────────────────────────────
   promptShortcuts: "/api/input_prompt",
 
-  // ── Admin Banner ──────────────────────────────────────────────────────────
-  adminBanner: "/api/admin/banner",
-
-  // ── License & Billing ─────────────────────────────────────────────────────
-  license: "/api/license",
-  billingInformationCloud: "/api/tenants/billing-information",
-  billingInformationSelfHosted: "/api/admin/billing/billing-information",
-
-  // ── Admin ─────────────────────────────────────────────────────────────────
-  hooks: "/api/admin/hooks",
-  hookSpecs: "/api/admin/hooks/specs",
-  logExportStatus: (exportId: string) => `/api/admin/log-export/${exportId}`,
-
   // ── Slack Bots ────────────────────────────────────────────────────────────
   slackChannels: "/api/manage/admin/slack-app/channel",
   slackBots: "/api/manage/admin/slack-app/bots",
   slackBot: (botId: number) => `/api/manage/admin/slack-app/bots/${botId}`,
   slackBotConfig: (botId: number) =>
     `/api/manage/admin/slack-app/bots/${botId}/config`,
-
-  // ── Standard Answers (EE) ─────────────────────────────────────────────────
-  standardAnswerCategories: "/api/manage/admin/standard-answer/category",
-  standardAnswers: "/api/manage/admin/standard-answer",
-
-  // ── Query History (EE) ────────────────────────────────────────────────────
-  adminChatSessionHistory: "/api/admin/chat-session-history",
-  adminChatSession: (id: string) => `/api/admin/chat-session-history/${id}`,
 
   // ── MCP Server (per-ID) ───────────────────────────────────────────────────
   adminMcpServer: (id: number) => `/api/admin/mcp/servers/${id}`,

@@ -22,7 +22,6 @@
     "POST /manage/admin/draft-credential/binding-check": "Existing. No registered GATE-2 helper found. Review."
   },
   "get_handler_writes": {
-    "GET /admin/chat-session-history/{chat_session_id}": "Existing. Writes on a GET. Review.",
     "GET /admin/mcp/server/{server_id}/tools": "Existing. Owner-or-admin tool discovery syncs the stored tools. Review.",
     "GET /admin/mcp/server/{server_id}/tools/snapshots": "Existing. Owner-or-admin tool discovery syncs the stored tools. Review.",
     "GET /build/sessions/{session_id}/turns/{turn_id}/events": "Existing. Craft route, outside this change.",
@@ -35,10 +34,6 @@
     "GET /manage/connector/google-drive/callback": "OAuth redirect flow: the provider calls back with GET.",
     "GET /notifications": "Existing. Writes on a GET. Review.",
     "GET /notifications/summary": "Existing. Writes on a GET. Review.",
-    "GET /scim/v2/Groups": "Existing. Writes on a GET. Review.",
-    "GET /scim/v2/Groups/{group_id}": "Existing. Writes on a GET. Review.",
-    "GET /scim/v2/Users": "Existing. Writes on a GET. Review.",
-    "GET /scim/v2/Users/{user_id}": "Existing. Writes on a GET. Review.",
     "GET /settings": "Existing. Writes on a GET. Review."
   }
 }

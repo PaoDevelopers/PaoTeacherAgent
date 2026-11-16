@@ -7,7 +7,6 @@ import LivingMapModal from "@/app/craft/onboarding/components/LivingMapModal";
 import { OnboardingModalController } from "@/app/craft/onboarding/types";
 import ProviderSetupModal from "@/sections/modals/languageModels/ProviderSetupModal";
 import { refreshLlmProviderCaches } from "@/lib/languageModels/cache";
-import { LLMProviderConfiguredSource } from "@/lib/analytics/utils";
 import { useBuildSessionStore } from "@/app/craft/hooks/useBuildSessionStore";
 import { useUser } from "@/providers/UserProvider";
 import { toast } from "@opal/layouts";
@@ -59,7 +58,6 @@ export function BuildOnboardingProvider({
       <ProviderSetupModal
         providerKey={controller.activeProviderKey}
         shouldMarkAsDefault={(controller.llmProviders ?? []).length === 0}
-        analyticsSource={LLMProviderConfiguredSource.CRAFT_ONBOARDING}
         onOpenChange={(open) => {
           if (!open) controller.closeProviderModal();
         }}

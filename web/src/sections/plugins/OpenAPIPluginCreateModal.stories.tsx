@@ -133,9 +133,7 @@ function CreationStory({ scenario = "ready" }: CreationStoryProps) {
       }
       if (path === "/api/auth/type")
         return json({ auth_type: "basic", oauth_enabled: true });
-      if (path === "/api/settings")
-        return json({ tier: "community", ee_features_enabled: false });
-      if (path === "/api/enterprise-settings") return json({});
+      if (path === "/api/settings") return json({ tier: "community" });
       return json({ detail: "No story fixture" }, 404);
     };
     window.fetch = mockFetch;
