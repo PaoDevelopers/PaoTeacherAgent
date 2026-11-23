@@ -48,6 +48,11 @@ class Settings(BaseModel):
     maximum_chat_retention_days: float | None = None
     company_name: str | None = None
     company_description: str | None = None
+    # PaoTeacherAgent: set from the dean's page (onyx/server/pao/api.py).
+    pao_app_name: str | None = None
+    pao_primary_color: str | None = None
+    # 0 = the built-in logo; bumped on each upload so browsers refetch /pao/logo.
+    pao_logo_version: int = 0
     gpu_enabled: bool | None = None
     application_status: ApplicationStatus = ApplicationStatus.ACTIVE
     anonymous_user_enabled: bool | None = None

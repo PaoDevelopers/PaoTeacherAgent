@@ -7,7 +7,7 @@ Onyx's telemetry and its Enterprise Edition (EE) are removed. See "Telemetry and
 
 Our own files (no merge conflicts possible): `compose.yaml`, `Dockerfile`, `.env.example`, `.github/workflows/build-images.yml` (builds our images and pushes them to GHCR), `CUSTOMIZATIONS.md`,
 `backend/onyx/seeding/pao_agents.py`, `backend/onyx/seeding/pao_prompts/`, `backend/onyx/db/pao.py`,
-`web/public/paoteacheragent.svg`, `web/public/yk-pao-logo.png`, `web/src/app/app/components/OnboardingCard.tsx` (and its test), `web/src/app/app/plugins/layout.tsx` (redirects users without admin-panel access to `/app`), `web/src/app/css/paoteacheragent.css`, `web/src/app/fonts/` (woff2 files for Google Sans and DM Mono, with their OFL license texts).
+`web/public/paoteacheragent.svg`, `web/public/yk-pao-logo.png`, `web/src/app/app/components/OnboardingCard.tsx` (and its test), `web/src/app/app/plugins/layout.tsx` (redirects users without admin-panel access to `/app`), `web/src/app/css/paoteacheragent.css`, the dean's page (`backend/onyx/server/pao/api.py`, `web/src/views/admin/DeanPage.tsx`, `web/src/app/admin/dean/`, `web/src/app/pao-logo/route.ts`, `web/src/lib/pao/brand.ts`), `web/src/app/fonts/` (woff2 files for Google Sans and DM Mono, with their OFL license texts).
 
 ## Upstream files changed
 
@@ -15,8 +15,8 @@ Our own files (no merge conflicts possible): `compose.yaml`, `Dockerfile`, `.env
 |------|--------|--------|
 | `README.md` | Replaced with the PaoTeacherAgent README | Our documentation. On merge conflicts, keep ours. |
 | `backend/onyx/configs/app_configs.py` | `POSTGRES_URL` (`postgresql://user:password@host:port/db`), when set, takes the place of the `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_PORT` and `POSTGRES_DB` variables (`parse_postgres_url`) | One connection URL in `.env` |
-| `backend/onyx/setup.py` | Calls `seed_pao_agents` after `setup_postgres` (single tenant) | Built-in agents, their knowledge sync and the DeepSeek provider on every start |
-| `web/lib/opal/src/logos/onyx-logo.tsx` | Onyx mark replaced by an `<image>` of `/yk-pao-logo.png` (the YK Pao School logo, 512px with a transparent background; replace that file to change it) | Branding; whitelabeling is Business-tier in Onyx. Every app surface renders this component. |
+| `backend/onyx/setup.py` | Calls `seed_pao_agents` after `setup_postgres` (single tenant) | Built-in agents, their knowledge sync and the DeepSeek provider on every start (a prompt the dean saved wins over the file) |
+| `web/lib/opal/src/logos/onyx-logo.tsx` | Onyx mark replaced by an `<image>` of `/pao-logo` (the logo uploaded on the dean's page, else `/yk-pao-logo.png`, the YK Pao School logo, 512px with a transparent background) | Branding; whitelabeling is Business-tier in Onyx. Every app surface renders this component. |
 | `web/src/sections/sidebar/AppSidebar.tsx` | Removed the Projects section, its folded popover and new-project modal; the Craft entry shows only when Craft is available (no Business upsell); the Plugins entry shows only to users with admin-panel access | Teachers do not use Projects or plugins; Business and Enterprise features are hidden, not shown locked |
 | `web/src/refresh-components/avatars/CustomAgentAvatar.tsx` | An `icon_name` that is an emoji is drawn as text, without the octagon frame | The built-in agents use 📘 and 🌱; Onyx has no emoji icons |
 | `web/src/lib/tools/components/ToolsPopover.tsx` | The chat Actions menu lists the Plugins row only for users with admin-panel access | Plugins are limited to admins |
@@ -26,6 +26,9 @@ Our own files (no merge conflicts possible): `compose.yaml`, `Dockerfile`, `.env
 | `web/src/sections/sidebar/AdminSidebar.tsx` | Admin entries above the workspace tier are dropped, not listed greyed out under an upsell tooltip | Business and Enterprise features are hidden |
 | `web/src/lib/tiers/hooks.ts` | `useTierLockedOptions` returns no options below the tier (was an "Upgrade Plan" row plus disabled options) | Business and Enterprise options are hidden |
 | `web/src/views/admin/connectors/AddConnectorPage/sections/ConnectorSettingsSection.tsx` | Document access and manage-access fields render only on Business or higher; the form keeps its `access_type: "public"` default | Business features are hidden |
+| `backend/onyx/server/settings/models.py`, `backend/onyx/main.py`, `backend/onyx/server/auth_check.py` | `Settings` gains `pao_app_name`, `pao_primary_color`, `pao_logo_version`; the `/admin/pao/*` and `/pao/logo` routers are mounted; `GET /pao/logo` is public | The dean's page (`/admin/dean`): add or remove agent knowledge files, edit each agent's instructions (prompt), set the site name, main colour and logo. Files from `PAO_KNOWLEDGE_DIR` show as built in and cannot be removed there. A saved prompt is kept in the key-value store (`pao_custom_prompts`) and wins over `pao_prompts/*.md` at every start; "Back to default" removes it. |
+| `web/src/lib/admin-routes.ts`, `admin-sidebar-utils.ts`, `adminNavLabels.tsx`, `web/src/i18n/messages/{en,zh}.json` | New first sidebar entry "School Dashboard" (`admin.dean.*` messages) | The dean's page |
+| `web/src/app/layout.tsx`, `web/src/lib/settings/{hooks,types}.ts` | Injects the chosen brand colour as CSS (`brandCss`); favicon is `/pao-logo`; `appName` is `pao_app_name` when set | Branding from the dean's page |
 | `web/lib/opal/src/logos/onyx-typed.tsx` | "Onyx" wordmark replaced by "PaoTeacherAgent" | Branding (sidebar, login page) |
 | `web/src/lib/constants.ts` | `APP_NAME = "PaoTeacherAgent"`, the app name everywhere (`useSettings().appName`, `fetchSettingsSS`, the auth pages, the admin tab title) | Branding |
 | `web/src/app/layout.tsx`, `web/src/app/admin/layout.tsx` | Favicon `/onyx.ico` → `/yk-pao-logo.png`; admin tab title "Admin — PaoTeacherAgent" | Browser tab title and icon |

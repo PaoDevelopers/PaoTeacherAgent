@@ -19,6 +19,8 @@ import { getLocale, getMessages } from "next-intl/server";
 import { DirectionProvider } from "@radix-ui/react-direction";
 import { cookies } from "next/headers";
 import { htmlDirForLocale, messageLocale, type HtmlDir } from "@/i18n/config";
+import { fetchSettingsSS } from "@/lib/settings/svcSS";
+import { brandCss } from "@/lib/pao/brand";
 
 // Fonts are vendored in ./fonts (SIL OFL texts beside them), so builds and
 // browsers never contact Google. Each family is split in two files by
@@ -94,7 +96,7 @@ const dmMonoLatinExt = localFont({
 // time — many child routes use cookies() which requires dynamic rendering.
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { icons: { icon: "/yk-pao-logo.png" } };
+export const metadata: Metadata = { icons: { icon: "/pao-logo" } };
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -109,6 +111,8 @@ export default async function Layout({ children }: LayoutProps) {
   // to Intl, not the document. UserProvider refreshes when <html lang> differs
   // from the effective language.
   const language = messageLocale(locale);
+  // Brand colour chosen on the dean page (/admin/dean); unset keeps paoteacheragent.css.
+  const brand = brandCss((await fetchSettingsSS())?.settings.pao_primary_color);
 
   let dir: HtmlDir = htmlDirForLocale(language);
   // Dev-only escape hatch so QA can preview either direction without
@@ -145,6 +149,7 @@ export default async function Layout({ children }: LayoutProps) {
       suppressHydrationWarning
     >
       <head>
+        {brand && <style dangerouslySetInnerHTML={{ __html: brand }} />}
         <meta
           name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, interactive-widget=resizes-content"

@@ -79,6 +79,17 @@ export interface AdminRouteEntry {
 }
 
 export const ADMIN_ROUTES = {
+  // ── School dashboard (ours): knowledge files and look of the site ──
+  DEAN: {
+    path: "/admin/dean",
+    icon: SvgOnyxOctagon,
+    title: "School Dashboard",
+    sidebarLabel: "School Dashboard",
+    requiredPermission: Permission.FULL_ADMIN_PANEL_ACCESS,
+    section: "",
+    requiredTier: null,
+    visibleWhen: null,
+  },
   // ── System Configuration (unlabeled section) ──────────────────────
   LLM_MODELS: {
     path: "/admin/language-models",

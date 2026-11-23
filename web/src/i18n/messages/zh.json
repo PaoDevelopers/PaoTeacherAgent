@@ -8685,6 +8685,75 @@
         "scoped": "仅限新增或更改的项目",
         "failures": "{count, plural, other {失败 # 次}}"
       }
+    },
+    "dean": {
+      "header": {
+        "description": "更新智能助手使用的文件和指令，并设置网站外观。侧边栏中的其他项目属于高级设置。"
+      },
+      "knowledge": {
+        "title": "助手掌握的资料",
+        "none": "未找到内置助手。服务器启动时会自动创建。"
+      },
+      "prompts": {
+        "title": "智能助手的行为方式",
+        "intro": "这是每个助手在所有对话中遵循的指令。修改后，老师提出的下一个问题就会生效，服务器重启后也会保留。",
+        "label": "{name}的指令",
+        "default": "正在使用标准指令",
+        "custom": "正在使用您自己的指令",
+        "save": "保存指令",
+        "reset": "恢复默认",
+        "resetConfirm": "要用标准指令替换您为{name}设置的指令吗？此操作无法撤销。",
+        "saved": "指令已保存",
+        "resetDone": "已恢复标准指令",
+        "failed": "无法保存指令。"
+      },
+      "files": {
+        "empty": "还没有文件。把文件拖到这里，或点击“添加文件”。",
+        "builtIn": "内置（来自服务器文件夹）",
+        "ready": "可用",
+        "processing": "正在读取文件…约一分钟后可用",
+        "failed": "无法读取此文件"
+      },
+      "upload": {
+        "button": "添加文件",
+        "hint": "支持 PDF、Word、PowerPoint、Excel、文本等文件。老师们立即可用，无需重启。",
+        "added": "{count, plural, other {已添加 # 个文件}}",
+        "rejected": "以下文件未被接受：{names}",
+        "failed": "无法添加文件。"
+      },
+      "remove": {
+        "tooltip": "移除文件",
+        "confirm": "确定从此助手中移除“{name}”吗？老师们将无法再根据它获得回答。",
+        "done": "已移除 {name}",
+        "failed": "无法移除文件。"
+      },
+      "appearance": {
+        "title": "网站外观",
+        "save": "保存",
+        "reset": "恢复默认",
+        "saved": "已保存",
+        "failed": "无法保存。",
+        "name": {
+          "label": "网站名称",
+          "hint": "显示在侧边栏、登录页和浏览器标签页。留空则使用 PaoTeacherAgent。",
+          "placeholder": "PaoTeacherAgent"
+        },
+        "color": {
+          "label": "主色",
+          "hint": "用于按钮和高亮。过浅的颜色会自动加深，以保证文字清晰。"
+        }
+      },
+      "logo": {
+        "label": "标志",
+        "upload": "上传标志",
+        "reset": "使用默认标志",
+        "hint": "PNG、JPEG 或 WebP，小于 1 MB。透明背景的方形图片效果最佳。",
+        "saved": "标志已更新",
+        "failed": "无法更改标志。"
+      },
+      "footer": {
+        "advanced": "语言模型、用户等高级设置在侧边栏中。平时通常用不到。"
+      }
     }
   },
   "agents": {
@@ -14026,6 +14095,9 @@
         },
         "webSearch": {
           "label": "网页搜索"
+        },
+        "dean": {
+          "label": "学校管理"
         }
       },
       "sections": {
