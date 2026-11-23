@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import re
 import urllib.parse
 from datetime import datetime, timezone
 from typing import cast
@@ -167,6 +168,17 @@ MASK_CREDENTIAL_PREFIX = (
 )
 
 AUTH_BACKEND = AuthBackend(os.environ.get("AUTH_BACKEND") or AuthBackend.REDIS.value)
+
+
+def parse_email_list(raw: str | None) -> list[str]:
+    """Comma, semicolon or whitespace separated addresses, lower-cased."""
+    return [e.lower() for e in re.split(r"[,;\s]+", raw or "") if e]
+
+
+# PaoTeacherAgent: the dean's address(es). An account created with one of these
+# emails (e.g. at first Microsoft sign-in) becomes an admin; others become
+# regular users, except the very first account of the site.
+DEAN_EMAILS = parse_email_list(os.environ.get("DEAN_EMAILS"))
 
 SESSION_EXPIRE_TIME_SECONDS = int(
     os.environ.get("SESSION_EXPIRE_TIME_SECONDS")
