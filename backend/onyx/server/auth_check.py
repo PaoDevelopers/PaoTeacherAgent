@@ -97,6 +97,8 @@ PUBLIC_ENDPOINT_SPECS = [
     # anonymous user on cloud
     ("/tenants/anonymous-user", {"POST"}),
     ("/metrics", {"GET"}),  # added by prometheus_fastapi_instrumentator
+    # PaoTeacherAgent: the school logo is shown on the login page
+    ("/pao/logo", {"GET"}),
     # craft webapp proxy — access enforced per-session via sharing_scope in handler
     ("/build/sessions/{session_id}/webapp", {"GET"}),
     ("/build/sessions/{session_id}/webapp/{path:path}", {"GET"}),

@@ -1,6 +1,6 @@
 import type { IconProps } from "@opal/types";
 // PaoTeacherAgent: renders the YK Pao School logo from /public/yk-pao-logo.png.
-// Replace that file to change the logo everywhere (see CUSTOMIZATIONS.md).
+// /pao-logo serves the logo uploaded on the dean page, else that file (see CUSTOMIZATIONS.md).
 const SvgOnyxLogo = ({ size, ...props }: IconProps) => (
   <svg
     height={size}
@@ -12,7 +12,7 @@ const SvgOnyxLogo = ({ size, ...props }: IconProps) => (
     {...props}
   >
     <image
-      href="/yk-pao-logo.png"
+      href="/pao-logo"
       width="64"
       height="64"
       preserveAspectRatio="xMidYMid meet"

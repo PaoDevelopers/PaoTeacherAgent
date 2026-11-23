@@ -98,6 +98,7 @@ from onyx.auth.signup_rate_limit import enforce_signup_rate_limit
 from onyx.configs.app_configs import (
     AUTH_BACKEND,
     AUTH_COOKIE_EXPIRE_TIME_SECONDS,
+    DEAN_EMAILS,
     DEV_MODE,
     EMAIL_CONFIGURED,
     INTEGRATION_TESTS_MODE,
@@ -1124,7 +1125,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             # Assign user to the appropriate default group (Admin or Basic).
             # Must happen inside the try block while tenant context is active,
             # otherwise get_session_with_current_tenant() targets the wrong schema.
-            is_admin = user_count == 1 or user.email in get_default_admin_user_emails()
+            is_admin = (
+                user_count == 1 or user.email.lower() in get_default_admin_user_emails()
+            )
             with get_session_with_current_tenant() as db_session:
                 assign_user_to_default_groups__no_commit(
                     db_session, user, is_admin=is_admin
@@ -1141,7 +1144,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             AuditOutcome.SUCCESS,
             actor=AuditActor(user_id=str(user.id), email=user.email),
             # This is the only record of the first-user and
-            # DEFAULT_ADMIN_USER_EMAILS admin grants; neither one goes through
+            # DEAN_EMAILS admin grants; neither one goes through
             # the admin-access route.
             extra={"is_admin": is_admin},
         )
@@ -2530,8 +2533,8 @@ current_user_from_websocket_cookie._is_websocket_auth_dependency = True  # ty: i
 
 
 def get_default_admin_user_emails_() -> list[str]:
-    # No default seeding available for Onyx MIT
-    return []
+    # PaoTeacherAgent: the dean's address(es) from DEAN_EMAILS (lower-cased).
+    return DEAN_EMAILS
 
 
 STATE_TOKEN_AUDIENCE = "fastapi-users:oauth-state"

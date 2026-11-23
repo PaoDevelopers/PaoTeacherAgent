@@ -64,7 +64,7 @@ export function useSettings(): AppSettings {
 
   return {
     ...core,
-    appName: APP_NAME,
+    appName: core.pao_app_name || APP_NAME,
     vectorDbEnabled:
       !settingsLoading && !settingsError && core.vector_db_enabled !== false,
     isLoading: settingsLoading,

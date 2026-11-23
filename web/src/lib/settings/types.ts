@@ -22,6 +22,10 @@ export interface Settings {
   maximum_chat_retention_days?: number | null;
   company_name?: string | null;
   company_description?: string | null;
+  /** PaoTeacherAgent: set on the dean page (/admin/dean). */
+  pao_app_name?: string | null;
+  pao_primary_color?: string | null;
+  pao_logo_version?: number;
   notifications: Notification[];
   needs_reindexing: boolean;
   gpu_enabled: boolean;
@@ -161,7 +165,7 @@ export function toSettings({
  * Extends `Settings` with pre-computed derived fields.
  */
 export interface AppSettings extends Settings {
-  /** Always APP_NAME ("PaoTeacherAgent"). */
+  /** The name set on the dean page, else APP_NAME ("PaoTeacherAgent"). */
   appName: string;
   /** False when DISABLE_VECTOR_DB is set server-side. */
   vectorDbEnabled: boolean;

@@ -1,6 +1,7 @@
 """PaoTeacherAgent: built-in agents, created or updated on every api_server start.
 
-- Policy Assistant and Behaviour Assistant, with prompts from pao_prompts/.
+- Policy Assistant and Behaviour Assistant, with prompts from pao_prompts/ (or the
+  prompt the dean saved on /admin/dean, which wins; see KV_CUSTOM_PROMPTS).
 - Each agent's knowledge files are synced from a folder (PAO_KNOWLEDGE_DIR/<folder>):
   new or changed files are uploaded, removed files are detached. Files an admin
   attaches in the agent editor are kept.
@@ -55,6 +56,9 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_MODEL = "deepseek-flash"
 # The persona -> {file name: {sha256, user_file id}} of the files this module attached.
 KV_MANAGED_FILES = "pao_seeded_knowledge_files"
+# agent name -> prompt text the dean saved on /admin/dean. It wins over the file in
+# pao_prompts/ at every start; resetting an agent on that page removes its entry.
+KV_CUSTOM_PROMPTS = "pao_custom_prompts"
 # Images reach the model as if the teacher sent them; .doc has no text extractor.
 SKIP_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".doc"}
 
@@ -88,6 +92,17 @@ AGENTS: list[dict[str, Any]] = [
         ],
     },
 ]
+
+
+def default_prompt(agent: dict[str, Any]) -> str:
+    return (PROMPTS_DIR / agent["prompt"]).read_text()
+
+
+def load_custom_prompts() -> dict[str, str]:
+    try:
+        return dict(get_kv_store().load(KV_CUSTOM_PROMPTS))  # type: ignore[arg-type]
+    except KvKeyNotFoundError:
+        return {}
 
 
 def _ensure_deepseek(db_session: Session) -> None:
@@ -173,6 +188,7 @@ def seed_pao_agents(db_session: Session) -> None:
         all_managed = {}
 
     read_file_tool = get_tool_by_name("read_file", db_session)
+    custom_prompts = load_custom_prompts()
     any_uploaded = False
     for agent in AGENTS:
         persona_id = get_persona_id_by_name(db_session, agent["name"])
@@ -208,7 +224,7 @@ def seed_pao_agents(db_session: Session) -> None:
             starter_messages=[
                 StarterMessage(name=q, message=q) for q in agent["starters"]
             ],
-            system_prompt=(PROMPTS_DIR / agent["prompt"]).read_text(),
+            system_prompt=custom_prompts.get(agent["name"]) or default_prompt(agent),
             task_prompt="",
             datetime_aware=True,
             is_public=True,

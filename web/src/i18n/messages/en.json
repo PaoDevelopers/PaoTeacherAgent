@@ -8685,6 +8685,75 @@
         "scoped": "Added or changed items only",
         "failures": "{count, plural, one {# failure} other {# failures}}"
       }
+    },
+    "dean": {
+      "header": {
+        "description": "Keep the agents' files and instructions up to date and choose how the site looks. Everything else in the sidebar is for advanced setup."
+      },
+      "knowledge": {
+        "title": "What the agents know",
+        "none": "No built-in agents were found. They are created when the server starts."
+      },
+      "prompts": {
+        "title": "How the agents behave",
+        "intro": "These are the instructions each agent follows in every chat. Changes apply to the next question a teacher asks. They are kept when the server restarts.",
+        "label": "Instructions for {name}",
+        "default": "Using the standard instructions",
+        "custom": "Using your own instructions",
+        "save": "Save instructions",
+        "reset": "Back to default",
+        "resetConfirm": "Replace your instructions for {name} with the standard ones? This cannot be undone.",
+        "saved": "Instructions saved",
+        "resetDone": "Back to the standard instructions",
+        "failed": "Could not save the instructions."
+      },
+      "files": {
+        "empty": "No files yet. Drop files here or press Add files.",
+        "builtIn": "Built in (from the server's folder)",
+        "ready": "Ready",
+        "processing": "Reading the file… it can be used in a minute",
+        "failed": "Could not read this file"
+      },
+      "upload": {
+        "button": "Add files",
+        "hint": "PDF, Word, PowerPoint, Excel, text and similar files. Teachers get new files right away; no restart needed.",
+        "added": "{count, plural, one {# file added} other {# files added}}",
+        "rejected": "These files were not accepted: {names}",
+        "failed": "Could not add the files."
+      },
+      "remove": {
+        "tooltip": "Remove file",
+        "confirm": "Remove \"{name}\" from this agent? Teachers will no longer get answers from it.",
+        "done": "Removed {name}",
+        "failed": "Could not remove the file."
+      },
+      "appearance": {
+        "title": "How the site looks",
+        "save": "Save",
+        "reset": "Back to default",
+        "saved": "Saved",
+        "failed": "Could not save.",
+        "name": {
+          "label": "Site name",
+          "hint": "Shown in the sidebar, the login page and the browser tab. Leave empty for PaoTeacherAgent.",
+          "placeholder": "PaoTeacherAgent"
+        },
+        "color": {
+          "label": "Main colour",
+          "hint": "Buttons and highlights. Very light colours are darkened so text stays readable."
+        }
+      },
+      "logo": {
+        "label": "Logo",
+        "upload": "Upload logo",
+        "reset": "Use the default logo",
+        "hint": "PNG, JPEG or WebP under 1 MB. A square image on a transparent background looks best.",
+        "saved": "Logo updated",
+        "failed": "Could not change the logo."
+      },
+      "footer": {
+        "advanced": "Language models, users and other advanced settings are in the sidebar. Most days you will not need them."
+      }
     }
   },
   "agents": {
@@ -14026,6 +14095,9 @@
         },
         "webSearch": {
           "label": "Web Search"
+        },
+        "dean": {
+          "label": "School Dashboard"
         }
       },
       "sections": {
